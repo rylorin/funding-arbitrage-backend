@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import Joi from 'joi';
 import { FundingRate } from '../models/index';
 import { vestExchange } from '../services/exchanges/VestExchange';
+import { hyperliquidExchange } from '../services/exchanges/HyperliquidExchange';
+import { woofiExchange } from '../services/exchanges/WoofiExchange';
+import { extendedExchange } from '../services/exchanges/ExtendedExchange';
 import { TokenSymbol, ArbitrageOpportunity } from '../types/index';
 import { AuthenticatedRequest } from '../middleware/auth';
 
@@ -191,18 +194,23 @@ export const getExchangeStatus = async (_req: Request, res: Response): Promise<v
         lastUpdate: new Date(),
         supportedTokens: ['BTC', 'ETH', 'SOL', 'ARB', 'OP'],
       },
-      // TODO: Add other exchanges when implemented
       {
         name: 'hyperliquid',
-        isConnected: false,
-        lastUpdate: null,
+        isConnected: hyperliquidExchange.isConnected,
+        lastUpdate: new Date(),
         supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'ARB'],
       },
       {
         name: 'orderly',
-        isConnected: false,
-        lastUpdate: null,
+        isConnected: woofiExchange.isConnected,
+        lastUpdate: new Date(),
         supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC'],
+      },
+      {
+        name: 'extended',
+        isConnected: extendedExchange.isConnected,
+        lastUpdate: new Date(),
+        supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX'],
       },
     ];
 
@@ -258,6 +266,93 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
         }
       } catch (error) {
         console.error('Error updating Vest rates:', error);
+      }
+    }
+
+    // Update Hyperliquid rates
+    if (hyperliquidExchange.isConnected) {
+      try {
+        const hyperliquidRates = await hyperliquidExchange.getFundingRates(tokensToUpdate);
+        for (const rate of hyperliquidRates) {
+          const upsertData: any = {
+            exchange: rate.exchange as any,
+            token: rate.token as any,
+            fundingRate: rate.fundingRate,
+            nextFunding: rate.nextFunding,
+            timestamp: rate.timestamp,
+          };
+          
+          if (rate.markPrice !== undefined) {
+            upsertData.markPrice = rate.markPrice;
+          }
+          
+          if (rate.indexPrice !== undefined) {
+            upsertData.indexPrice = rate.indexPrice;
+          }
+          
+          await FundingRate.upsert(upsertData);
+          updatedRates.push(rate);
+        }
+      } catch (error) {
+        console.error('Error updating Hyperliquid rates:', error);
+      }
+    }
+
+    // Update Woofi rates
+    if (woofiExchange.isConnected) {
+      try {
+        const woofiRates = await woofiExchange.getFundingRates(tokensToUpdate);
+        for (const rate of woofiRates) {
+          const upsertData: any = {
+            exchange: rate.exchange as any,
+            token: rate.token as any,
+            fundingRate: rate.fundingRate,
+            nextFunding: rate.nextFunding,
+            timestamp: rate.timestamp,
+          };
+          
+          if (rate.markPrice !== undefined) {
+            upsertData.markPrice = rate.markPrice;
+          }
+          
+          if (rate.indexPrice !== undefined) {
+            upsertData.indexPrice = rate.indexPrice;
+          }
+          
+          await FundingRate.upsert(upsertData);
+          updatedRates.push(rate);
+        }
+      } catch (error) {
+        console.error('Error updating Woofi rates:', error);
+      }
+    }
+
+    // Update Extended rates
+    if (extendedExchange.isConnected) {
+      try {
+        const extendedRates = await extendedExchange.getFundingRates(tokensToUpdate);
+        for (const rate of extendedRates) {
+          const upsertData: any = {
+            exchange: rate.exchange as any,
+            token: rate.token as any,
+            fundingRate: rate.fundingRate,
+            nextFunding: rate.nextFunding,
+            timestamp: rate.timestamp,
+          };
+          
+          if (rate.markPrice !== undefined) {
+            upsertData.markPrice = rate.markPrice;
+          }
+          
+          if (rate.indexPrice !== undefined) {
+            upsertData.indexPrice = rate.indexPrice;
+          }
+          
+          await FundingRate.upsert(upsertData);
+          updatedRates.push(rate);
+        }
+      } catch (error) {
+        console.error('Error updating Extended rates:', error);
       }
     }
 

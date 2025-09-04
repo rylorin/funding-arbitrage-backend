@@ -1,6 +1,9 @@
 import cron from 'node-cron';
 import { FundingRate } from '../models/index';
 import { vestExchange } from '../services/exchanges/VestExchange';
+import { hyperliquidExchange } from '../services/exchanges/HyperliquidExchange';
+import { woofiExchange } from '../services/exchanges/WoofiExchange';
+import { extendedExchange } from '../services/exchanges/ExtendedExchange';
 import { getWebSocketHandlers } from '../websocket/handlers';
 import { TokenSymbol, FundingRateData, JobResult } from '../types/index';
 
@@ -100,9 +103,127 @@ export class FundingRateUpdater {
         errors.push('Vest exchange not connected');
       }
 
+      // Update Hyperliquid rates
+      if (hyperliquidExchange.isConnected) {
+        try {
+          const hyperliquidRates = await hyperliquidExchange.getFundingRates(tokensToUpdate);
+          
+          for (const rate of hyperliquidRates) {
+            try {
+              const upsertData: any = {
+                exchange: rate.exchange as any,
+                token: rate.token as any,
+                fundingRate: rate.fundingRate,
+                nextFunding: rate.nextFunding,
+                timestamp: rate.timestamp,
+              };
+              
+              if (rate.markPrice !== undefined) {
+                upsertData.markPrice = rate.markPrice;
+              }
+              
+              if (rate.indexPrice !== undefined) {
+                upsertData.indexPrice = rate.indexPrice;
+              }
+              
+              await FundingRate.upsert(upsertData);
+              updatedRates.push(rate);
+            } catch (dbError) {
+              console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
+              errors.push(`Database error for ${rate.token}/${rate.exchange}`);
+            }
+          }
+
+          console.log(`✅ Updated ${hyperliquidRates.length} rates from Hyperliquid`);
+        } catch (exchangeError) {
+          console.error('Error fetching Hyperliquid rates:', exchangeError);
+          errors.push('Hyperliquid exchange error');
+        }
+      } else {
+        errors.push('Hyperliquid exchange not connected');
+      }
+
+      // Update Woofi rates
+      if (woofiExchange.isConnected) {
+        try {
+          const woofiRates = await woofiExchange.getFundingRates(tokensToUpdate);
+          
+          for (const rate of woofiRates) {
+            try {
+              const upsertData: any = {
+                exchange: rate.exchange as any,
+                token: rate.token as any,
+                fundingRate: rate.fundingRate,
+                nextFunding: rate.nextFunding,
+                timestamp: rate.timestamp,
+              };
+              
+              if (rate.markPrice !== undefined) {
+                upsertData.markPrice = rate.markPrice;
+              }
+              
+              if (rate.indexPrice !== undefined) {
+                upsertData.indexPrice = rate.indexPrice;
+              }
+              
+              await FundingRate.upsert(upsertData);
+              updatedRates.push(rate);
+            } catch (dbError) {
+              console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
+              errors.push(`Database error for ${rate.token}/${rate.exchange}`);
+            }
+          }
+
+          console.log(`✅ Updated ${woofiRates.length} rates from Woofi`);
+        } catch (exchangeError) {
+          console.error('Error fetching Woofi rates:', exchangeError);
+          errors.push('Woofi exchange error');
+        }
+      } else {
+        errors.push('Woofi exchange not connected');
+      }
+
+      // Update Extended rates
+      if (extendedExchange.isConnected) {
+        try {
+          const extendedRates = await extendedExchange.getFundingRates(tokensToUpdate);
+          
+          for (const rate of extendedRates) {
+            try {
+              const upsertData: any = {
+                exchange: rate.exchange as any,
+                token: rate.token as any,
+                fundingRate: rate.fundingRate,
+                nextFunding: rate.nextFunding,
+                timestamp: rate.timestamp,
+              };
+              
+              if (rate.markPrice !== undefined) {
+                upsertData.markPrice = rate.markPrice;
+              }
+              
+              if (rate.indexPrice !== undefined) {
+                upsertData.indexPrice = rate.indexPrice;
+              }
+              
+              await FundingRate.upsert(upsertData);
+              updatedRates.push(rate);
+            } catch (dbError) {
+              console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
+              errors.push(`Database error for ${rate.token}/${rate.exchange}`);
+            }
+          }
+
+          console.log(`✅ Updated ${extendedRates.length} rates from Extended`);
+        } catch (exchangeError) {
+          console.error('Error fetching Extended rates:', exchangeError);
+          errors.push('Extended exchange error');
+        }
+      } else {
+        errors.push('Extended exchange not connected');
+      }
+
       // TODO: Add other exchange updates here
-      // if (hyperliquidExchange.isConnected) { ... }
-      // if (orderlyExchange.isConnected) { ... }
 
       // Clean up old rates (keep last 7 days)
       const cutoffDate = new Date();

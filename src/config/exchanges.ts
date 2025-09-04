@@ -53,15 +53,15 @@ export const exchangeEndpoints = {
   },
   orderly: {
     baseUrl: process.env.NODE_ENV === 'production'
-      ? 'https://api-evm.orderly.org'
-      : 'https://testnet-api-evm.orderly.org',
+      ? 'https://api.orderly.org'
+      : 'https://testnet-api.orderly.org',
     websocket: process.env.NODE_ENV === 'production'
       ? 'wss://ws-evm.orderly.org'
       : 'wss://testnet-ws-evm.orderly.org',
   },
   extended: {
-    baseUrl: 'https://api.woo.org',
-    websocket: 'wss://wss.woo.org/ws/stream',
+    baseUrl: 'https://api.starknet.extended.exchange',
+    websocket: 'wss://api.starknet.extended.exchange/ws',
   },
   paradex: {
     baseUrl: process.env.NODE_ENV === 'production'
