@@ -237,6 +237,7 @@ export class AutoCloser {
       trades.push({
         userId: position.userId,
         positionId: position.id,
+        action: 'CLOSE' as const,
         exchange: position.longExchange,
         token: position.token,
         side: 'close_long' as const,
@@ -253,6 +254,7 @@ export class AutoCloser {
       trades.push({
         userId: position.userId,
         positionId: position.id,
+        action: 'CLOSE' as const,
         exchange: position.shortExchange,
         token: position.token,
         side: 'close_short' as const,

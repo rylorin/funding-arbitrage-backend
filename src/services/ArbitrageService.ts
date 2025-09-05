@@ -183,7 +183,7 @@ export class ArbitrageService {
           unrealizedPnL += await shortExchange.getPositionPnL(position.shortPositionId);
         }
       } catch (error) {
-        console.warn('Could not fetch unrealized PnL from exchanges:', error.message);
+        console.warn('Could not fetch unrealized PnL from exchanges:', error instanceof Error ? error.message : 'Unknown error');
       }
       
       return fundingFeesReceived + unrealizedPnL;

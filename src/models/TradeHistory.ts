@@ -8,14 +8,16 @@ interface TradeHistoryAttributes {
   id: string;
   userId: string;
   positionId: string;
+  action: 'OPEN' | 'CLOSE' | 'PARTIAL_CLOSE';
   exchange: ExchangeName;
   token: TokenSymbol;
-  side: 'long' | 'short' | 'close_long' | 'close_short';
+  side: 'long' | 'short' | 'close_long' | 'close_short' | 'DELTA_NEUTRAL' | 'AUTO_CLOSE';
   size: number;
   price: number;
   fee: number;
-  externalTradeId: string;
+  externalTradeId?: string;
   timestamp: Date;
+  metadata?: any;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,14 +31,16 @@ class TradeHistory extends Model<TradeHistoryAttributes, TradeHistoryCreationAtt
   public id!: string;
   public userId!: string;
   public positionId!: string;
+  public action!: 'OPEN' | 'CLOSE' | 'PARTIAL_CLOSE';
   public exchange!: ExchangeName;
   public token!: TokenSymbol;
-  public side!: 'long' | 'short' | 'close_long' | 'close_short';
+  public side!: 'long' | 'short' | 'close_long' | 'close_short' | 'DELTA_NEUTRAL' | 'AUTO_CLOSE';
   public size!: number;
   public price!: number;
   public fee!: number;
-  public externalTradeId!: string;
+  public externalTradeId?: string;
   public timestamp!: Date;
+  public metadata?: any;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
@@ -101,6 +105,10 @@ TradeHistory.init(
         key: 'id',
       },
     },
+    action: {
+      type: DataTypes.ENUM('OPEN', 'CLOSE', 'PARTIAL_CLOSE'),
+      allowNull: false,
+    },
     exchange: {
       type: DataTypes.ENUM('vest', 'hyperliquid', 'orderly', 'extended', 'paradex', 'backpack', 'hibachi'),
       allowNull: false,
@@ -110,7 +118,7 @@ TradeHistory.init(
       allowNull: false,
     },
     side: {
-      type: DataTypes.ENUM('long', 'short', 'close_long', 'close_short'),
+      type: DataTypes.ENUM('long', 'short', 'close_long', 'close_short', 'DELTA_NEUTRAL', 'AUTO_CLOSE'),
       allowNull: false,
     },
     size: {
@@ -134,12 +142,16 @@ TradeHistory.init(
     },
     externalTradeId: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     timestamp: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+    },
+    metadata: {
+      type: DataTypes.JSON,
+      allowNull: true,
     },
     createdAt: {
       type: DataTypes.DATE,

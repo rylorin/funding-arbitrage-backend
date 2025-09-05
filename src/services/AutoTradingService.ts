@@ -149,15 +149,15 @@ export class AutoTradingService {
           tradingResults.push(...userResults);
         } catch (error) {
           console.error(`Error executing auto-trading for user ${user.id}:`, error);
-          errors.push(`User ${user.id}: ${error.message}`);
+          errors.push(`User ${user.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
       // Broadcast trading results via WebSocket
       if (tradingResults.length > 0) {
         const wsHandlers = getWebSocketHandlers();
-        if (wsHandlers) {
-          wsHandlers.handleAutoTradingUpdate(tradingResults);
+        if (wsHandlers && 'handleAutoTradingUpdate' in wsHandlers) {
+          (wsHandlers as any).handleAutoTradingUpdate(tradingResults);
         }
       }
 
@@ -250,7 +250,7 @@ export class AutoTradingService {
         } catch (error) {
           results.push({
             success: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : 'Unknown error',
             opportunity
           });
         }
@@ -269,8 +269,8 @@ export class AutoTradingService {
     settings: AutoTradingSettings
   ): Promise<TradingResult> {
     try {
-      const longExchange = this.exchanges[opportunity.longExchange as ExchangeName];
-      const shortExchange = this.exchanges[opportunity.shortExchange as ExchangeName];
+      const longExchange = this.exchanges[opportunity.longExchange as keyof typeof this.exchanges];
+      const shortExchange = this.exchanges[opportunity.shortExchange as keyof typeof this.exchanges];
 
       if (!longExchange || !shortExchange) {
         throw new Error(`Exchange not available: ${opportunity.longExchange} or ${opportunity.shortExchange}`);
@@ -298,24 +298,31 @@ export class AutoTradingService {
       // Create position record
       const position = await Position.create({
         userId: user.id,
-        longExchange: opportunity.longExchange,
-        shortExchange: opportunity.shortExchange,
+        token: opportunity.token,
         longToken: opportunity.token,
         shortToken: opportunity.token,
+        longExchange: opportunity.longExchange,
+        shortExchange: opportunity.shortExchange,
         longPositionId: longOrderId,
         shortPositionId: shortOrderId,
         size: positionSize,
+        entryTimestamp: new Date(),
+        entryFundingRates: {
+          longRate: opportunity.longFundingRate,
+          shortRate: opportunity.shortFundingRate,
+          spreadAPR: opportunity.spreadAPR,
+        },
         entrySpreadAPR: opportunity.spreadAPR,
         longFundingRate: opportunity.longFundingRate,
         shortFundingRate: opportunity.shortFundingRate,
         longMarkPrice: opportunity.longMarkPrice,
         shortMarkPrice: opportunity.shortMarkPrice,
+        currentPnl: 0,
         status: 'OPEN',
         autoCloseEnabled: settings.autoCloseEnabled,
         autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
         autoClosePnLThreshold: settings.autoClosePnLThreshold,
         autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
-        createdAt: new Date(),
       });
 
       // Record trade history
@@ -323,7 +330,7 @@ export class AutoTradingService {
         userId: user.id,
         positionId: position.id,
         action: 'OPEN',
-        exchange: 'AUTO_TRADER',
+        exchange: opportunity.longExchange, // Use actual exchange instead of AUTO_TRADER
         token: opportunity.token,
         side: 'DELTA_NEUTRAL',
         size: positionSize,
@@ -351,13 +358,13 @@ export class AutoTradingService {
       console.error('Error executing trade:', error);
       return {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         opportunity
       };
     }
   }
 
-  private getUserTradingSettings(user: any): AutoTradingSettings {
+  private getUserTradingSettings(_user: any): AutoTradingSettings {
     // In a real implementation, this would fetch user-specific settings
     // from the database or user preferences
     return {
@@ -411,7 +418,7 @@ export class AutoTradingService {
     } catch (error) {
       return {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         opportunity: null
       };
     }

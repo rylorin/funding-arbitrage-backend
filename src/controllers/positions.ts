@@ -358,9 +358,9 @@ export const getPositionsDashboard = async (req: AuthenticatedRequest, res: Resp
             shortExchange: position.shortExchange,
             size: position.size,
             sizeFormatted: `$${position.size.toLocaleString()}`,
-            entrySpreadAPR: position.entrySpreadAPR || 0,
+            entrySpreadAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
             currentAPR,
-            aprChange: currentAPR - (position.entrySpreadAPR || 0),
+            aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
             currentPnL,
             currentPnLFormatted: formatCurrency(currentPnL),
             pnlPercentage: (currentPnL / position.size) * 100,
@@ -485,9 +485,9 @@ export const getPositionDetails = async (req: AuthenticatedRequest, res: Respons
         shouldClose: shouldPositionClose(position, currentAPR, currentPnL),
       },
       performance: {
-        entryAPR: position.entrySpreadAPR || 0,
+        entryAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
         currentAPR,
-        aprChange: currentAPR - (position.entrySpreadAPR || 0),
+        aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
         currentPnL,
         pnlFormatted: formatCurrency(currentPnL),
         pnlPercentage: (currentPnL / position.size) * 100,
@@ -570,8 +570,8 @@ export const getPositionAlerts = async (req: AuthenticatedRequest, res: Response
       success: true,
       data: {
         alerts: alerts.sort((a, b) => {
-          const severityOrder = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
-          return severityOrder[b.severity] - severityOrder[a.severity];
+          const severityOrder: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+          return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
         }),
         summary: {
           total: alerts.length,
@@ -666,7 +666,6 @@ function calculateHoursOpen(createdAt: Date): number {
 
 function getFundingPeriods(longExchange: string, shortExchange: string): number {
   const hourlyExchanges = ['vest', 'extended'];
-  const eightHourExchanges = ['hyperliquid', 'orderly'];
   
   const longIsHourly = hourlyExchanges.includes(longExchange);
   const shortIsHourly = hourlyExchanges.includes(shortExchange);
@@ -717,7 +716,7 @@ function getExchangeColor(exchange: string): string {
 
 function assessPositionRisk(position: any, currentAPR: number, currentPnL: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
   const pnlPercentage = (currentPnL / position.size) * 100;
-  const aprDecline = (position.entrySpreadAPR || 0) - currentAPR;
+  const aprDecline = (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) - currentAPR;
   
   if (pnlPercentage < -5 || aprDecline > 20) return 'CRITICAL';
   if (pnlPercentage < -2 || aprDecline > 10) return 'HIGH';
@@ -748,7 +747,7 @@ function shouldPositionClose(position: any, currentAPR: number, currentPnL: numb
 }
 
 function estimateFundingFeesReceived(position: any, hoursOpen: number): number {
-  const avgHourlyRate = (position.entrySpreadAPR || 0) / 8760; // Convert APR to hourly
+  const avgHourlyRate = (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) / 8760; // Convert APR to hourly
   return (avgHourlyRate / 100) * position.size * hoursOpen;
 }
 
@@ -809,7 +808,7 @@ function getTimeframeDays(timeframe: string): number {
   }
 }
 
-async function getPositionHistoryData(userId: string, timeframe: string) {
+async function getPositionHistoryData(_userId: string, _timeframe: string) {
   // This would typically query a positions_history table with periodic snapshots
   // For now, return mock data structure
   return {
@@ -879,8 +878,8 @@ function generatePositionAlerts(positions: any[]) {
   return alerts;
 }
 
-function generatePositionRecommendations(activePositions: any[]) {
-  const recommendations = [];
+function generatePositionRecommendations(activePositions: any[]): any[] {
+  const recommendations: any[] = [];
   
   // High-performing positions to increase size
   const bestPerformers = activePositions
@@ -915,7 +914,7 @@ function generatePositionRecommendations(activePositions: any[]) {
   return recommendations;
 }
 
-async function getPositionPnLHistory(positionId: string) {
+async function getPositionPnLHistory(_positionId: string) {
   // This would query a position_snapshots table with historical PnL data
   // For now, return empty array
   return [];
@@ -940,7 +939,7 @@ function analyzeRiskFactors(position: any, longRate: any, shortRate: any, curren
   }
   
   // APR volatility
-  const aprChange = (position.entrySpreadAPR || 0) - currentAPR;
+  const aprChange = (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) - currentAPR;
   if (Math.abs(aprChange) > 5) {
     factors.push({
       type: 'APR_VOLATILITY',
@@ -997,7 +996,7 @@ function checkAutoCloseTriggers(position: any, currentAPR: number, currentPnL: n
   return triggers;
 }
 
-async function calculatePerformanceMetrics(allPositions: any[], timeframe: string, groupBy: string) {
+async function calculatePerformanceMetrics(allPositions: any[], _timeframe: string, _groupBy: string) {
   // This would implement comprehensive performance analysis
   // For now, return basic structure
   return {

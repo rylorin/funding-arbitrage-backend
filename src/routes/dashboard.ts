@@ -5,7 +5,6 @@ import {
   getArbitrageOpportunities,
   getMarketOverview
 } from '../controllers/dashboard';
-import { authenticateToken } from '../middleware/auth';
 import { generalRateLimit } from '../middleware/rateLimit';
 
 const router = Router();

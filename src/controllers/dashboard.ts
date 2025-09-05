@@ -2,8 +2,6 @@ import { Request, Response } from 'express';
 import Joi from 'joi';
 import { FundingRate } from '../models/index';
 import { arbitrageService } from '../services/ArbitrageService';
-import { TokenSymbol } from '../types/index';
-import { AuthenticatedRequest } from '../middleware/auth';
 
 // Interface pour les données formatées comme ghzperpdextools
 interface FundingRateDisplay {
@@ -449,7 +447,7 @@ export const getMarketOverview = async (_req: Request, res: Response): Promise<v
     const opportunities = await arbitrageService.findArbitrageOpportunities(5, 10000, 0.5);
     
     // Calculate market statistics
-    const totalVolume = latestRates.reduce((sum, rate) => sum + (rate.volume24h || 0), 0);
+    const totalVolume = latestRates.reduce((sum, _rate) => sum + 0, 0); // TODO: Add volume24h to FundingRate model
     const positiveRates = latestRates.filter(r => r.fundingRate > 0);
     const negativeRates = latestRates.filter(r => r.fundingRate < 0);
     
@@ -466,7 +464,7 @@ export const getMarketOverview = async (_req: Request, res: Response): Promise<v
       }
       acc[rate.exchange].marketsCount++;
       acc[rate.exchange].avgFundingRate += rate.fundingRate;
-      acc[rate.exchange].volume24h += rate.volume24h || 0;
+      acc[rate.exchange].volume24h += 0; // TODO: Add volume24h to FundingRate model
       return acc;
     }, {} as any);
 

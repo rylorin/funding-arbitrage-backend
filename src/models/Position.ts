@@ -7,6 +7,8 @@ interface PositionAttributes {
   id: string;
   userId: string;
   token: TokenSymbol;
+  longToken?: TokenSymbol;
+  shortToken?: TokenSymbol;
   longExchange: ExchangeName;
   shortExchange: ExchangeName;
   size: number;
@@ -16,15 +18,26 @@ interface PositionAttributes {
     shortRate: number;
     spreadAPR: number;
   };
+  entrySpreadAPR?: number;
+  longFundingRate?: number;
+  shortFundingRate?: number;
+  longMarkPrice?: number;
+  shortMarkPrice?: number;
   currentPnl: number;
+  unrealizedPnL?: number;
+  realizedPnL?: number;
+  totalFees?: number;
+  hoursOpen?: number;
   autoCloseEnabled: boolean;
   autoCloseAPRThreshold: number;
   autoClosePnLThreshold: number;
+  autoCloseTimeoutHours?: number;
   status: PositionStatus;
   closedAt?: Date;
   closedReason?: string;
   longPositionId?: string;
   shortPositionId?: string;
+  lastUpdated?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +51,8 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
   public id!: string;
   public userId!: string;
   public token!: TokenSymbol;
+  public longToken?: TokenSymbol;
+  public shortToken?: TokenSymbol;
   public longExchange!: ExchangeName;
   public shortExchange!: ExchangeName;
   public size!: number;
@@ -47,15 +62,26 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
     shortRate: number;
     spreadAPR: number;
   };
+  public entrySpreadAPR?: number;
+  public longFundingRate?: number;
+  public shortFundingRate?: number;
+  public longMarkPrice?: number;
+  public shortMarkPrice?: number;
   public currentPnl!: number;
+  public unrealizedPnL?: number;
+  public realizedPnL?: number;
+  public totalFees?: number;
+  public hoursOpen?: number;
   public autoCloseEnabled!: boolean;
   public autoCloseAPRThreshold!: number;
   public autoClosePnLThreshold!: number;
+  public autoCloseTimeoutHours?: number;
   public status!: PositionStatus;
   public closedAt?: Date;
   public closedReason?: string;
   public longPositionId?: string;
   public shortPositionId?: string;
+  public lastUpdated?: Date;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
@@ -174,6 +200,59 @@ Position.init(
     },
     shortPositionId: {
       type: DataTypes.STRING,
+      allowNull: true,
+    },
+    longToken: {
+      type: DataTypes.ENUM('BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'OP'),
+      allowNull: true,
+    },
+    shortToken: {
+      type: DataTypes.ENUM('BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'OP'),
+      allowNull: true,
+    },
+    entrySpreadAPR: {
+      type: DataTypes.DECIMAL(8, 4),
+      allowNull: true,
+    },
+    longFundingRate: {
+      type: DataTypes.DECIMAL(12, 8),
+      allowNull: true,
+    },
+    shortFundingRate: {
+      type: DataTypes.DECIMAL(12, 8),
+      allowNull: true,
+    },
+    longMarkPrice: {
+      type: DataTypes.DECIMAL(18, 8),
+      allowNull: true,
+    },
+    shortMarkPrice: {
+      type: DataTypes.DECIMAL(18, 8),
+      allowNull: true,
+    },
+    unrealizedPnL: {
+      type: DataTypes.DECIMAL(18, 8),
+      allowNull: true,
+    },
+    realizedPnL: {
+      type: DataTypes.DECIMAL(18, 8),
+      allowNull: true,
+    },
+    totalFees: {
+      type: DataTypes.DECIMAL(18, 8),
+      allowNull: true,
+    },
+    hoursOpen: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    autoCloseTimeoutHours: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 168,
+    },
+    lastUpdated: {
+      type: DataTypes.DATE,
       allowNull: true,
     },
     createdAt: {

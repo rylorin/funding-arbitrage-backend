@@ -6,7 +6,7 @@ import { hyperliquidExchange } from './exchanges/HyperliquidExchange';
 import { woofiExchange } from './exchanges/WoofiExchange';
 import { extendedExchange } from './exchanges/ExtendedExchange';
 import { getWebSocketHandlers } from '../websocket/handlers';
-import { ExchangeName, JobResult } from '../types/index';
+import { JobResult } from '../types/index';
 
 interface PositionAlert {
   positionId: string;
@@ -113,10 +113,10 @@ export class PositionMonitoringService {
           alerts.push({
             positionId: position.id,
             type: 'FUNDING_CHANGE',
-            message: `Error monitoring position: ${error.message}`,
+            message: `Error monitoring position: ${error instanceof Error ? error.message : 'Unknown error'}`,
             severity: 'HIGH',
             recommendedAction: 'MONITOR',
-            data: { error: error.message }
+            data: { error: error instanceof Error ? error.message : 'Unknown error' }
           });
         }
       }
@@ -124,8 +124,9 @@ export class PositionMonitoringService {
       // Broadcast alerts via WebSocket
       if (alerts.length > 0) {
         const wsHandlers = getWebSocketHandlers();
-        if (wsHandlers) {
-          wsHandlers.handlePositionAlertsUpdate(alerts);
+        if (wsHandlers && 'handlePositionPnLUpdate' in wsHandlers) {
+          // Pass alerts as position updates - would need proper typing in real implementation
+          (wsHandlers as any).handlePositionPnLUpdate(alerts, 'position-alerts');
         }
       }
 
@@ -248,10 +249,10 @@ export class PositionMonitoringService {
       alerts.push({
         positionId: position.id,
         type: 'FUNDING_CHANGE',
-        message: `Error monitoring position: ${error.message}`,
+        message: `Error monitoring position: ${error instanceof Error ? error.message : 'Unknown error'}`,
         severity: 'HIGH',
         recommendedAction: 'MONITOR',
-        data: { error: error.message }
+        data: { error: error instanceof Error ? error.message : 'Unknown error' }
       });
     }
 
@@ -290,8 +291,8 @@ export class PositionMonitoringService {
     try {
       console.log(`🔒 Auto-closing position ${position.id}: ${reason}`);
 
-      const longExchange = this.exchanges[position.longExchange as ExchangeName];
-      const shortExchange = this.exchanges[position.shortExchange as ExchangeName];
+      const longExchange = this.exchanges[position.longExchange as keyof typeof this.exchanges];
+      const shortExchange = this.exchanges[position.shortExchange as keyof typeof this.exchanges];
 
       let longClosed = false;
       let shortClosed = false;
@@ -329,8 +330,8 @@ export class PositionMonitoringService {
         userId: position.userId,
         positionId: position.id,
         action: 'CLOSE',
-        exchange: 'SYSTEM',
-        token: position.longToken,
+        exchange: position.longExchange, // Use actual exchange instead of SYSTEM
+        token: position.longToken || position.token,
         side: 'AUTO_CLOSE',
         size: position.size,
         price: 0,

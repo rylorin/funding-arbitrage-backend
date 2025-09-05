@@ -44,6 +44,13 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
     });
   }
 
+  public static async getLatestForTokenAndExchange(token: TokenSymbol, exchange: ExchangeName) {
+    return await FundingRate.findOne({
+      where: { token, exchange },
+      order: [['timestamp', 'DESC']],
+    });
+  }
+
   public static async getHistoricalRates(
     token: TokenSymbol,
     exchange: ExchangeName,
