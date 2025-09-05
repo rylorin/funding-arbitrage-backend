@@ -1,20 +1,28 @@
 import { Router } from 'express';
 import {
-  getDashboardStats,
-  getPerformanceChart,
-  getTopOpportunities
+  getDashboard,
+  getFundingRatesTable,
+  getArbitrageOpportunities,
+  getMarketOverview
 } from '../controllers/dashboard';
 import { authenticateToken } from '../middleware/auth';
 import { generalRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
-// All dashboard routes require authentication
-router.use(authenticateToken);
+// Apply rate limiting to all dashboard routes
+router.use(generalRateLimit);
 
-// Dashboard endpoints
-router.get('/stats', generalRateLimit, getDashboardStats);
-router.get('/performance', generalRateLimit, getPerformanceChart);
-router.get('/opportunities', generalRateLimit, getTopOpportunities);
+// Main dashboard endpoint - similar to ghzperpdextools home page
+router.get('/', getDashboard);
+
+// Funding rates table with sorting and filtering
+router.get('/funding-rates', getFundingRatesTable);
+
+// Arbitrage opportunities with filtering
+router.get('/opportunities', getArbitrageOpportunities);
+
+// Market overview and statistics
+router.get('/overview', getMarketOverview);
 
 export default router;
