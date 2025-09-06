@@ -16,6 +16,21 @@ export const authenticateToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Skip authentication in development mode
+    if (process.env.NODE_ENV === 'development') {
+      req.user = {
+        id: 'dev-user',
+        walletAddress: '0xDEVELOPMENT',
+        tokenPayload: {
+          walletAddress: '0xDEVELOPMENT',
+          userId: 'dev-user',
+          iat: Date.now(),
+          exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        },
+      };
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 

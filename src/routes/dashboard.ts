@@ -12,7 +12,7 @@ const router = Router();
 // Apply rate limiting to all dashboard routes
 router.use(generalRateLimit);
 
-// Main dashboard endpoint - similar to ghzperpdextools home page
+// Main dashboard endpoint
 router.get('/', getDashboard);
 
 // Funding rates table with sorting and filtering

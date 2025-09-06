@@ -29,6 +29,13 @@ export class WebSocketBroadcaster {
   private setupEventHandlers(): void {
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
+        // Skip authentication in development mode
+        if (process.env.NODE_ENV === 'development') {
+          socket.userId = 'dev-user';
+          socket.walletAddress = '0xDEVELOPMENT';
+          return next();
+        }
+
         const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
         
         if (!token) {

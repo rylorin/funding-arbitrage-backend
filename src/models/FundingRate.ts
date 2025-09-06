@@ -37,10 +37,20 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
     if (token) whereClause.token = token;
     if (exchange) whereClause.exchange = exchange;
 
+    if (token && exchange) {
+      // Get latest for specific token and exchange
+      return await FundingRate.findAll({
+        where: whereClause,
+        order: [['timestamp', 'DESC']],
+        limit: 1,
+      });
+    }
+
+    // For broader queries, get more recent data to ensure we have multiple exchanges/tokens
     return await FundingRate.findAll({
       where: whereClause,
       order: [['timestamp', 'DESC']],
-      limit: exchange ? 1 : 10,
+      limit: 50, // Increase limit to get more data for arbitrage calculations
     });
   }
 

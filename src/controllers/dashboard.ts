@@ -3,7 +3,7 @@ import Joi from 'joi';
 import { FundingRate } from '../models/index';
 import { arbitrageService } from '../services/ArbitrageService';
 
-// Interface pour les données formatées comme ghzperpdextools
+// Interface pour les données formatées pour le tableau des taux
 interface FundingRateDisplay {
   exchange: string;
   symbol: string;
@@ -137,26 +137,29 @@ export const getFundingRatesTable = async (req: Request, res: Response): Promise
     const rates = await FundingRate.getLatestRates(token, exchange);
     
     // Format for table display
-    let formattedRates = rates.map((rate: any) => ({
-      exchange: rate.exchange.toUpperCase(),
-      exchangeColor: getExchangeColor(rate.exchange),
-      token: rate.token,
-      symbol: `${rate.token}-PERP`,
-      fundingRate: rate.fundingRate,
-      fundingRatePercent: (rate.fundingRate * 100).toFixed(6),
-      fundingAPR: (rate.fundingRate * getFundingFrequency(rate.exchange) * 100).toFixed(2),
-      fundingFrequency: getFundingFrequencyText(rate.exchange),
-      nextFunding: rate.nextFunding.toISOString(),
-      nextFundingFormatted: formatTimeToFunding(rate.nextFunding),
-      timeToFunding: getTimeToFunding(rate.nextFunding),
-      markPrice: rate.markPrice || 0,
-      indexPrice: rate.indexPrice || 0,
-      priceFormatted: rate.markPrice ? '$' + rate.markPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A',
-      timestamp: rate.timestamp.toISOString(),
-      isPositive: rate.fundingRate > 0,
-      isNegative: rate.fundingRate < 0,
-      category: getTokenCategory(rate.token),
-    }));
+    let formattedRates = rates.map((rate: any) => {
+      const rateData = rate.dataValues || rate;
+      return {
+        exchange: rateData.exchange ? rateData.exchange.toUpperCase() : 'UNKNOWN',
+        exchangeColor: getExchangeColor(rateData.exchange),
+        token: rateData.token,
+        symbol: `${rateData.token}-PERP`,
+        fundingRate: rateData.fundingRate,
+        fundingRatePercent: (rateData.fundingRate * 100).toFixed(6),
+        fundingAPR: (rateData.fundingRate * getFundingFrequency(rateData.exchange) * 100).toFixed(2),
+        fundingFrequency: getFundingFrequencyText(rateData.exchange),
+        nextFunding: rateData.nextFunding ? rateData.nextFunding.toISOString() : new Date().toISOString(),
+        nextFundingFormatted: rateData.nextFunding ? formatTimeToFunding(rateData.nextFunding) : 'N/A',
+        timeToFunding: rateData.nextFunding ? getTimeToFunding(rateData.nextFunding) : 'N/A',
+        markPrice: rateData.markPrice || 0,
+        indexPrice: rateData.indexPrice || 0,
+        priceFormatted: rateData.markPrice ? '$' + rateData.markPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A',
+        timestamp: rateData.timestamp ? rateData.timestamp.toISOString() : new Date().toISOString(),
+        isPositive: rateData.fundingRate > 0,
+        isNegative: rateData.fundingRate < 0,
+        category: getTokenCategory(rateData.token),
+      };
+    });
 
     // Sort the results
     formattedRates.sort((a, b) => {

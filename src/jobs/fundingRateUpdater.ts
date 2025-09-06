@@ -18,7 +18,7 @@ export class FundingRateUpdater {
 
   private setupCronJob(): void {
     // Run every minute: * * * * *
-    this.cronJob = cron.schedule('* * * * *', async () => {
+    this.cronJob = cron.schedule('*/30 * * * *', async () => {
       await this.updateFundingRates();
     }, {
       scheduled: false,
@@ -304,13 +304,13 @@ export class FundingRateUpdater {
     return {
       isRunning: this.isRunning,
       lastExecution: this.lastExecution,
-      isScheduled: this.cronJob ? this.cronJob.getStatus() === 'scheduled' : false,
+      isScheduled: this.cronJob !== null,
     };
   }
 
   public destroy(): void {
     if (this.cronJob) {
-      this.cronJob.destroy();
+      this.cronJob.stop();
       this.cronJob = null;
     }
   }

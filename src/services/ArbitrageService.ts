@@ -195,10 +195,13 @@ export class ArbitrageService {
 
   private groupRatesByToken(rates: any[]): Record<string, any[]> {
     return rates.reduce((acc, rate) => {
-      if (!acc[rate.token]) {
-        acc[rate.token] = [];
+      const rateData = rate.dataValues || rate;
+      if (!rateData.token) return acc;
+      
+      if (!acc[rateData.token]) {
+        acc[rateData.token] = [];
       }
-      acc[rate.token].push(rate);
+      acc[rateData.token].push(rateData);
       return acc;
     }, {} as Record<string, any[]>);
   }

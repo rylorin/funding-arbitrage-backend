@@ -27,7 +27,7 @@
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["*"],
+      "@/*": ["./*"],
       "@config/*": ["config/*"],
       "@models/*": ["models/*"],
       "@controllers/*": ["controllers/*"],

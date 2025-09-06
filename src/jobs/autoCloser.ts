@@ -297,13 +297,13 @@ export class AutoCloser {
     return {
       isRunning: this.isRunning,
       lastExecution: this.lastExecution,
-      isScheduled: this.cronJob ? this.cronJob.getStatus() === 'scheduled' : false,
+      isScheduled: this.cronJob !== null,
     };
   }
 
   public destroy(): void {
     if (this.cronJob) {
-      this.cronJob.destroy();
+      this.cronJob.stop();
       this.cronJob = null;
     }
   }

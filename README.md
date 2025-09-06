@@ -40,7 +40,7 @@ Server runs on `http://localhost:3000` with WebSocket support at `/socket.io`
 
 | Priority | Status | Description |
 |----------|--------|-------------|
-| **P1** | ✅ | **Dashboard API** - ghzperpdextools-style interface with funding rates and opportunities |
+| **P1** | ✅ | **Dashboard API** - Dashboard interface with funding rates and opportunities |
 | **P2** | ✅ | **Position Monitoring** - Real-time position tracking, alerts, and performance analytics |
 | **P3** | ✅ | **Auto-Close System** - Automated position closure based on APR, PnL, and time thresholds |
 | **P4** | ✅ | **Auto-Trading** - Automated position opening for best opportunities |
@@ -66,7 +66,7 @@ Development: http://localhost:3000/api
 ### 📊 Dashboard Endpoints
 
 #### `GET /dashboard/`
-**Main Dashboard - ghzperpdextools style interface**
+**Main Dashboard - modern and aestetic style interface**
 
 ```typescript
 // Response Type
