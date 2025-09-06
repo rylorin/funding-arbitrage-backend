@@ -44,7 +44,7 @@ export const getDashboard = async (_req: Request, res: Response): Promise<void> 
     
     // Format funding rates for display
     const fundingRatesDisplay: FundingRateDisplay[] = latestRates.map(rate => ({
-      exchange: rate.exchange.toUpperCase(),
+      exchange: rate.exchange?.toUpperCase(),
       symbol: `${rate.token}-PERP`,
       fundingRate: rate.fundingRate,
       fundingRatePercent: (rate.fundingRate * 100).toFixed(6),
@@ -140,7 +140,7 @@ export const getFundingRatesTable = async (req: Request, res: Response): Promise
     let formattedRates = rates.map((rate: any) => {
       const rateData = rate.dataValues || rate;
       return {
-        exchange: rateData.exchange ? rateData.exchange.toUpperCase() : 'UNKNOWN',
+        exchange: rateData.exchange ? rateData.exchange?.toUpperCase() : 'UNKNOWN',
         exchangeColor: getExchangeColor(rateData.exchange),
         token: rateData.token,
         symbol: `${rateData.token}-PERP`,
@@ -214,7 +214,7 @@ export const getFundingRatesTable = async (req: Request, res: Response): Promise
 export const getArbitrageOpportunities = async (req: Request, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
-      minAPR: Joi.number().min(0).default(5),
+      minAPR: Joi.number().min(0).default(0),
       maxSize: Joi.number().min(100).default(10000),
       riskLevel: Joi.string().valid('LOW', 'MEDIUM', 'HIGH').optional(),
       token: Joi.string().valid('BTC', 'ETH', 'SOL', 'AVAX', 'ARB', 'OP').optional(),
@@ -235,6 +235,7 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
 
     // Get opportunities
     let opportunities = await arbitrageService.findArbitrageOpportunities(minAPR, maxSize, 0.5);
+    // console.log(`Found ${opportunities.length} total opportunities`);
 
     // Apply filters
     if (riskLevel) {
@@ -255,7 +256,7 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
       token: opp.token,
       tokenIcon: getTokenIcon(opp.token),
       longExchange: {
-        name: opp.longExchange.toUpperCase(),
+        name: opp.longExchange?.toUpperCase(),
         color: getExchangeColor(opp.longExchange),
         fundingRate: opp.longFundingRate,
         fundingRateFormatted: (opp.longFundingRate * 100).toFixed(6) + '%',
@@ -263,7 +264,7 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
         priceFormatted: '$' + opp.longMarkPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}),
       },
       shortExchange: {
-        name: opp.shortExchange.toUpperCase(),
+        name: opp.shortExchange?.toUpperCase(),
         color: getExchangeColor(opp.shortExchange),
         fundingRate: opp.shortFundingRate,
         fundingRateFormatted: (opp.shortFundingRate * 100).toFixed(6) + '%',

@@ -73,15 +73,28 @@ export class WoofiExchange implements ExchangeConnector {
     }
   }
 
-  public async getFundingRates(tokens: TokenSymbol[]): Promise<FundingRateData[]> {
+  private extractTokensFromTickers(marketsResponse: WoofiFundingRate[]): TokenSymbol[] {
+    return marketsResponse.map(row => {
+        // Extract token from symbol like PERP_BTC_USDC
+        const parts = row.symbol.split('_');
+        return parts.length === 3 ? parts[1] as TokenSymbol : null;
+      }).filter((t): t is TokenSymbol => t !== null);
+  }
+
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
       
       // Get all predicted funding rates
       const response = await this.client.get('/v1/public/funding_rates');
       const fundingData = response.data.data as { rows: WoofiFundingRate[] };
+
+      // If no tokens specified, extract all available tokens from tickers
+      const tokensToProcess = tokens || this.extractTokensFromTickers(fundingData.rows);
+
+      // For each requested token, find its funding rate
       
-      for (const token of tokens) {
+      for (const token of tokensToProcess) {
         try {
           // Woofi/Orderly uses format like PERP_BTC_USDC
           const symbol = `PERP_${token}_USDC`;

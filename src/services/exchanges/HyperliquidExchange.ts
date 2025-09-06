@@ -10,11 +10,10 @@ interface HyperliquidFundingHistory {
   time: number;
 }
 
-interface HyperliquidPredictedFunding {
-  coin: string;
-  fundingRate: string;
-  nextFundingTime: number;
-}
+type VenueName = string
+type HyperliquidPredictedFundingElement =  {  fundingRate: string;  nextFundingTime: number;};
+type HyperliquidPredictedFundingItem = [VenueName, HyperliquidPredictedFundingElement];
+type HyperliquidPredictedFunding = [TokenSymbol, HyperliquidPredictedFundingItem[]];
 
 export class HyperliquidExchange implements ExchangeConnector {
   public name = 'hyperliquid' as const;
@@ -52,7 +51,16 @@ export class HyperliquidExchange implements ExchangeConnector {
     }
   }
 
-  public async getFundingRates(tokens: TokenSymbol[]): Promise<FundingRateData[]> {
+  private extractTokensFromTickers(marketsResponse: HyperliquidPredictedFunding[]): TokenSymbol[] {
+    return marketsResponse.reduce((p,row) => {
+     const [coin, perps]= row
+     const element = perps.find(p => p[0] === 'HlPerp')
+     if (element) p.push(coin);
+     return p;
+    }, [] as TokenSymbol[]);
+      }
+
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
       
@@ -62,22 +70,27 @@ export class HyperliquidExchange implements ExchangeConnector {
       });
       
       const predictedFundings = predictedResponse.data as HyperliquidPredictedFunding[];
-      
-      for (const token of tokens) {
+
+      // If no tokens specified, use default supported tokens
+      const tokensToProcess = tokens || this.extractTokensFromTickers(predictedFundings);
+      // console.log('Hyperliquid tokens to process:', tokensToProcess);
+
+      for (const token of tokensToProcess) {
         try {
           // Find predicted funding for this token
           const predictedFunding = predictedFundings.find(
-            (funding: HyperliquidPredictedFunding) => funding.coin === token
+            (funding: HyperliquidPredictedFunding) => funding[0] === token
           );
-          
+          // console.log(`Hyperliquid predicted funding for ${token}:`, predictedFunding);
           if (predictedFunding) {
+            const nextFundingItem = predictedFunding[1].find(item => item[0] === 'HlPerp');
             // Hyperliquid has 8-hour funding cycles
-            const nextFunding = new Date(predictedFunding.nextFundingTime);
+            const nextFunding = new Date(nextFundingItem![1].nextFundingTime);
             
             fundingRates.push({
               exchange: 'hyperliquid',
               token,
-              fundingRate: parseFloat(predictedFunding.fundingRate),
+              fundingRate: parseFloat(nextFundingItem![1].fundingRate),
               nextFunding,
               timestamp: new Date(),
             });

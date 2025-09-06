@@ -50,7 +50,7 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
     return await FundingRate.findAll({
       where: whereClause,
       order: [['timestamp', 'DESC']],
-      limit: 50, // Increase limit to get more data for arbitrage calculations
+      limit: 2000, // Increase limit to get more data for arbitrage calculations
     });
   }
 
@@ -134,7 +134,7 @@ FundingRate.init(
     indexes: [
       {
         unique: true,
-        fields: ['exchange', 'token', 'timestamp'],
+        fields: ['exchange', 'token'],
       },
       {
         fields: ['exchange'],

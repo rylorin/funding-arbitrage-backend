@@ -55,7 +55,7 @@ export class VestExchange implements ExchangeConnector {
     }
   }
 
-  public async getFundingRates(tokens: TokenSymbol[]): Promise<FundingRateData[]> {
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
       
@@ -63,7 +63,10 @@ export class VestExchange implements ExchangeConnector {
       const response = await this.client.get('/ticker/latest');
       const tickerData = response.data.tickers;
       
-      for (const token of tokens) {
+      // If no tokens specified, extract all available tokens from tickers
+      const tokensToProcess = tokens || this.extractTokensFromTickers(tickerData);
+      
+      for (const token of tokensToProcess) {
         const symbol = `${token}-PERP`;
         
         try {
@@ -162,6 +165,19 @@ export class VestExchange implements ExchangeConnector {
       console.error(`Error closing Vest position ${positionId}:`, error);
       return false;
     }
+  }
+
+  private extractTokensFromTickers(tickerData: any[]): TokenSymbol[] {
+    const tokens: Set<string> = new Set();
+    
+    for (const ticker of tickerData) {
+      if (ticker.symbol && ticker.symbol.endsWith('-PERP')) {
+        const token = ticker.symbol.replace('-PERP', '');
+          tokens.add(token);
+      }
+    }
+    
+    return Array.from(tokens) as TokenSymbol[];
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {

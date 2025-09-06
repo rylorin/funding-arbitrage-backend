@@ -29,19 +29,21 @@ export class WebSocketBroadcaster {
   private setupEventHandlers(): void {
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
-        // Skip authentication in development mode
-        if (process.env.NODE_ENV === 'development') {
-          socket.userId = 'dev-user';
-          socket.walletAddress = '0xDEVELOPMENT';
+        const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+        
+        // If no token provided, allow connection as anonymous user
+        if (!token) {
+          if (process.env.NODE_ENV === 'development') {
+            socket.userId = 'dev-user';
+            socket.walletAddress = '0xDEVELOPMENT';
+          } else {
+            socket.userId = 'anonymous';
+            socket.walletAddress = 'anonymous';
+          }
           return next();
         }
 
-        const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-        
-        if (!token) {
-          return next(new Error('Authentication token required'));
-        }
-
+        // If token provided, verify it
         const tokenPayload = authService.verifyToken(token);
         if (!tokenPayload) {
           return next(new Error('Invalid authentication token'));

@@ -80,15 +80,28 @@ export class ExtendedExchange implements ExchangeConnector {
     }
   }
 
-  public async getFundingRates(tokens: TokenSymbol[]): Promise<FundingRateData[]> {
+  private extractTokensFromTickers(marketsResponse: ExtendedMarket[]): TokenSymbol[] {
+    return marketsResponse.map(m => {
+        // Extract token from market name like BTC-USD
+        const parts = m.name.split('-');
+        return parts.length === 2 ? parts[0] as TokenSymbol : null;
+      }).filter((t): t is TokenSymbol => t !== null);
+  }
+
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
       
       // Get all markets to find funding rates
       const response = await this.client.get('/api/v1/info/markets');
       const marketsResponse = response.data as ExtendedMarketsResponse;
+
+            // If no tokens specified, extract all available tokens from tickers
+      const tokensToProcess = tokens || this.extractTokensFromTickers(marketsResponse.data);
+
+      // For each requested token, find its funding rate
       
-      for (const token of tokens) {
+      for (const token of tokensToProcess) {
         try {
           // Extended uses format like BTC-USD, ETH-USD, SOL-USD
           const symbol = `${token}-USD`;

@@ -5,7 +5,7 @@ import { hyperliquidExchange } from '../services/exchanges/HyperliquidExchange';
 import { woofiExchange } from '../services/exchanges/WoofiExchange';
 import { extendedExchange } from '../services/exchanges/ExtendedExchange';
 import { getWebSocketHandlers } from '../websocket/handlers';
-import { TokenSymbol, FundingRateData, JobResult } from '../types/index';
+import {  FundingRateData, JobResult } from '../types/index';
 
 export class FundingRateUpdater {
   private isRunning = false;
@@ -55,7 +55,7 @@ export class FundingRateUpdater {
     }
 
     this.isRunning = true;
-    const tokensToUpdate: TokenSymbol[] = ['BTC', 'ETH', 'SOL', 'ARB', 'OP'];
+    // No longer limit to specific tokens - let each exchange determine available pairs
     const updatedRates: FundingRateData[] = [];
     const errors: string[] = [];
 
@@ -65,7 +65,7 @@ export class FundingRateUpdater {
       // Update Vest rates
       if (vestExchange.isConnected) {
         try {
-          const vestRates = await vestExchange.getFundingRates(tokensToUpdate);
+          const vestRates = await vestExchange.getFundingRates();
           
           for (const rate of vestRates) {
             try {
@@ -106,7 +106,7 @@ export class FundingRateUpdater {
       // Update Hyperliquid rates
       if (hyperliquidExchange.isConnected) {
         try {
-          const hyperliquidRates = await hyperliquidExchange.getFundingRates(tokensToUpdate);
+          const hyperliquidRates = await hyperliquidExchange.getFundingRates();
           
           for (const rate of hyperliquidRates) {
             try {
@@ -146,7 +146,7 @@ export class FundingRateUpdater {
       // Update Woofi rates
       if (woofiExchange.isConnected) {
         try {
-          const woofiRates = await woofiExchange.getFundingRates(tokensToUpdate);
+          const woofiRates = await woofiExchange.getFundingRates();
           
           for (const rate of woofiRates) {
             try {
@@ -186,7 +186,7 @@ export class FundingRateUpdater {
       // Update Extended rates
       if (extendedExchange.isConnected) {
         try {
-          const extendedRates = await extendedExchange.getFundingRates(tokensToUpdate);
+          const extendedRates = await extendedExchange.getFundingRates();
           
           for (const rate of extendedRates) {
             try {
@@ -225,26 +225,7 @@ export class FundingRateUpdater {
 
       // TODO: Add other exchange updates here
 
-      // Clean up old rates (keep last 7 days)
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - 7);
-      
-      try {
-        const deletedCount = await FundingRate.destroy({
-          where: {
-            timestamp: {
-              $lt: cutoffDate,
-            },
-          },
-        });
-        
-        if (deletedCount > 0) {
-          console.log(`🗑️ Cleaned up ${deletedCount} old funding rate records`);
-        }
-      } catch (cleanupError) {
-        console.error('Error during cleanup:', cleanupError);
-        errors.push('Cleanup error');
-      }
+      // No cleanup needed since we only keep the latest rate per exchange/token pair
 
       // Broadcast updates via WebSocket
       if (updatedRates.length > 0) {

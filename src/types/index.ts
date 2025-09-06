@@ -87,7 +87,7 @@ export type TokenSymbol = 'BTC' | 'ETH' | 'SOL' | 'AVAX' | 'MATIC' | 'ARB' | 'OP
 export interface ExchangeConnector {
   name: ExchangeName;
   isConnected: boolean;
-  getFundingRates(tokens: TokenSymbol[]): Promise<FundingRateData[]>;
+  getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]>;
   getAccountBalance(): Promise<{ [token: string]: number }>;
   openPosition(token: TokenSymbol, side: 'long' | 'short', size: number): Promise<string>;
   closePosition(positionId: string): Promise<boolean>;
