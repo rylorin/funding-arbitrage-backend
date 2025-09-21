@@ -16,7 +16,7 @@ export interface UserSettings {
   autoClosePnLThreshold: number;
   autoCloseTimeoutHours: number;
   preferredExchanges: string[];
-  riskTolerance: 'low' | 'medium' | 'high';
+  riskTolerance: "low" | "medium" | "high";
   notificationPreferences: {
     email: boolean;
     webhook: boolean;
@@ -28,6 +28,7 @@ export interface FundingRateData {
   exchange: string;
   token: string;
   fundingRate: number;
+  fundingFrequency: number; // in hours
   nextFunding: Date;
   timestamp: Date;
   markPrice?: number | undefined;
@@ -36,11 +37,11 @@ export interface FundingRateData {
 
 export interface ArbitrageOpportunity {
   token: string;
-  longExchange: string;
-  shortExchange: string;
+  longExchange: ExchangeName;
+  shortExchange: ExchangeName;
   longFundingRate: number;
   shortFundingRate: number;
-  spreadAPR: number;
+  spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
   confidence: number;
   minSize: number;
   maxSize: number;
@@ -65,6 +66,10 @@ export interface ExchangeApiCredentials {
   sandbox?: boolean;
 }
 
+export interface ExchangeConfig extends ExchangeApiCredentials {
+  fundingFrequency: number; // in hours
+}
+
 export interface WebSocketMessage {
   type: string;
   data: any;
@@ -80,16 +85,27 @@ export interface JobResult {
   executionTime: number;
 }
 
-export type PositionStatus = 'OPEN' | 'CLOSED' | 'ERROR' | 'CLOSING';
-export type ExchangeName = 'vest' | 'hyperliquid' | 'orderly' | 'extended' | 'paradex' | 'backpack' | 'hibachi';
-export type TokenSymbol = 'BTC' | 'ETH' | 'SOL' | 'AVAX' | 'MATIC' | 'ARB' | 'OP';
+export type PositionStatus = "OPEN" | "CLOSED" | "ERROR" | "CLOSING";
+export type ExchangeName =
+  | "vest"
+  | "hyperliquid"
+  | "orderly"
+  | "extended"
+  | "paradex"
+  | "backpack"
+  | "hibachi";
+export type TokenSymbol = string; // e.g., 'BTC', 'ETH', 'SOL', etc.
 
 export interface ExchangeConnector {
   name: ExchangeName;
   isConnected: boolean;
   getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]>;
   getAccountBalance(): Promise<{ [token: string]: number }>;
-  openPosition(token: TokenSymbol, side: 'long' | 'short', size: number): Promise<string>;
+  openPosition(
+    token: TokenSymbol,
+    side: "long" | "short",
+    size: number
+  ): Promise<string>;
   closePosition(positionId: string): Promise<boolean>;
   getPositionPnL(positionId: string): Promise<number>;
 }

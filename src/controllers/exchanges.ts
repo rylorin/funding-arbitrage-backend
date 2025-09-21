@@ -192,25 +192,25 @@ export const getExchangeStatus = async (_req: Request, res: Response): Promise<v
         name: 'vest',
         isConnected: vestExchange.isConnected,
         lastUpdate: new Date(),
-        supportedTokens: ['BTC', 'ETH', 'SOL', 'ARB', 'OP'],
+        // supportedTokens: ['BTC', 'ETH', 'SOL', 'ARB', 'OP'],
       },
       {
         name: 'hyperliquid',
         isConnected: hyperliquidExchange.isConnected,
         lastUpdate: new Date(),
-        supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'ARB'],
+        // supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'ARB'],
       },
       {
         name: 'orderly',
         isConnected: woofiExchange.isConnected,
         lastUpdate: new Date(),
-        supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC'],
+        // supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC'],
       },
       {
         name: 'extended',
         isConnected: extendedExchange.isConnected,
         lastUpdate: new Date(),
-        supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX'],
+        // supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX'],
       },
     ];
 

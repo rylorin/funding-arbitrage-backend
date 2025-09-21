@@ -1,63 +1,84 @@
-import { DataTypes, Model, Optional, Op } from 'sequelize';
-import { sequelize } from '../config/database';
-import { ExchangeName, TokenSymbol } from '../types/index';
+import { DataTypes, Model, Op, Optional } from "sequelize";
+import { sequelize } from "../config/database";
+import { ExchangeName, TokenSymbol } from "../types/index";
 
-interface FundingRateAttributes {
+type FundingRateAttributes = {
   id: string;
   exchange: ExchangeName;
   token: TokenSymbol;
   fundingRate: number;
+  fundingFrequency?: number; // in hours
   nextFunding: Date;
   timestamp: Date;
   markPrice?: number;
   indexPrice?: number;
   createdAt: Date;
   updatedAt: Date;
-}
+};
 
-interface FundingRateCreationAttributes extends Optional<
+type FundingRateCreationAttributes = Optional<
   FundingRateAttributes,
-  'id' | 'createdAt' | 'updatedAt' | 'markPrice' | 'indexPrice'
-> {}
+  "id" | "createdAt" | "updatedAt" | "markPrice" | "indexPrice"
+>;
 
-class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttributes> implements FundingRateAttributes {
-  public id!: string;
-  public exchange!: ExchangeName;
-  public token!: TokenSymbol;
-  public fundingRate!: number;
-  public nextFunding!: Date;
-  public timestamp!: Date;
-  public markPrice?: number;
-  public indexPrice?: number;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+class FundingRate extends Model<
+  FundingRateAttributes,
+  FundingRateCreationAttributes
+> {
+  public declare id: string;
+  public declare exchange: ExchangeName;
+  public declare token: TokenSymbol;
+  public declare fundingRate: number;
+  public declare fundingFrequency?: number; // in hours
+  public declare nextFunding: Date;
+  public declare timestamp: Date;
+  public declare markPrice?: number;
+  public declare indexPrice?: number;
+  public declare readonly createdAt: Date;
+  public declare readonly updatedAt: Date;
 
-  public static async getLatestRates(token?: TokenSymbol, exchange?: ExchangeName) {
-    const whereClause: any = {};
+  public static async getLatestRates(
+    token?: TokenSymbol,
+    exchange?: ExchangeName
+  ): Promise<FundingRate[]> {
+    let result: FundingRate[];
+    const now = Date.now();
+
+    const whereClause: any = {
+      fundingRate: { [Op.ne]: null },
+      timestamp: { [Op.gte]: new Date(now - 2 * 60 * 60_000) }, // Only consider entries from the last 2 hours
+    };
     if (token) whereClause.token = token;
     if (exchange) whereClause.exchange = exchange;
 
     if (token && exchange) {
       // Get latest for specific token and exchange
-      return await FundingRate.findAll({
+      result = await FundingRate.findAll({
         where: whereClause,
-        order: [['timestamp', 'DESC']],
+        order: [["timestamp", "DESC"]],
         limit: 1,
       });
+    } else {
+      // For broader queries, get more recent data to ensure we have multiple exchanges/tokens
+      result = await FundingRate.findAll({
+        where: whereClause,
+        order: [["timestamp", "DESC"]],
+        limit: 2000, // Increase limit to get more data for arbitrage calculations
+      });
     }
-
-    // For broader queries, get more recent data to ensure we have multiple exchanges/tokens
-    return await FundingRate.findAll({
-      where: whereClause,
-      order: [['timestamp', 'DESC']],
-      limit: 2000, // Increase limit to get more data for arbitrage calculations
-    });
+    console.log(
+      `FundingRate - getLatestRates: fetched ${result.length} records from DB for token=${token} exchange=${exchange}`
+    );
+    return result;
   }
 
-  public static async getLatestForTokenAndExchange(token: TokenSymbol, exchange: ExchangeName) {
+  public static async getLatestForTokenAndExchange(
+    token: TokenSymbol,
+    exchange: ExchangeName
+  ) {
     return await FundingRate.findOne({
       where: { token, exchange },
-      order: [['timestamp', 'DESC']],
+      order: [["timestamp", "DESC"]],
     });
   }
 
@@ -77,7 +98,7 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
           [Op.gte]: cutoff,
         },
       },
-      order: [['timestamp', 'ASC']],
+      order: [["timestamp", "ASC"]],
     });
   }
 }
@@ -90,15 +111,28 @@ FundingRate.init(
       primaryKey: true,
     },
     exchange: {
-      type: DataTypes.ENUM('vest', 'hyperliquid', 'orderly', 'extended', 'paradex', 'backpack', 'hibachi'),
+      type: DataTypes.ENUM(
+        "vest",
+        "hyperliquid",
+        "orderly",
+        "extended",
+        "paradex",
+        "backpack",
+        "hibachi"
+      ),
       allowNull: false,
     },
     token: {
-      type: DataTypes.ENUM('BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'OP'),
+      type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
       allowNull: false,
     },
     fundingRate: {
       type: DataTypes.DECIMAL(18, 12),
+      allowNull: false,
+    },
+    fundingFrequency: {
+      type: DataTypes.SMALLINT,
+      defaultValue: 1, // Default to 1 hour(s) if not provided
       allowNull: false,
     },
     nextFunding: {
@@ -129,24 +163,24 @@ FundingRate.init(
   },
   {
     sequelize,
-    modelName: 'FundingRate',
-    tableName: 'funding_rates',
+    modelName: "FundingRate",
+    tableName: "funding_rates",
     indexes: [
       {
         unique: true,
-        fields: ['exchange', 'token'],
+        fields: ["exchange", "token"],
       },
       {
-        fields: ['exchange'],
+        fields: ["exchange"],
       },
       {
-        fields: ['token'],
+        fields: ["token"],
       },
       {
-        fields: ['timestamp'],
+        fields: ["timestamp"],
       },
       {
-        fields: ['nextFunding'],
+        fields: ["nextFunding"],
       },
     ],
   }

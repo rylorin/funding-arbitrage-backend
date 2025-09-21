@@ -111,3 +111,5 @@ docker-compose.yml
 # Sequelize CLI
 migrations/
 seeders/
+
+dummy.json

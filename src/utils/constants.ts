@@ -189,7 +189,7 @@ export const CONSTANTS = {
 } as const;
 
 // Type exports for constants
-export type SupportedToken = typeof CONSTANTS.SUPPORTED_TOKENS[number];
+// export type SupportedToken = typeof CONSTANTS.SUPPORTED_TOKENS[number];
 export type SupportedExchange = typeof CONSTANTS.SUPPORTED_EXCHANGES[number];
 export type NodeEnvironment = typeof CONSTANTS.NODE_ENVIRONMENTS[number];
 export type LogLevel = typeof CONSTANTS.LOG_LEVELS[number];

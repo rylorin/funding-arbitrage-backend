@@ -1,11 +1,11 @@
-import cron from 'node-cron';
-import { FundingRate } from '../models/index';
-import { vestExchange } from '../services/exchanges/VestExchange';
-import { hyperliquidExchange } from '../services/exchanges/HyperliquidExchange';
-import { woofiExchange } from '../services/exchanges/WoofiExchange';
-import { extendedExchange } from '../services/exchanges/ExtendedExchange';
-import { getWebSocketHandlers } from '../websocket/handlers';
-import {  FundingRateData, JobResult } from '../types/index';
+import cron from "node-cron";
+import { FundingRate } from "../models/index";
+import { extendedExchange } from "../services/exchanges/ExtendedExchange";
+import { hyperliquidExchange } from "../services/exchanges/HyperliquidExchange";
+import { vestExchange } from "../services/exchanges/VestExchange";
+import { woofiExchange } from "../services/exchanges/WoofiExchange";
+import { FundingRateData, JobResult } from "../types/index";
+import { getWebSocketHandlers } from "../websocket/handlers";
 
 export class FundingRateUpdater {
   private isRunning = false;
@@ -17,28 +17,32 @@ export class FundingRateUpdater {
   }
 
   private setupCronJob(): void {
-    // Run every minute: * * * * *
-    this.cronJob = cron.schedule('*/30 * * * *', async () => {
-      await this.updateFundingRates();
-    }, {
-      scheduled: false,
-      timezone: 'UTC',
-    });
+    // Run every 30 seconds: */30 * * * * *
+    this.cronJob = cron.schedule(
+      "*/30 * * * *",
+      async () => {
+        await this.updateFundingRates();
+      },
+      {
+        // scheduled: false,
+        timezone: "UTC",
+      }
+    );
 
-    console.log('📅 Funding rate updater job scheduled (every minute)');
+    console.log("📅 Funding rate updater job scheduled (every minute)");
   }
 
   public start(): void {
     if (this.cronJob) {
       this.cronJob.start();
-      console.log('▶️ Funding rate updater started');
+      console.log("▶️ Funding rate updater started");
     }
   }
 
   public stop(): void {
     if (this.cronJob) {
       this.cronJob.stop();
-      console.log('⏹️ Funding rate updater stopped');
+      console.log("⏹️ Funding rate updater stopped");
     }
   }
 
@@ -46,10 +50,10 @@ export class FundingRateUpdater {
     const startTime = Date.now();
 
     if (this.isRunning) {
-      console.log('⚠️ Funding rate update already in progress, skipping...');
+      console.log("⚠️ Funding rate update already in progress, skipping...");
       return {
         success: false,
-        message: 'Update already in progress',
+        message: "Update already in progress",
         executionTime: Date.now() - startTime,
       };
     }
@@ -60,167 +64,72 @@ export class FundingRateUpdater {
     const errors: string[] = [];
 
     try {
-      console.log('🔄 Starting funding rate update...');
+      console.log("🔄 Starting funding rate update...");
 
       // Update Vest rates
       if (vestExchange.isConnected) {
         try {
-          const vestRates = await vestExchange.getFundingRates();
-          
-          for (const rate of vestRates) {
-            try {
-              // Use upsert to handle both insert and update
-              const upsertData: any = {
-                exchange: rate.exchange as any,
-                token: rate.token as any,
-                fundingRate: rate.fundingRate,
-                nextFunding: rate.nextFunding,
-                timestamp: rate.timestamp,
-              };
-              
-              if (rate.markPrice !== undefined) {
-                upsertData.markPrice = rate.markPrice;
-              }
-              
-              if (rate.indexPrice !== undefined) {
-                upsertData.indexPrice = rate.indexPrice;
-              }
-              
-              await FundingRate.upsert(upsertData);
-              updatedRates.push(rate);
-            } catch (dbError) {
-              console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
-              errors.push(`Database error for ${rate.token}/${rate.exchange}`);
-            }
-          }
+          const exchangeRates = await vestExchange.getFundingRates();
 
-          console.log(`✅ Updated ${vestRates.length} rates from Vest`);
+          await this.updateDB(exchangeRates, updatedRates, errors);
+
+          console.log(`✅ Updated ${exchangeRates.length} rates from Vest`);
         } catch (exchangeError) {
-          console.error('Error fetching Vest rates:', exchangeError);
-          errors.push('Vest exchange error');
+          console.error("Error fetching Vest rates:", exchangeError);
+          errors.push("Vest exchange error");
         }
       } else {
-        errors.push('Vest exchange not connected');
+        errors.push("Vest exchange not connected");
       }
 
       // Update Hyperliquid rates
       if (hyperliquidExchange.isConnected) {
         try {
-          const hyperliquidRates = await hyperliquidExchange.getFundingRates();
-          
-          for (const rate of hyperliquidRates) {
-            try {
-              const upsertData: any = {
-                exchange: rate.exchange as any,
-                token: rate.token as any,
-                fundingRate: rate.fundingRate,
-                nextFunding: rate.nextFunding,
-                timestamp: rate.timestamp,
-              };
-              
-              if (rate.markPrice !== undefined) {
-                upsertData.markPrice = rate.markPrice;
-              }
-              
-              if (rate.indexPrice !== undefined) {
-                upsertData.indexPrice = rate.indexPrice;
-              }
-              
-              await FundingRate.upsert(upsertData);
-              updatedRates.push(rate);
-            } catch (dbError) {
-              console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
-              errors.push(`Database error for ${rate.token}/${rate.exchange}`);
-            }
-          }
+          const exchangeRates = await hyperliquidExchange.getFundingRates();
 
-          console.log(`✅ Updated ${hyperliquidRates.length} rates from Hyperliquid`);
+          await this.updateDB(exchangeRates, updatedRates, errors);
+
+          console.log(
+            `✅ Updated ${exchangeRates.length} rates from Hyperliquid`
+          );
         } catch (exchangeError) {
-          console.error('Error fetching Hyperliquid rates:', exchangeError);
-          errors.push('Hyperliquid exchange error');
+          console.error("Error fetching Hyperliquid rates:", exchangeError);
+          errors.push("Hyperliquid exchange error");
         }
       } else {
-        errors.push('Hyperliquid exchange not connected');
+        errors.push("Hyperliquid exchange not connected");
       }
 
       // Update Woofi rates
       if (woofiExchange.isConnected) {
         try {
-          const woofiRates = await woofiExchange.getFundingRates();
-          
-          for (const rate of woofiRates) {
-            try {
-              const upsertData: any = {
-                exchange: rate.exchange as any,
-                token: rate.token as any,
-                fundingRate: rate.fundingRate,
-                nextFunding: rate.nextFunding,
-                timestamp: rate.timestamp,
-              };
-              
-              if (rate.markPrice !== undefined) {
-                upsertData.markPrice = rate.markPrice;
-              }
-              
-              if (rate.indexPrice !== undefined) {
-                upsertData.indexPrice = rate.indexPrice;
-              }
-              
-              await FundingRate.upsert(upsertData);
-              updatedRates.push(rate);
-            } catch (dbError) {
-              console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
-              errors.push(`Database error for ${rate.token}/${rate.exchange}`);
-            }
-          }
+          const exchangeRates = await woofiExchange.getFundingRates();
 
-          console.log(`✅ Updated ${woofiRates.length} rates from Woofi`);
+          await this.updateDB(exchangeRates, updatedRates, errors);
+
+          console.log(`✅ Updated ${exchangeRates.length} rates from Woofi`);
         } catch (exchangeError) {
-          console.error('Error fetching Woofi rates:', exchangeError);
-          errors.push('Woofi exchange error');
+          console.error("Error fetching Woofi rates:", exchangeError);
+          errors.push("Woofi exchange error");
         }
       } else {
-        errors.push('Woofi exchange not connected');
+        errors.push("Woofi exchange not connected");
       }
 
       // Update Extended rates
       if (extendedExchange.isConnected) {
         try {
-          const extendedRates = await extendedExchange.getFundingRates();
-          
-          for (const rate of extendedRates) {
-            try {
-              const upsertData: any = {
-                exchange: rate.exchange as any,
-                token: rate.token as any,
-                fundingRate: rate.fundingRate,
-                nextFunding: rate.nextFunding,
-                timestamp: rate.timestamp,
-              };
-              
-              if (rate.markPrice !== undefined) {
-                upsertData.markPrice = rate.markPrice;
-              }
-              
-              if (rate.indexPrice !== undefined) {
-                upsertData.indexPrice = rate.indexPrice;
-              }
-              
-              await FundingRate.upsert(upsertData);
-              updatedRates.push(rate);
-            } catch (dbError) {
-              console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
-              errors.push(`Database error for ${rate.token}/${rate.exchange}`);
-            }
-          }
+          const exchangeRates = await extendedExchange.getFundingRates();
 
-          console.log(`✅ Updated ${extendedRates.length} rates from Extended`);
+          await this.updateDB(exchangeRates, updatedRates, errors);
+
+          console.log(`✅ Updated ${exchangeRates.length} rates from Extended`);
         } catch (exchangeError) {
-          console.error('Error fetching Extended rates:', exchangeError);
-          errors.push('Extended exchange error');
+          console.error("Error fetching Extended rates:", exchangeError);
+          errors.push("Extended exchange error");
         }
       } else {
-        errors.push('Extended exchange not connected');
+        errors.push("Extended exchange not connected");
       }
 
       // TODO: Add other exchange updates here
@@ -240,36 +149,80 @@ export class FundingRateUpdater {
 
       const result: JobResult = {
         success: updatedRates.length > 0,
-        message: `Updated ${updatedRates.length} rates across ${new Set(updatedRates.map(r => r.exchange)).size} exchanges`,
+        message: `Updated ${updatedRates.length} rates across ${
+          new Set(updatedRates.map((r) => r.exchange)).size
+        } exchanges`,
         data: {
           updatedRates: updatedRates.length,
-          exchanges: [...new Set(updatedRates.map(r => r.exchange))],
-          tokens: [...new Set(updatedRates.map(r => r.token))],
+          exchanges: [...new Set(updatedRates.map((r) => r.exchange))],
+          tokens: [...new Set(updatedRates.map((r) => r.token))],
           errors,
         },
         executionTime,
       };
 
       if (errors.length === 0) {
-        console.log(`✅ Funding rate update completed: ${result.message} (${executionTime}ms)`);
+        console.log(
+          `✅ Funding rate update completed: ${result.message} (${executionTime}ms)`
+        );
       } else {
-        console.log(`⚠️ Funding rate update completed with errors: ${result.message} (${executionTime}ms)`);
-        console.log(`❌ Errors: ${errors.join(', ')}`);
+        console.log(
+          `⚠️ Funding rate update completed with errors: ${result.message} (${executionTime}ms)`
+        );
+        console.log(`❌ Errors: ${errors.join(", ")}`);
       }
 
       return result;
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      console.error('❌ Funding rate update failed:', error);
-      
+      console.error("❌ Funding rate update failed:", error);
+
       return {
         success: false,
-        message: 'Funding rate update failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Funding rate update failed",
+        error: error instanceof Error ? error.message : "Unknown error",
         executionTime,
       };
     } finally {
       this.isRunning = false;
+    }
+  }
+
+  private async updateDB(
+    exchangeRates: FundingRateData[],
+    updatedRates: FundingRateData[],
+    errors: string[]
+  ) {
+    for (const rate of exchangeRates) {
+      try {
+        // Use upsert to handle both insert and update
+        const upsertData: any = {
+          exchange: rate.exchange,
+          token: rate.token,
+          fundingRate: rate.fundingRate,
+          fundingFrequency: rate.fundingFrequency,
+          nextFunding: rate.nextFunding,
+          timestamp: rate.timestamp,
+        };
+
+        if (rate.markPrice !== undefined) {
+          upsertData.markPrice = rate.markPrice;
+        }
+
+        if (rate.indexPrice !== undefined) {
+          upsertData.indexPrice = rate.indexPrice;
+        }
+
+        console.log(upsertData);
+        await FundingRate.upsert(upsertData);
+        updatedRates.push(rate);
+      } catch (dbError) {
+        console.error(
+          `Error saving ${rate.token} rate for ${rate.exchange}:`,
+          dbError
+        );
+        errors.push(`Database error for ${rate.token}/${rate.exchange}`);
+      }
     }
   }
 

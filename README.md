@@ -129,17 +129,249 @@ interface FundingRatesQuery {
 }
 ```
 
+**Response Structure:**
+```typescript
+interface FundingRatesResponse {
+  success: boolean;
+  data: {
+    rates: FundingRateTableDisplay[];
+    summary: {
+      totalRates: number;
+      positiveRates: number;
+      negativeRates: number;
+      avgFundingRate: number;
+      maxAPR: number;
+      minAPR: number;
+    };
+  };
+  filters: {
+    token?: string;
+    exchange?: string;
+    sortBy: string;
+    sortOrder: string;
+  };
+  timestamp: string;
+}
+
+interface FundingRateTableDisplay {
+  exchange: string;
+  exchangeColor: string;
+  token: string;
+  symbol: string;
+  fundingRate: number;
+  fundingRatePercent: string;
+  fundingAPR: string;
+  fundingFrequency: string;
+  nextFunding: string;
+  nextFundingFormatted: string;
+  timeToFunding: string;
+  markPrice: number;
+  indexPrice: number;
+  priceFormatted: string;
+  timestamp: string;
+  isPositive: boolean;
+  isNegative: boolean;
+  category: string;
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "rates": [
+      {
+        "exchange": "VEST",
+        "exchangeColor": "#8B5CF6",
+        "token": "BTC",
+        "symbol": "BTC-PERP",
+        "fundingRate": 0.000123,
+        "fundingRatePercent": "0.012300",
+        "fundingAPR": "10.77",
+        "fundingFrequency": "Hourly",
+        "nextFunding": "2024-01-01T13:00:00.000Z",
+        "nextFundingFormatted": "Jan 1, 01:00 PM UTC",
+        "timeToFunding": "45m",
+        "markPrice": 45123.45,
+        "indexPrice": 45120.12,
+        "priceFormatted": "$45,123.45",
+        "timestamp": "2024-01-01T12:15:00.000Z",
+        "isPositive": true,
+        "isNegative": false,
+        "category": "L1"
+      }
+    ],
+    "summary": {
+      "totalRates": 28,
+      "positiveRates": 18,
+      "negativeRates": 10,
+      "avgFundingRate": 0.000089,
+      "maxAPR": 15.23,
+      "minAPR": -8.45
+    }
+  },
+  "filters": {
+    "sortBy": "fundingRate",
+    "sortOrder": "desc"
+  },
+  "timestamp": "2024-01-01T12:15:30.123Z"
+}
+```
+
 #### `GET /dashboard/opportunities`
 **Detailed arbitrage opportunities**
 
 **Query Parameters:**
 ```typescript
 interface OpportunitiesQuery {
-  minAPR?: number;        // Default: 5
+  minAPR?: number;        // Default: 0
   maxSize?: number;       // Default: 10000
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
-  token?: TokenSymbol;
+  token?: 'BTC' | 'ETH' | 'SOL' | 'AVAX' | 'ARB' | 'OP';
   limit?: number;         // Default: 20
+}
+```
+
+**Response Structure:**
+```typescript
+interface ArbitrageOpportunitiesResponse {
+  success: boolean;
+  data: {
+    opportunities: ArbitrageOpportunityDisplay[];
+    summary: {
+      totalOpportunities: number;
+      bestAPR: number;
+      avgAPR: number;
+      avgConfidence: number;
+      riskDistribution: {
+        LOW: number;
+        MEDIUM: number;
+        HIGH: number;
+      };
+    };
+  };
+  filters: {
+    minAPR: number;
+    maxSize: number;
+    riskLevel?: string;
+    token?: string;
+    limit: number;
+  };
+  timestamp: string;
+}
+
+interface ArbitrageOpportunityDisplay {
+  id: string;
+  rank: number;
+  token: string;
+  tokenIcon: string;
+  longExchange: {
+    name: string;
+    color: string;
+    fundingRate: number;
+    fundingRateFormatted: string;
+    price: number;
+    priceFormatted: string;
+  };
+  shortExchange: {
+    name: string;
+    color: string;
+    fundingRate: number;
+    fundingRateFormatted: string;
+    price: number;
+    priceFormatted: string;
+  };
+  spread: {
+    absolute: number;
+    percent: string;
+    apr: string;
+  };
+  metrics: {
+    confidence: number;
+    riskLevel: string;
+    riskColor: string;
+    expectedDailyReturn: string;
+    maxSize: number;
+    maxSizeFormatted: string;
+    priceDeviation: number;
+    priceDeviationFormatted: string;
+  };
+  timing: {
+    nextFunding: string;
+    longFrequency: string;
+    shortFrequency: string;
+  };
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "opportunities": [
+      {
+        "id": "BTC-vest-hyperliquid",
+        "rank": 1,
+        "token": "BTC",
+        "tokenIcon": "/icons/btc.png",
+        "longExchange": {
+          "name": "VEST",
+          "color": "#8B5CF6",
+          "fundingRate": 0.000045,
+          "fundingRateFormatted": "0.004500%",
+          "price": 45123.45,
+          "priceFormatted": "$45,123.45"
+        },
+        "shortExchange": {
+          "name": "HYPERLIQUID",
+          "color": "#3B82F6",
+          "fundingRate": 0.000198,
+          "fundingRateFormatted": "0.019800%",
+          "price": 45145.23,
+          "priceFormatted": "$45,145.23"
+        },
+        "spread": {
+          "absolute": 0.000153,
+          "percent": "0.015300%",
+          "apr": "11.34%"
+        },
+        "metrics": {
+          "confidence": 87,
+          "riskLevel": "LOW",
+          "riskColor": "#10B981",
+          "expectedDailyReturn": "3.11",
+          "maxSize": 10000,
+          "maxSizeFormatted": "$10,000",
+          "priceDeviation": 0.048,
+          "priceDeviationFormatted": "0.048%"
+        },
+        "timing": {
+          "nextFunding": "Jan 1, 01:00 PM UTC",
+          "longFrequency": "Hourly",
+          "shortFrequency": "8 Hours"
+        }
+      }
+    ],
+    "summary": {
+      "totalOpportunities": 12,
+      "bestAPR": 11.34,
+      "avgAPR": 7.42,
+      "avgConfidence": 78,
+      "riskDistribution": {
+        "LOW": 8,
+        "MEDIUM": 3,
+        "HIGH": 1
+      }
+    }
+  },
+  "filters": {
+    "minAPR": 0,
+    "maxSize": 10000,
+    "limit": 20
+  },
+  "timestamp": "2024-01-01T12:15:30.123Z"
 }
 ```
 
@@ -390,7 +622,7 @@ export interface ArbitrageOpportunity {
   shortExchange: ExchangeName;
   longFundingRate: number;
   shortFundingRate: number;
-  spreadAPR: number;
+  spreadAPR: number;  // Annualized Percentage Rate of the spread (10 for 10%)
   confidence: number;
   minSize: number;
   maxSize: number;
