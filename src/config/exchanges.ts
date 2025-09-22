@@ -13,7 +13,7 @@ export const exchangeConfigs: Record<ExchangeName, ExchangeConfig> = {
   hyperliquid: {
     apiKey: process.env.HYPERLIQUID_API_KEY!,
     sandbox: process.env.NODE_ENV !== "production",
-    fundingFrequency: 8, // in hours
+    fundingFrequency: 1, // in hours
   },
   orderly: {
     apiKey: process.env.ORDERLY_API_KEY!,

@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron, { ScheduledTask } from "node-cron";
 import { FundingRate } from "../models/index";
 import { extendedExchange } from "../services/exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "../services/exchanges/HyperliquidExchange";
@@ -10,7 +10,7 @@ import { getWebSocketHandlers } from "../websocket/handlers";
 export class FundingRateUpdater {
   private isRunning = false;
   private lastExecution: Date | null = null;
-  private cronJob: cron.ScheduledTask | null = null;
+  private cronJob: ScheduledTask | null = null;
 
   constructor() {
     this.setupCronJob();
@@ -18,14 +18,13 @@ export class FundingRateUpdater {
 
   private setupCronJob(): void {
     // Run every 30 seconds: */30 * * * * *
-    this.cronJob = cron.schedule(
-      "*/30 * * * *",
+    this.cronJob = cron.createTask(
+      "*/30 * * * * *",
       async () => {
         await this.updateFundingRates();
       },
       {
-        // scheduled: false,
-        timezone: "UTC",
+        noOverlap: true,
       }
     );
 
@@ -213,7 +212,7 @@ export class FundingRateUpdater {
           upsertData.indexPrice = rate.indexPrice;
         }
 
-        console.log(upsertData);
+        // console.log(upsertData);
         await FundingRate.upsert(upsertData);
         updatedRates.push(rate);
       } catch (dbError) {

@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron, { ScheduledTask } from "node-cron";
 import { Position, User } from "../models/index";
 import { JobResult, PositionPnL } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
@@ -6,7 +6,7 @@ import { getWebSocketHandlers } from "../websocket/handlers";
 export class PositionMonitor {
   private isRunning = false;
   private lastExecution: Date | null = null;
-  private cronJob: cron.ScheduledTask | null = null;
+  private cronJob: ScheduledTask | null = null;
 
   constructor() {
     this.setupCronJob();
@@ -14,14 +14,13 @@ export class PositionMonitor {
 
   private setupCronJob(): void {
     // Run every minute: * * * * *
-    this.cronJob = cron.schedule(
-      "* * * * * *",
+    this.cronJob = cron.createTask(
+      "* * * * *",
       async () => {
         await this.monitorPositions();
       },
       {
-        scheduled: false,
-        timezone: "UTC",
+        noOverlap: true,
       }
     );
 

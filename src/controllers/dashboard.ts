@@ -401,7 +401,7 @@ export const getArbitrageOpportunities = async (
       })
     );
 
-    res.json({
+    const result = {
       success: true,
       data: {
         opportunities: formattedOpportunities,
@@ -440,7 +440,9 @@ export const getArbitrageOpportunities = async (
       },
       filters: { minAPR, maxSize, riskLevel, token, limit },
       timestamp: new Date().toISOString(),
-    });
+    };
+    if (process.env.NODE_ENV === "production") res.json(result);
+    else res.send(JSON.stringify(result, null, 2));
   } catch (error) {
     console.error("Arbitrage opportunities fetch error:", error);
     res.status(500).json({
