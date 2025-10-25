@@ -1,39 +1,46 @@
-import { ArbitrageOpportunity } from '../types/index';
+import { ArbitrageOpportunity } from "../types/index";
 
 export class CalculationUtils {
-  static calculateAPR(fundingRate: number, hoursPerFunding: number = 8): number {
+  static _calculateAPR(
+    fundingRate: number,
+    hoursPerFunding: number = 8
+  ): number {
     const fundingsPerYear = (365 * 24) / hoursPerFunding;
     return fundingRate * fundingsPerYear * 100;
   }
 
-  static calculateSpreadAPR(longRate: number, shortRate: number, hoursPerFunding: number = 8): number {
+  static _calculateSpreadAPR(
+    longRate: number,
+    shortRate: number,
+    hoursPerFunding: number = 8
+  ): number {
     const spread = shortRate - longRate;
-    return this.calculateAPR(spread, hoursPerFunding);
+    return this._calculateAPR(spread, hoursPerFunding);
   }
 
   static calculatePositionPnL(
     entryPrice: number,
     currentPrice: number,
     size: number,
-    side: 'long' | 'short',
+    side: "long" | "short",
     fees: number = 0
   ): number {
     const priceChange = currentPrice - entryPrice;
-    const pnl = side === 'long' ? priceChange * size : -priceChange * size;
+    const pnl = side === "long" ? priceChange * size : -priceChange * size;
     return pnl - fees;
   }
 
   static calculateFundingPnL(
     fundingRate: number,
     notionalSize: number,
-    side: 'long' | 'short'
+    side: "long" | "short"
   ): number {
     // Funding is paid by longs when positive, received when negative
     const fundingPayment = fundingRate * notionalSize;
-    return side === 'long' ? -fundingPayment : fundingPayment;
+    return side === "long" ? -fundingPayment : fundingPayment;
   }
 
-  static calculateArbitrageOpportunity(
+  static _calculateArbitrageOpportunity(
     longRate: number,
     shortRate: number,
     token: string,
@@ -42,14 +49,14 @@ export class CalculationUtils {
     minSize: number = 100,
     maxSize: number = 10000
   ): ArbitrageOpportunity | null {
-    const spreadAPR = this.calculateSpreadAPR(longRate, shortRate);
-    
+    const spreadAPR = this._calculateSpreadAPR(longRate, shortRate);
+
     if (spreadAPR <= 0) return null;
 
     // Calculate confidence based on spread size and rate consistency
     const rateSum = Math.abs(longRate) + Math.abs(shortRate);
     const spreadRatio = Math.abs(spreadAPR) / (rateSum * 100 * 8760 || 1);
-    const confidence = Math.min(95, 50 + (spreadRatio * 1000));
+    const confidence = Math.min(95, 50 + spreadRatio * 1000);
 
     return {
       token: token as any,
@@ -76,25 +83,27 @@ export class CalculationUtils {
 
     const totalPnL = positions.reduce((sum, pos) => sum + pos.currentPnl, 0);
     const totalSize = positions.reduce((sum, pos) => sum + pos.size, 0);
-    
+
     // Calculate weighted average APR
     let weightedAPRSum = 0;
-    positions.forEach(pos => {
+    positions.forEach((pos) => {
       const positionAPR = this.calculateCurrentAPR(pos);
       const weight = pos.size / totalSize;
       weightedAPRSum += positionAPR * weight;
     });
 
     // Calculate risk score (0-100, higher = riskier)
-    const exchangeCount = new Set(positions.flatMap(p => [p.longExchange, p.shortExchange])).size;
-    const tokenCount = new Set(positions.map(p => p.token)).size;
+    const exchangeCount = new Set(
+      positions.flatMap((p) => [p.longExchange, p.shortExchange])
+    ).size;
+    const tokenCount = new Set(positions.map((p) => p.token)).size;
     const avgPositionSize = totalSize / positions.length;
-    
+
     // Risk factors
-    const concentrationRisk = Math.max(0, 100 - (tokenCount * 10)); // Less diversification = more risk
-    const exchangeRisk = Math.max(0, 100 - (exchangeCount * 15)); // Fewer exchanges = more risk
-    const sizeRisk = Math.min(100, avgPositionSize / 1000 * 10); // Larger positions = more risk
-    
+    const concentrationRisk = Math.max(0, 100 - tokenCount * 10); // Less diversification = more risk
+    const exchangeRisk = Math.max(0, 100 - exchangeCount * 15); // Fewer exchanges = more risk
+    const sizeRisk = Math.min(100, (avgPositionSize / 1000) * 10); // Larger positions = more risk
+
     const riskScore = (concentrationRisk + exchangeRisk + sizeRisk) / 3;
 
     return {
@@ -108,10 +117,10 @@ export class CalculationUtils {
   static calculateCurrentAPR(position: any): number {
     const hoursOpen = this.getHoursOpen(position.entryTimestamp);
     if (hoursOpen === 0 || position.size === 0) return 0;
-    
+
     const returnPercentage = (position.currentPnl / position.size) * 100;
     const annualizedReturn = returnPercentage * (8760 / hoursOpen); // 8760 hours in a year
-    
+
     return Number(annualizedReturn.toFixed(2));
   }
 
@@ -129,12 +138,12 @@ export class CalculationUtils {
   ): number {
     // Kelly Criterion adapted for funding arbitrage
     const riskAmount = availableBalance * (riskPercentage / 100);
-    
+
     // Adjust for volatility - higher volatility means smaller position
     const volatilityAdjustment = Math.max(0.1, 1 - expectedVolatility);
-    
+
     const optimalSize = riskAmount * volatilityAdjustment * maxLeverage;
-    
+
     return Number(Math.max(0, optimalSize).toFixed(2));
   }
 
@@ -145,8 +154,9 @@ export class CalculationUtils {
   ): { breakEvenDays: number; netAPRAfterFees: number } {
     const annualFeeImpact = tradingFees * 365; // Assuming fees are daily
     const annualFundingReturn = (fundingAPR / 100) * positionSize;
-    
-    const netAPRAfterFees = ((annualFundingReturn - annualFeeImpact) / positionSize) * 100;
+
+    const netAPRAfterFees =
+      ((annualFundingReturn - annualFeeImpact) / positionSize) * 100;
     const breakEvenDays = tradingFees / (annualFundingReturn / 365);
 
     return {
@@ -161,7 +171,11 @@ export class CalculationUtils {
     positionSize: number,
     minViableAPR: number = 5
   ): boolean {
-    const { netAPRAfterFees } = this.calculateFeeImpact(tradingFees, spreadAPR, positionSize);
+    const { netAPRAfterFees } = this.calculateFeeImpact(
+      tradingFees,
+      spreadAPR,
+      positionSize
+    );
     return netAPRAfterFees >= minViableAPR;
   }
 

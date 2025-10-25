@@ -47,9 +47,8 @@ export const exchangeEndpoints = {
   vest: {
     baseUrl:
       process.env.NODE_ENV === "production"
-        ? "https://serverprod.vest.exchange/v2"
-        : "https://serverprod.vest.exchange/v2",
-    // : 'https://server-mmdev.vestdev.exchange/v2',
+        ? "https://server-prod.hz.vestmarkets.com/v2"
+        : "https://server-dev.hz.vestmarkets.com/v2",
     websocket:
       process.env.NODE_ENV === "production"
         ? "wss://ws.vest.exchange"

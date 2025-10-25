@@ -111,7 +111,7 @@ export class VestExchange implements ExchangeConnector {
             fundingRates.push({
               exchange: "vest",
               token,
-              fundingRate: parseFloat(tokenTicker.oneHrFundingRate), // 1h? funding rate
+              fundingRate: parseFloat(tokenTicker.oneHrFundingRate), // 1h funding rate
               nextFunding,
               fundingFrequency: exchangeConfigs["vest"].fundingFrequency, // in hours
               timestamp: new Date(),
@@ -210,16 +210,11 @@ export class VestExchange implements ExchangeConnector {
   }
 
   private extractTokensFromTickers(tickerData: any[]): TokenSymbol[] {
-    const tokens: Set<string> = new Set();
-
-    for (const ticker of tickerData) {
-      if (ticker.symbol && ticker.symbol.endsWith("-PERP")) {
-        const token = ticker.symbol.replace("-PERP", "");
-        tokens.add(token);
-      }
-    }
-
-    return Array.from(tokens) as TokenSymbol[];
+    const tokens = tickerData
+      .map((ticker): TokenSymbol => ticker.symbol)
+      .filter((symbol) => !symbol.endsWith("-USD-PERP"))
+      .map((symbol) => symbol.replace("-PERP", ""));
+    return tokens;
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {

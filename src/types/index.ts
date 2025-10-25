@@ -109,3 +109,46 @@ export interface ExchangeConnector {
   closePosition(positionId: string): Promise<boolean>;
   getPositionPnL(positionId: string): Promise<number>;
 }
+
+export interface ArbitrageOpportunityData {
+  id: string;
+  rank: number;
+  token: string;
+  tokenIcon: string;
+  longExchange: {
+    name: string;
+    color: string;
+    fundingRate: number;
+    fundingRateFormatted: string;
+    price: number;
+    // priceFormatted: string;
+  };
+  shortExchange: {
+    name: string;
+    color: string;
+    fundingRate: number;
+    fundingRateFormatted: string;
+    price: number;
+    // priceFormatted: string;
+  };
+  spread: {
+    absolute: number;
+    percent: string;
+    apr: number;
+  };
+  metrics: {
+    confidence: number;
+    riskLevel: string;
+    riskColor: string;
+    expectedDailyReturn: string;
+    maxSize: number;
+    maxSizeFormatted: string;
+    priceDeviation: number;
+    priceDeviationFormatted: string;
+  };
+  timing: {
+    nextFunding: string;
+    longFrequency: string;
+    shortFrequency: string;
+  };
+}

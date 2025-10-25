@@ -18,6 +18,7 @@ build/
 .env.production.local
 
 # Database
+database.sqlite-journal
 database.sqlite
 *.db
 *.sqlite3

@@ -12,7 +12,7 @@ import { woofiExchange } from "./exchanges/WoofiExchange";
 export interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
   longMarkPrice: number;
   shortMarkPrice: number;
-  expectedDailyPnL: number;
+  // expectedDailyPnL: number;
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
   fundingFrequency: {
     longExchange: string;
@@ -114,10 +114,10 @@ export class ArbitrageService {
               ),
               longMarkPrice: longRate.markPrice || 0,
               shortMarkPrice: shortRate.markPrice || 0,
-              expectedDailyPnL: this.calculateDailyPnL(
-                spreadAPR,
-                maxPositionSize
-              ),
+              // expectedDailyPnL: this.calculateDailyPnL(
+              //   spreadAPR,
+              //   maxPositionSize
+              // ),
               riskLevel: this.assessRiskLevel(spreadAPR, priceDeviation),
               fundingFrequency: {
                 longExchange:
@@ -239,34 +239,32 @@ export class ArbitrageService {
   }
 
   private groupRatesByToken(rates: FundingRate[]): Record<string, any[]> {
-    return rates.reduce((acc, rate) => {
-      const rateData = rate.dataValues || rate;
-      if (!rateData.token) return acc;
+    return rates.reduce(
+      (acc, rate) => {
+        const rateData = rate.dataValues || rate;
+        if (!rateData.token) return acc;
 
-      if (!acc[rateData.token]) {
-        acc[rateData.token] = [];
-      }
-      acc[rateData.token].push(rateData);
-      return acc;
-    }, {} as Record<string, any[]>);
+        if (!acc[rateData.token]) {
+          acc[rateData.token] = [];
+        }
+        acc[rateData.token].push(rateData);
+        return acc;
+      },
+      {} as Record<string, any[]>
+    );
   }
 
   private calculateSpreadAPR(
     longRate: FundingRate,
     shortRate: FundingRate
   ): number {
-    // Calculate annualized spread
-    const spread = shortRate.fundingRate - longRate.fundingRate;
+    const longApr =
+      (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
+    const shortApr =
+      (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
+    const spread = shortApr - longApr;
 
-    // Convert to APR based on funding frequency
-    const longFreq = this.getFundingFrequency(longRate.exchange);
-    const shortFreq = this.getFundingFrequency(shortRate.exchange);
-
-    // Use the most frequent funding cycle for calculation
-    const periodsPerYear =
-      longFreq === "hourly" || shortFreq === "hourly" ? 8760 : 1095; // 8760 hours or 1095 8-hour periods
-
-    return spread * periodsPerYear * 100; // Convert to percentage
+    return spread * 100; // Convert to percentage
   }
 
   private calculatePriceDeviation(longRate: any, shortRate: any): number {
@@ -321,9 +319,9 @@ export class ArbitrageService {
     return baseSize;
   }
 
-  private calculateDailyPnL(spreadAPR: number, positionSize: number): number {
-    return (spreadAPR / 365) * (positionSize / 100); // Daily PnL in USD
-  }
+  // private _calculateDailyPnL(spreadAPR: number, positionSize: number): number {
+  //   return (spreadAPR / 365) * (positionSize / 100); // Daily PnL in USD
+  // }
 
   private assessRiskLevel(
     spreadAPR: number,

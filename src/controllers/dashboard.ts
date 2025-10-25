@@ -6,7 +6,7 @@ import {
   arbitrageService,
   DetailedArbitrageOpportunity,
 } from "../services/ArbitrageService";
-import { ExchangeName } from "../types";
+import { ArbitrageOpportunityData, ExchangeName } from "../types";
 
 // Interface pour les données formatées pour le tableau des taux
 interface FundingRateDisplay {
@@ -51,16 +51,6 @@ function getFundingFrequency(exchange: ExchangeName): number {
 function getFundingFrequencyText(exchange: ExchangeName): string {
   if (exchangeConfigs[exchange].fundingFrequency === 1) return "Hourly";
   else return `${exchangeConfigs[exchange].fundingFrequency} Hours`;
-  switch (exchange) {
-    case "vest":
-    case "extended":
-      return "Hourly";
-    case "hyperliquid":
-    case "orderly":
-      return "8 Hours";
-    default:
-      return "Hourly";
-  }
 }
 
 export const getDashboard = async (
@@ -219,13 +209,6 @@ export const getFundingRatesTable = async (
           : "N/A",
         markPrice: rateData.markPrice || 0,
         indexPrice: rateData.indexPrice || 0,
-        priceFormatted: rateData.markPrice
-          ? "$" +
-            rateData.markPrice.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-          : "N/A",
         timestamp: rateData.timestamp
           ? rateData.timestamp.toISOString()
           : new Date().toISOString(),
@@ -339,8 +322,8 @@ export const getArbitrageOpportunities = async (
     opportunities = opportunities.slice(0, limit);
 
     // Format for display
-    const formattedOpportunities = opportunities.map(
-      (opp: DetailedArbitrageOpportunity, index) => ({
+    const formattedOpportunities: ArbitrageOpportunityData[] =
+      opportunities.map((opp: DetailedArbitrageOpportunity, index) => ({
         id: `${opp.token}-${opp.longExchange}-${opp.shortExchange}`,
         rank: index + 1,
         token: opp.token,
@@ -351,12 +334,6 @@ export const getArbitrageOpportunities = async (
           fundingRate: opp.longFundingRate,
           fundingRateFormatted: (opp.longFundingRate * 100).toFixed(6) + "%",
           price: opp.longMarkPrice,
-          priceFormatted:
-            "$" +
-            opp.longMarkPrice.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }),
         },
         shortExchange: {
           name: opp.shortExchange?.toUpperCase(),
@@ -364,19 +341,13 @@ export const getArbitrageOpportunities = async (
           fundingRate: opp.shortFundingRate,
           fundingRateFormatted: (opp.shortFundingRate * 100).toFixed(6) + "%",
           price: opp.shortMarkPrice,
-          priceFormatted:
-            "$" +
-            opp.shortMarkPrice.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }),
         },
         spread: {
           absolute: opp.shortFundingRate - opp.longFundingRate,
           percent:
             ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) +
             "%",
-          apr: opp.spreadAPR.toFixed(2) + "%",
+          apr: opp.spreadAPR,
         },
         metrics: {
           confidence: opp.confidence,
@@ -398,8 +369,7 @@ export const getArbitrageOpportunities = async (
           longFrequency: opp.fundingFrequency.longExchange,
           shortFrequency: opp.fundingFrequency.shortExchange,
         },
-      })
-    );
+      }));
 
     const result = {
       success: true,
@@ -409,12 +379,12 @@ export const getArbitrageOpportunities = async (
           totalOpportunities: formattedOpportunities.length,
           bestAPR:
             formattedOpportunities.length > 0
-              ? parseFloat(formattedOpportunities[0].spread.apr)
+              ? formattedOpportunities[0].spread.apr
               : 0,
           avgAPR:
             formattedOpportunities.length > 0
               ? formattedOpportunities.reduce(
-                  (sum, opp) => sum + parseFloat(opp.spread.apr),
+                  (sum, opp) => sum + opp.spread.apr,
                   0
                 ) / formattedOpportunities.length
               : 0,
@@ -518,13 +488,16 @@ function getTokenIcon(token: string): string {
 function groupByToken(
   rates: FundingRateDisplay[]
 ): Record<string, FundingRateDisplay[]> {
-  return rates.reduce((acc, rate) => {
-    if (!acc[rate.symbol]) {
-      acc[rate.symbol] = [];
-    }
-    acc[rate.symbol].push(rate);
-    return acc;
-  }, {} as Record<string, FundingRateDisplay[]>);
+  return rates.reduce(
+    (acc, rate) => {
+      if (!acc[rate.symbol]) {
+        acc[rate.symbol] = [];
+      }
+      acc[rate.symbol].push(rate);
+      return acc;
+    },
+    {} as Record<string, FundingRateDisplay[]>
+  );
 }
 
 function calculateExchangeStats(rates: any[]) {

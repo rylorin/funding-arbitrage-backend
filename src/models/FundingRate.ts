@@ -7,7 +7,7 @@ type FundingRateAttributes = {
   exchange: ExchangeName;
   token: TokenSymbol;
   fundingRate: number;
-  fundingFrequency?: number; // in hours
+  fundingFrequency: number; // in hours
   nextFunding: Date;
   timestamp: Date;
   markPrice?: number;
@@ -25,17 +25,17 @@ class FundingRate extends Model<
   FundingRateAttributes,
   FundingRateCreationAttributes
 > {
-  public declare id: string;
-  public declare exchange: ExchangeName;
-  public declare token: TokenSymbol;
-  public declare fundingRate: number;
-  public declare fundingFrequency?: number; // in hours
-  public declare nextFunding: Date;
-  public declare timestamp: Date;
-  public declare markPrice?: number;
-  public declare indexPrice?: number;
-  public declare readonly createdAt: Date;
-  public declare readonly updatedAt: Date;
+  declare public id: string;
+  declare public exchange: ExchangeName;
+  declare public token: TokenSymbol;
+  declare public fundingRate: number;
+  declare public fundingFrequency: number; // in hours
+  declare public nextFunding: Date;
+  declare public timestamp: Date;
+  declare public markPrice?: number;
+  declare public indexPrice?: number;
+  declare public readonly createdAt: Date;
+  declare public readonly updatedAt: Date;
 
   public static async getLatestRates(
     token?: TokenSymbol,

@@ -11,13 +11,13 @@
 
 ```bash
 # Install dependencies
-npm install
+yarn
 
 # Setup environment
 cp .env.example .env
 
 # Start development server
-npm run dev
+yarn dev
 ```
 
 Server runs on `http://localhost:3000` with WebSocket support at `/socket.io`
@@ -38,18 +38,18 @@ Server runs on `http://localhost:3000` with WebSocket support at `/socket.io`
 
 ### 🎯 **Implemented Priorities**
 
-| Priority | Status | Description |
-|----------|--------|-------------|
-| **P1** | ✅ | **Dashboard API** - Dashboard interface with funding rates and opportunities |
-| **P2** | ✅ | **Position Monitoring** - Real-time position tracking, alerts, and performance analytics |
-| **P3** | ✅ | **Auto-Close System** - Automated position closure based on APR, PnL, and time thresholds |
-| **P4** | ✅ | **Auto-Trading** - Automated position opening for best opportunities |
+| Priority | Status | Description                                                                               |
+| -------- | ------ | ----------------------------------------------------------------------------------------- |
+| **P1**   | ✅     | **Dashboard API** - Dashboard interface with funding rates and opportunities              |
+| **P2**   | ✅     | **Position Monitoring** - Real-time position tracking, alerts, and performance analytics  |
+| **P3**   | ✅     | **Auto-Close System** - Automated position closure based on APR, PnL, and time thresholds |
+| **P4**   | ✅     | **Auto-Trading** - Automated position opening for best opportunities                      |
 
 ### 🔧 **Core Capabilities**
 
 - **Multi-Exchange Arbitrage** - Detect funding rate spreads across 7+ exchanges
 - **Real-Time Data** - WebSocket streaming for funding rates and position updates
-- **Risk Management** - Configurable thresholds and automated safeguards  
+- **Risk Management** - Configurable thresholds and automated safeguards
 - **Web3 Authentication** - Secure wallet-based login with message signing
 - **Background Jobs** - Automated monitoring and execution systems
 
@@ -58,6 +58,7 @@ Server runs on `http://localhost:3000` with WebSocket support at `/socket.io`
 ## 🔌 API Reference
 
 ### Base URL
+
 ```
 Production:  https://your-domain.com/api
 Development: http://localhost:3000/api
@@ -66,6 +67,7 @@ Development: http://localhost:3000/api
 ### 📊 Dashboard Endpoints
 
 #### `GET /dashboard/`
+
 **Main Dashboard - modern and aestetic style interface**
 
 ```typescript
@@ -75,7 +77,7 @@ interface DashboardResponse {
   data: {
     fundingRates: Record<string, FundingRateDisplay[]>;
     allRates: FundingRateDisplay[];
-    opportunities: ArbitrageOpportunityDisplay[];
+    opportunities: ArbitrageOpportunityData[];
     stats: {
       totalExchanges: number;
       activeMarkets: number;
@@ -90,6 +92,7 @@ interface DashboardResponse {
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -99,7 +102,7 @@ interface DashboardResponse {
         "rank": 1,
         "token": "BTC",
         "longExchange": "VEST",
-        "shortExchange": "HYPERLIQUID", 
+        "shortExchange": "HYPERLIQUID",
         "spreadAPR": "23.45%",
         "confidence": 85,
         "riskLevel": "LOW",
@@ -117,19 +120,22 @@ interface DashboardResponse {
 ```
 
 #### `GET /dashboard/funding-rates`
+
 **Sortable funding rates table**
 
 **Query Parameters:**
+
 ```typescript
 interface FundingRatesQuery {
-  token?: 'BTC' | 'ETH' | 'SOL' | 'AVAX' | 'MATIC' | 'ARB' | 'OP';
-  exchange?: 'vest' | 'hyperliquid' | 'orderly' | 'extended';
-  sortBy?: 'fundingRate' | 'apr' | 'exchange' | 'nextFunding';
-  sortOrder?: 'asc' | 'desc';
+  token?: "BTC" | "ETH" | "SOL" | "AVAX" | "MATIC" | "ARB" | "OP";
+  exchange?: "vest" | "hyperliquid" | "orderly" | "extended";
+  sortBy?: "fundingRate" | "apr" | "exchange" | "nextFunding";
+  sortOrder?: "asc" | "desc";
 }
 ```
 
 **Response Structure:**
+
 ```typescript
 interface FundingRatesResponse {
   success: boolean;
@@ -161,13 +167,13 @@ interface FundingRateTableDisplay {
   fundingRate: number;
   fundingRatePercent: string;
   fundingAPR: string;
-  fundingFrequency: string;
+  fundingFrequency: number; // in hours
   nextFunding: string;
   nextFundingFormatted: string;
   timeToFunding: string;
   markPrice: number;
   indexPrice: number;
-  priceFormatted: string;
+  // priceFormatted: string;
   timestamp: string;
   isPositive: boolean;
   isNegative: boolean;
@@ -176,6 +182,7 @@ interface FundingRateTableDisplay {
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -195,7 +202,7 @@ interface FundingRateTableDisplay {
         "timeToFunding": "45m",
         "markPrice": 45123.45,
         "indexPrice": 45120.12,
-        "priceFormatted": "$45,123.45",
+        // "priceFormatted": "$45,123.45",
         "timestamp": "2024-01-01T12:15:00.000Z",
         "isPositive": true,
         "isNegative": false,
@@ -220,25 +227,28 @@ interface FundingRateTableDisplay {
 ```
 
 #### `GET /dashboard/opportunities`
+
 **Detailed arbitrage opportunities**
 
 **Query Parameters:**
+
 ```typescript
 interface OpportunitiesQuery {
-  minAPR?: number;        // Default: 0
-  maxSize?: number;       // Default: 10000
-  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
-  token?: 'BTC' | 'ETH' | 'SOL' | 'AVAX' | 'ARB' | 'OP';
-  limit?: number;         // Default: 20
+  minAPR?: number; // Default: 0
+  maxSize?: number; // Default: 10000
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH";
+  token?: "BTC" | "ETH" | "SOL" | "AVAX" | "ARB" | "OP";
+  limit?: number; // Default: 20
 }
 ```
 
 **Response Structure:**
+
 ```typescript
 interface ArbitrageOpportunitiesResponse {
   success: boolean;
   data: {
-    opportunities: ArbitrageOpportunityDisplay[];
+    opportunities: ArbitrageOpportunityData[];
     summary: {
       totalOpportunities: number;
       bestAPR: number;
@@ -261,7 +271,7 @@ interface ArbitrageOpportunitiesResponse {
   timestamp: string;
 }
 
-interface ArbitrageOpportunityDisplay {
+interface ArbitrageOpportunityData {
   id: string;
   rank: number;
   token: string;
@@ -272,7 +282,7 @@ interface ArbitrageOpportunityDisplay {
     fundingRate: number;
     fundingRateFormatted: string;
     price: number;
-    priceFormatted: string;
+    // priceFormatted: string;
   };
   shortExchange: {
     name: string;
@@ -280,12 +290,12 @@ interface ArbitrageOpportunityDisplay {
     fundingRate: number;
     fundingRateFormatted: string;
     price: number;
-    priceFormatted: string;
+    // priceFormatted: string;
   };
   spread: {
     absolute: number;
     percent: string;
-    apr: string;
+    apr: number;
   };
   metrics: {
     confidence: number;
@@ -306,6 +316,7 @@ interface ArbitrageOpportunityDisplay {
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -321,16 +332,16 @@ interface ArbitrageOpportunityDisplay {
           "color": "#8B5CF6",
           "fundingRate": 0.000045,
           "fundingRateFormatted": "0.004500%",
-          "price": 45123.45,
-          "priceFormatted": "$45,123.45"
+          "price": 45123.45
+          // "priceFormatted": "$45,123.45"
         },
         "shortExchange": {
           "name": "HYPERLIQUID",
           "color": "#3B82F6",
           "fundingRate": 0.000198,
           "fundingRateFormatted": "0.019800%",
-          "price": 45145.23,
-          "priceFormatted": "$45,145.23"
+          "price": 45145.23
+          // "priceFormatted": "$45,145.23"
         },
         "spread": {
           "absolute": 0.000153,
@@ -376,6 +387,7 @@ interface ArbitrageOpportunityDisplay {
 ```
 
 #### `GET /dashboard/overview`
+
 **Market overview and statistics**
 
 ---
@@ -383,6 +395,7 @@ interface ArbitrageOpportunityDisplay {
 ### 📈 Position Endpoints
 
 #### `GET /positions/dashboard`
+
 **Comprehensive position dashboard**
 
 ```typescript
@@ -410,7 +423,7 @@ interface EnrichedPosition {
   currentAPR: number;
   aprChange: number;
   hoursOpen: number;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   shouldClose: boolean;
   exchangeColors: {
     long: string;
@@ -420,6 +433,7 @@ interface EnrichedPosition {
 ```
 
 #### `GET /positions/alerts`
+
 **Position alerts and warnings**
 
 ```json
@@ -448,9 +462,11 @@ interface EnrichedPosition {
 ```
 
 #### `GET /positions/:id/details`
+
 **Detailed position analysis**
 
 #### `POST /positions/`
+
 **Create new position**
 
 ```typescript
@@ -475,9 +491,11 @@ interface CreatePositionRequest {
 ### 🏦 Exchange Endpoints
 
 #### `GET /exchanges/funding-rates`
+
 **Latest funding rates from all exchanges**
 
 #### `GET /exchanges/status`
+
 **Exchange connection health**
 
 ---
@@ -485,6 +503,7 @@ interface CreatePositionRequest {
 ### 🔐 Authentication Endpoints
 
 #### `POST /auth/login`
+
 **Web3 wallet authentication**
 
 ```typescript
@@ -511,13 +530,14 @@ interface LoginResponse {
 ## 🔌 WebSocket Integration
 
 ### Connection
-```typescript
-import io from 'socket.io-client';
 
-const socket = io('http://localhost:3000', {
+```typescript
+import io from "socket.io-client";
+
+const socket = io("http://localhost:3000", {
   auth: {
-    token: 'your-jwt-token'
-  }
+    token: "your-jwt-token",
+  },
 });
 ```
 
@@ -525,41 +545,41 @@ const socket = io('http://localhost:3000', {
 
 ```typescript
 // Subscribe to position updates
-socket.emit('subscribe-positions', { userId: 'user-id' });
+socket.emit("subscribe-positions", { userId: "user-id" });
 
-// Subscribe to funding rate updates  
-socket.emit('subscribe-funding-rates');
+// Subscribe to funding rate updates
+socket.emit("subscribe-funding-rates");
 
 // Subscribe to arbitrage opportunities
-socket.emit('subscribe-opportunities');
+socket.emit("subscribe-opportunities");
 ```
 
 ### Server → Client Events
 
 ```typescript
 // Funding rate updates (every minute)
-socket.on('funding-rates-update', (data: FundingRateUpdate) => {
-  console.log('New funding rates:', data.rates);
+socket.on("funding-rates-update", (data: FundingRateUpdate) => {
+  console.log("New funding rates:", data.rates);
 });
 
 // Position PnL updates (every 30 seconds)
-socket.on('position-pnl-update', (data: PositionUpdate) => {
-  console.log('Position update:', data);
+socket.on("position-pnl-update", (data: PositionUpdate) => {
+  console.log("Position update:", data);
 });
 
 // New arbitrage opportunities
-socket.on('opportunity-alert', (data: OpportunityAlert) => {
-  console.log('New opportunity:', data.opportunity);
+socket.on("opportunity-alert", (data: OpportunityAlert) => {
+  console.log("New opportunity:", data.opportunity);
 });
 
 // Automated position closures
-socket.on('position-closed', (data: PositionClosure) => {
-  console.log('Position auto-closed:', data);
+socket.on("position-closed", (data: PositionClosure) => {
+  console.log("Position auto-closed:", data);
 });
 
 // System alerts and notifications
-socket.on('system-alert', (data: SystemAlert) => {
-  console.log('System alert:', data);
+socket.on("system-alert", (data: SystemAlert) => {
+  console.log("System alert:", data);
 });
 ```
 
@@ -567,13 +587,13 @@ socket.on('system-alert', (data: SystemAlert) => {
 
 ```typescript
 interface FundingRateUpdate {
-  type: 'funding-rates-update';
+  type: "funding-rates-update";
   timestamp: string;
   rates: FundingRateData[];
 }
 
 interface PositionUpdate {
-  type: 'position-pnl-update'; 
+  type: "position-pnl-update";
   positionId: string;
   userId: string;
   currentPnL: number;
@@ -583,9 +603,9 @@ interface PositionUpdate {
 }
 
 interface OpportunityAlert {
-  type: 'opportunity-alert';
+  type: "opportunity-alert";
   opportunity: ArbitrageOpportunity;
-  reason: 'new' | 'apr_increase' | 'risk_decreased';
+  reason: "new" | "apr_increase" | "risk_decreased";
 }
 ```
 
@@ -597,10 +617,24 @@ interface OpportunityAlert {
 
 ```typescript
 // Enums
-export type ExchangeName = 'vest' | 'hyperliquid' | 'orderly' | 'extended' | 'paradex' | 'backpack' | 'hibachi';
-export type TokenSymbol = 'BTC' | 'ETH' | 'SOL' | 'AVAX' | 'MATIC' | 'ARB' | 'OP';
-export type PositionStatus = 'OPEN' | 'CLOSED' | 'ERROR' | 'CLOSING';
-export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type ExchangeName =
+  | "vest"
+  | "hyperliquid"
+  | "orderly"
+  | "extended"
+  | "paradex"
+  | "backpack"
+  | "hibachi";
+export type TokenSymbol =
+  | "BTC"
+  | "ETH"
+  | "SOL"
+  | "AVAX"
+  | "MATIC"
+  | "ARB"
+  | "OP";
+export type PositionStatus = "OPEN" | "CLOSED" | "ERROR" | "CLOSING";
+export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 // Funding Rate Data
 export interface FundingRateData {
@@ -622,7 +656,7 @@ export interface ArbitrageOpportunity {
   shortExchange: ExchangeName;
   longFundingRate: number;
   shortFundingRate: number;
-  spreadAPR: number;  // Annualized Percentage Rate of the spread (10 for 10%)
+  spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
   confidence: number;
   minSize: number;
   maxSize: number;
@@ -678,7 +712,7 @@ export interface UserSettings {
   autoTradingEnabled: boolean;
   maxPositionSize: number;
   maxSimultaneousPositions: number;
-  riskTolerance: 'low' | 'medium' | 'high';
+  riskTolerance: "low" | "medium" | "high";
   allowedExchanges: ExchangeName[];
   autoCloseEnabled: boolean;
   autoCloseAPRThreshold: number;
@@ -699,7 +733,7 @@ CREATE TABLE users (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Positions Table  
+-- Positions Table
 CREATE TABLE positions (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES users(id),
@@ -745,20 +779,20 @@ Nonce: ${randomNonce}`;
 const signature = await signer.signMessage(message);
 
 // 3. Send to backend for verification
-const response = await fetch('/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+const response = await fetch("/api/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     walletAddress,
     signature,
     message,
-    timestamp: Date.now()
-  })
+    timestamp: Date.now(),
+  }),
 });
 
 // 4. Store JWT token
 const { token } = await response.json();
-localStorage.setItem('authToken', token);
+localStorage.setItem("authToken", token);
 ```
 
 ### Using JWT Token
@@ -766,15 +800,15 @@ localStorage.setItem('authToken', token);
 ```typescript
 // Add to request headers
 const headers = {
-  'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-  'Content-Type': 'application/json'
+  Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+  "Content-Type": "application/json",
 };
 
 // Automatic inclusion in WebSocket
-const socket = io('http://localhost:3000', {
+const socket = io("http://localhost:3000", {
   auth: {
-    token: localStorage.getItem('authToken')
-  }
+    token: localStorage.getItem("authToken"),
+  },
 });
 ```
 
@@ -784,19 +818,20 @@ const socket = io('http://localhost:3000', {
 
 ### Active Integrations
 
-| Exchange | Status | Funding Frequency | Supported Tokens |
-|----------|--------|-------------------|------------------|
-| **Vest** | ✅ Live | Hourly | BTC, ETH, SOL, ARB, OP |
-| **Hyperliquid** | ✅ Live | 8 Hours | BTC, ETH, SOL, AVAX |
-| **Orderly Network** | ✅ Live | 8 Hours | BTC, ETH, SOL, MATIC |
-| **Extended** | ✅ Live | Hourly | 78+ tokens (crypto, TradFi, DeFi) |
-| **Paradex** | 🔄 Planned | 8 Hours | TBD |
-| **Backpack** | 🔄 Planned | 8 Hours | TBD |
-| **Hibachi** | 🔄 Planned | 8 Hours | TBD |
+| Exchange            | Status     | Funding Frequency | Supported Tokens                  |
+| ------------------- | ---------- | ----------------- | --------------------------------- |
+| **Vest**            | ✅ Live    | Hourly            | BTC, ETH, SOL, ARB, OP            |
+| **Hyperliquid**     | ✅ Live    | 8 Hours           | BTC, ETH, SOL, AVAX               |
+| **Orderly Network** | ✅ Live    | 8 Hours           | BTC, ETH, SOL, MATIC              |
+| **Extended**        | ✅ Live    | Hourly            | 78+ tokens (crypto, TradFi, DeFi) |
+| **Paradex**         | 🔄 Planned | 8 Hours           | TBD                               |
+| **Backpack**        | 🔄 Planned | 8 Hours           | TBD                               |
+| **Hibachi**         | 🔄 Planned | 8 Hours           | TBD                               |
 
 ### Exchange-Specific Details
 
 #### Vest Exchange
+
 ```typescript
 {
   fundingFrequency: 'hourly',
@@ -807,13 +842,14 @@ const socket = io('http://localhost:3000', {
 }
 ```
 
-#### Hyperliquid  
+#### Hyperliquid
+
 ```typescript
 {
   fundingFrequency: '8hour',
   apiEndpoint: '/info',
   authRequired: false,
-  rateLimit: '30 req/min', 
+  rateLimit: '30 req/min',
   dataFields: ['predictedFundings', 'fundingHistory']
 }
 ```
@@ -826,8 +862,8 @@ const socket = io('http://localhost:3000', {
 
 ```typescript
 // hooks/useFundingRates.ts
-import { useState, useEffect } from 'react';
-import io from 'socket.io-client';
+import { useState, useEffect } from "react";
+import io from "socket.io-client";
 
 export function useFundingRates() {
   const [rates, setRates] = useState<FundingRateData[]>([]);
@@ -835,14 +871,14 @@ export function useFundingRates() {
 
   useEffect(() => {
     const newSocket = io(process.env.REACT_APP_API_URL, {
-      auth: { token: localStorage.getItem('authToken') }
+      auth: { token: localStorage.getItem("authToken") },
     });
 
-    newSocket.on('funding-rates-update', (data) => {
+    newSocket.on("funding-rates-update", (data) => {
       setRates(data.rates);
     });
 
-    newSocket.emit('subscribe-funding-rates');
+    newSocket.emit("subscribe-funding-rates");
     setSocket(newSocket);
 
     return () => newSocket.close();
@@ -856,13 +892,13 @@ export function useFundingRates() {
 
 ```typescript
 // store/slices/dashboardSlice.ts
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
 export const fetchDashboard = createAsyncThunk(
-  'dashboard/fetch',
+  "dashboard/fetch",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/dashboard/');
+      const response = await api.get("/dashboard/");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -871,28 +907,27 @@ export const fetchDashboard = createAsyncThunk(
 );
 
 const dashboardSlice = createSlice({
-  name: 'dashboard',
+  name: "dashboard",
   initialState: {
     fundingRates: [],
     opportunities: [],
     stats: null,
     loading: false,
-    error: null
+    error: null,
   },
   reducers: {
     updateFundingRates: (state, action) => {
       state.fundingRates = action.payload;
-    }
+    },
   },
   extraReducers: (builder) => {
-    builder
-      .addCase(fetchDashboard.fulfilled, (state, action) => {
-        state.loading = false;
-        state.fundingRates = action.payload.data.allRates;
-        state.opportunities = action.payload.data.opportunities;
-        state.stats = action.payload.data.stats;
-      });
-  }
+    builder.addCase(fetchDashboard.fulfilled, (state, action) => {
+      state.loading = false;
+      state.fundingRates = action.payload.data.allRates;
+      state.opportunities = action.payload.data.opportunities;
+      state.stats = action.payload.data.stats;
+    });
+  },
 });
 ```
 
@@ -903,13 +938,13 @@ const dashboardSlice = createSlice({
 export function handleApiError(error: any) {
   if (error.response?.status === 401) {
     // Redirect to login
-    window.location.href = '/login';
+    window.location.href = "/login";
   } else if (error.response?.status === 429) {
     // Rate limit exceeded
-    toast.error('Too many requests. Please try again later.');
+    toast.error("Too many requests. Please try again later.");
   } else {
     // Generic error
-    toast.error(error.response?.data?.message || 'Something went wrong');
+    toast.error(error.response?.data?.message || "Something went wrong");
   }
 }
 
@@ -919,7 +954,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem("authToken");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -984,7 +1019,7 @@ VEST_SECRET_KEY=your-vest-secret-key
 
 # Hyperliquid (public API - no keys needed)
 
-# Orderly Network  
+# Orderly Network
 ORDERLY_API_KEY=your-orderly-key
 ORDERLY_SECRET_KEY=your-orderly-secret
 
@@ -1074,12 +1109,12 @@ pm2 save
 
 ### Background Jobs Schedule
 
-| Job | Frequency | Purpose | Service |
-|-----|-----------|---------|---------|
-| **Funding Rate Updater** | Every 1 min | Fetch latest rates from all exchanges | `FundingRateService` |
-| **Position Monitor** | Every 30 sec | Calculate PnL and check auto-close conditions | `PositionMonitoringService` |  
-| **Auto Trader** | Every 5 min | Execute automated position opening | `AutoTradingService` |
-| **Health Check** | Every 10 min | Monitor system health and exchange status | `HealthService` |
+| Job                      | Frequency    | Purpose                                       | Service                     |
+| ------------------------ | ------------ | --------------------------------------------- | --------------------------- |
+| **Funding Rate Updater** | Every 1 min  | Fetch latest rates from all exchanges         | `FundingRateService`        |
+| **Position Monitor**     | Every 30 sec | Calculate PnL and check auto-close conditions | `PositionMonitoringService` |
+| **Auto Trader**          | Every 5 min  | Execute automated position opening            | `AutoTradingService`        |
+| **Health Check**         | Every 10 min | Monitor system health and exchange status     | `HealthService`             |
 
 ### Data Flow
 
@@ -1088,7 +1123,7 @@ Exchange APIs ──► Funding Rate Service ──► Database ──► WebSoc
      │                                         │
      └── Background Jobs ────────────────────────┘
          • Position Monitoring
-         • Auto Trading  
+         • Auto Trading
          • Risk Management
 ```
 
@@ -1110,7 +1145,7 @@ Request ──► Rate Limiter ──► CORS ──► Helmet ──► JWT Aut
   "build": "tsc",
   "start": "node dist/index.js",
   "test": "jest",
-  "test:watch": "jest --watch", 
+  "test:watch": "jest --watch",
   "lint": "eslint src/**/*.ts",
   "lint:fix": "eslint src/**/*.ts --fix",
   "typecheck": "tsc --noEmit",
@@ -1140,11 +1175,13 @@ npm test -- positions.test.ts
 ## 📞 Support & Resources
 
 ### Health Check
+
 ```bash
 curl http://localhost:3000/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "ok",
@@ -1155,7 +1192,7 @@ Expected response:
   "database": "connected",
   "jobs": {
     "fundingRateUpdater": "running",
-    "positionMonitor": "running", 
+    "positionMonitor": "running",
     "autoTrader": "running"
   }
 }
@@ -1166,17 +1203,19 @@ Expected response:
 **Common Issues:**
 
 1. **WebSocket Connection Failed**
+
    ```typescript
    // Add error handling
-   socket.on('connect_error', (error) => {
-     console.log('Connection failed:', error);
+   socket.on("connect_error", (error) => {
+     console.log("Connection failed:", error);
    });
    ```
 
 2. **Rate Limited (429)**
+
    ```typescript
    // Implement exponential backoff
-   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
    await delay(Math.pow(2, retryCount) * 1000);
    ```
 
@@ -1189,6 +1228,7 @@ Expected response:
 ### Performance Monitoring
 
 Monitor these endpoints:
+
 - `/health` - System status
 - WebSocket connection count
 - Database query performance
