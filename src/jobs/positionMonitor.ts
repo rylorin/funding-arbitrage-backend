@@ -1,58 +1,15 @@
-import cron, { ScheduledTask } from "node-cron";
 import { Position, User } from "../models/index";
 import { JobResult, PositionPnL } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
+import { CronJob } from "./cronJob";
 
-export class PositionMonitor {
-  private isRunning = false;
-  private lastExecution: Date | null = null;
-  private cronJob: ScheduledTask | null = null;
-
+export class PositionMonitor extends CronJob {
   constructor() {
-    this.setupCronJob();
-  }
-
-  private setupCronJob(): void {
-    // Run every minute: * * * * *
-    this.cronJob = cron.createTask(
-      "* * * * *",
-      async () => {
-        await this.monitorPositions();
-      },
-      {
-        noOverlap: true,
-      }
-    );
-
-    console.log("📅 Position monitor job scheduled (every 30 seconds)");
-  }
-
-  public start(): void {
-    if (this.cronJob) {
-      this.cronJob.start();
-      console.log("▶️ Position monitor started");
-    }
-  }
-
-  public stop(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      console.log("⏹️ Position monitor stopped");
-    }
+    super();
   }
 
   public async monitorPositions(): Promise<JobResult> {
     const startTime = Date.now();
-
-    if (this.isRunning) {
-      return {
-        success: false,
-        message: "Monitor already in progress",
-        executionTime: Date.now() - startTime,
-      };
-    }
-
-    this.isRunning = true;
 
     try {
       // Get all open positions
@@ -186,8 +143,6 @@ export class PositionMonitor {
         error: error instanceof Error ? error.message : "Unknown error",
         executionTime,
       };
-    } finally {
-      this.isRunning = false;
     }
   }
 
@@ -240,25 +195,6 @@ export class PositionMonitor {
 
   public async runOnce(): Promise<JobResult> {
     return await this.monitorPositions();
-  }
-
-  public getStatus(): {
-    isRunning: boolean;
-    lastExecution: Date | null;
-    isScheduled: boolean;
-  } {
-    return {
-      isRunning: this.isRunning,
-      lastExecution: this.lastExecution,
-      isScheduled: this.cronJob !== null,
-    };
-  }
-
-  public destroy(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      this.cronJob = null;
-    }
   }
 }
 

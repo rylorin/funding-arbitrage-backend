@@ -1,4 +1,3 @@
-import cron, { ScheduledTask } from "node-cron";
 import { FundingRate } from "../models/index";
 import { extendedExchange } from "../services/exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "../services/exchanges/HyperliquidExchange";
@@ -6,58 +5,16 @@ import { vestExchange } from "../services/exchanges/VestExchange";
 import { woofiExchange } from "../services/exchanges/WoofiExchange";
 import { FundingRateData, JobResult } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
+import { CronJob } from "./cronJob";
 
-export class FundingRateUpdater {
-  private isRunning = false;
-  private lastExecution: Date | null = null;
-  private cronJob: ScheduledTask | null = null;
-
+export class FundingRateUpdater extends CronJob {
   constructor() {
-    this.setupCronJob();
-  }
-
-  private setupCronJob(): void {
-    // Run every 30 seconds: */30 * * * * *
-    this.cronJob = cron.createTask(
-      "*/30 * * * * *",
-      async () => {
-        await this.updateFundingRates();
-      },
-      {
-        noOverlap: true,
-      }
-    );
-
-    console.log("📅 Funding rate updater job scheduled (every minute)");
-  }
-
-  public start(): void {
-    if (this.cronJob) {
-      this.cronJob.start();
-      console.log("▶️ Funding rate updater started");
-    }
-  }
-
-  public stop(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      console.log("⏹️ Funding rate updater stopped");
-    }
+    super();
   }
 
   public async updateFundingRates(): Promise<JobResult> {
     const startTime = Date.now();
 
-    if (this.isRunning) {
-      console.log("⚠️ Funding rate update already in progress, skipping...");
-      return {
-        success: false,
-        message: "Update already in progress",
-        executionTime: Date.now() - startTime,
-      };
-    }
-
-    this.isRunning = true;
     // No longer limit to specific tokens - let each exchange determine available pairs
     const updatedRates: FundingRateData[] = [];
     const errors: string[] = [];
@@ -182,8 +139,6 @@ export class FundingRateUpdater {
         error: error instanceof Error ? error.message : "Unknown error",
         executionTime,
       };
-    } finally {
-      this.isRunning = false;
     }
   }
 
@@ -226,26 +181,7 @@ export class FundingRateUpdater {
   }
 
   public async runOnce(): Promise<JobResult> {
-    return await this.updateFundingRates();
-  }
-
-  public getStatus(): {
-    isRunning: boolean;
-    lastExecution: Date | null;
-    isScheduled: boolean;
-  } {
-    return {
-      isRunning: this.isRunning,
-      lastExecution: this.lastExecution,
-      isScheduled: this.cronJob !== null,
-    };
-  }
-
-  public destroy(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      this.cronJob = null;
-    }
+    return this.updateFundingRates();
   }
 }
 

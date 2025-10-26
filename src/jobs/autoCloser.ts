@@ -1,45 +1,12 @@
-import cron, { ScheduledTask } from "node-cron";
 import { Position, TradeHistory, User } from "../models/index";
 import { vestExchange } from "../services/exchanges/VestExchange";
 import { JobResult } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
+import { CronJob } from "./cronJob";
 
-export class AutoCloser {
-  private isRunning = false;
-  private lastExecution: Date | null = null;
-  private cronJob: ScheduledTask | null = null;
-
+export class AutoCloser extends CronJob {
   constructor() {
-    this.setupCronJob();
-  }
-
-  private setupCronJob(): void {
-    // Run every minute: * * * * *
-    this.cronJob = cron.createTask(
-      "* * * * *",
-      async () => {
-        await this.processAutoClosures();
-      },
-      {
-        noOverlap: true,
-      }
-    );
-
-    console.log("📅 Auto closer job scheduled (every minute)");
-  }
-
-  public start(): void {
-    if (this.cronJob) {
-      this.cronJob.start();
-      console.log("▶️ Auto closer started");
-    }
-  }
-
-  public stop(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      console.log("⏹️ Auto closer stopped");
-    }
+    super();
   }
 
   public async processAutoClosures(): Promise<JobResult> {
@@ -312,25 +279,6 @@ export class AutoCloser {
 
   public async runOnce(): Promise<JobResult> {
     return await this.processAutoClosures();
-  }
-
-  public getStatus(): {
-    isRunning: boolean;
-    lastExecution: Date | null;
-    isScheduled: boolean;
-  } {
-    return {
-      isRunning: this.isRunning,
-      lastExecution: this.lastExecution,
-      isScheduled: this.cronJob !== null,
-    };
-  }
-
-  public destroy(): void {
-    if (this.cronJob) {
-      this.cronJob.stop();
-      this.cronJob = null;
-    }
   }
 }
 

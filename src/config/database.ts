@@ -1,5 +1,5 @@
-import { Sequelize, Options } from 'sequelize';
-import { config } from 'dotenv';
+import { config } from "dotenv";
+import { Options, Sequelize } from "sequelize";
 
 config();
 
@@ -11,9 +11,10 @@ interface DatabaseConfig {
 
 const databaseConfig: DatabaseConfig = {
   development: {
-    dialect: 'sqlite',
-    storage: './database.sqlite',
-    logging: console.log,
+    dialect: "sqlite",
+    storage: "./database.sqlite",
+    // logging: console.log,
+    logging: false,
     define: {
       timestamps: true,
       underscored: false,
@@ -21,8 +22,8 @@ const databaseConfig: DatabaseConfig = {
     },
   },
   test: {
-    dialect: 'sqlite',
-    storage: ':memory:',
+    dialect: "sqlite",
+    storage: ":memory:",
     logging: false,
     define: {
       timestamps: true,
@@ -31,12 +32,12 @@ const databaseConfig: DatabaseConfig = {
     },
   },
   production: {
-    dialect: 'postgres',
-    host: process.env.DATABASE_HOST || 'localhost',
-    port: parseInt(process.env.DATABASE_PORT || '5432'),
-    database: process.env.DATABASE_NAME || 'funding_arbitrage',
-    username: process.env.DATABASE_USER || 'postgres',
-    password: process.env.DATABASE_PASSWORD || '',
+    dialect: "postgres",
+    host: process.env.DATABASE_HOST || "localhost",
+    port: parseInt(process.env.DATABASE_PORT || "5432"),
+    database: process.env.DATABASE_NAME || "funding_arbitrage",
+    username: process.env.DATABASE_USER || "postgres",
+    password: process.env.DATABASE_PASSWORD || "",
     dialectOptions: {
       ssl: {
         require: true,
@@ -58,7 +59,8 @@ const databaseConfig: DatabaseConfig = {
   },
 };
 
-const environment = (process.env.NODE_ENV as keyof DatabaseConfig) || 'development';
+const environment =
+  (process.env.NODE_ENV as keyof DatabaseConfig) || "development";
 const dbConfig = databaseConfig[environment];
 
 export const sequelize = new Sequelize(dbConfig);
@@ -66,14 +68,14 @@ export const sequelize = new Sequelize(dbConfig);
 export const connectDatabase = async (): Promise<void> => {
   try {
     await sequelize.authenticate();
-    console.log(`Database connected successfully (${environment})`);
-    
-    if (environment === 'development') {
+    console.log(`✅ Database connected successfully (${environment})`);
+
+    if (environment === "development") {
       await sequelize.sync({ alter: true });
-      console.log('Database tables synchronized');
+      console.log("✅ Database tables synchronized");
     }
   } catch (error) {
-    console.error('Unable to connect to database:', error);
+    console.error("⚠️ Unable to connect to database:", error);
     throw error;
   }
 };
@@ -81,9 +83,9 @@ export const connectDatabase = async (): Promise<void> => {
 export const closeDatabaseConnection = async (): Promise<void> => {
   try {
     await sequelize.close();
-    console.log('Database connection closed');
+    console.log("Database connection closed");
   } catch (error) {
-    console.error('Error closing database connection:', error);
+    console.error("Error closing database connection:", error);
   }
 };
 

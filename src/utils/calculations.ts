@@ -1,5 +1,3 @@
-import { ArbitrageOpportunity } from "../types/index";
-
 export class CalculationUtils {
   static _calculateAPR(
     fundingRate: number,
@@ -40,36 +38,36 @@ export class CalculationUtils {
     return side === "long" ? -fundingPayment : fundingPayment;
   }
 
-  static _calculateArbitrageOpportunity(
-    longRate: number,
-    shortRate: number,
-    token: string,
-    longExchange: string,
-    shortExchange: string,
-    minSize: number = 100,
-    maxSize: number = 10000
-  ): ArbitrageOpportunity | null {
-    const spreadAPR = this._calculateSpreadAPR(longRate, shortRate);
+  // static _calculateArbitrageOpportunity(
+  //   longRate: number,
+  //   shortRate: number,
+  //   token: string,
+  //   longExchange: string,
+  //   shortExchange: string,
+  //   minSize: number = 100,
+  //   maxSize: number = 10000
+  // ): ArbitrageOpportunity | null {
+  //   const spreadAPR = this._calculateSpreadAPR(longRate, shortRate);
 
-    if (spreadAPR <= 0) return null;
+  //   if (spreadAPR <= 0) return null;
 
-    // Calculate confidence based on spread size and rate consistency
-    const rateSum = Math.abs(longRate) + Math.abs(shortRate);
-    const spreadRatio = Math.abs(spreadAPR) / (rateSum * 100 * 8760 || 1);
-    const confidence = Math.min(95, 50 + spreadRatio * 1000);
+  //   // Calculate confidence based on spread size and rate consistency
+  //   const rateSum = Math.abs(longRate) + Math.abs(shortRate);
+  //   const spreadRatio = Math.abs(spreadAPR) / (rateSum * 100 * 8760 || 1);
+  //   const confidence = Math.min(95, 50 + spreadRatio * 1000);
 
-    return {
-      token: token as any,
-      longExchange: longExchange as any,
-      shortExchange: shortExchange as any,
-      longFundingRate: longRate,
-      shortFundingRate: shortRate,
-      spreadAPR: Number(spreadAPR.toFixed(2)),
-      confidence: Number(confidence.toFixed(0)),
-      minSize,
-      maxSize,
-    };
-  }
+  //   return {
+  //     token: token as any,
+  //     longExchange: longExchange as any,
+  //     shortExchange: shortExchange as any,
+  //     longFundingRate: longRate,
+  //     shortFundingRate: shortRate,
+  //     spreadAPR: Number(spreadAPR.toFixed(2)),
+  //     confidence: Number(confidence.toFixed(0)),
+  //     minSize,
+  //     maxSize,
+  //   };
+  // }
 
   static calculatePortfolioMetrics(positions: any[]): {
     totalPnL: number;

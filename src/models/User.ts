@@ -1,6 +1,6 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
-import { UserSettings } from '../types/index';
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/database";
+import { UserSettings } from "../types/index";
 
 interface UserAttributes {
   id: string;
@@ -10,14 +10,18 @@ interface UserAttributes {
   updatedAt: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface UserCreationAttributes
+  extends Optional<UserAttributes, "id" | "createdAt" | "updatedAt"> {}
 
-class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public id!: string;
-  public walletAddress!: string;
-  public settings!: UserSettings;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+class User
+  extends Model<UserAttributes, UserCreationAttributes>
+  implements UserAttributes
+{
+  declare public id: string;
+  declare public walletAddress: string;
+  declare public settings: UserSettings;
+  declare public readonly createdAt: Date;
+  declare public readonly updatedAt: Date;
 
   public static associate() {
     // Will be defined when other models are created
@@ -46,8 +50,8 @@ User.init(
         autoCloseAPRThreshold: 10, // 10% APR minimum
         autoClosePnLThreshold: -5, // -5% PnL threshold
         autoCloseTimeoutHours: 168, // 7 days
-        preferredExchanges: ['vest', 'hyperliquid'],
-        riskTolerance: 'medium',
+        preferredExchanges: ["vest", "hyperliquid"],
+        riskTolerance: "medium",
         notificationPreferences: {
           email: false,
           webhook: false,
@@ -66,12 +70,12 @@ User.init(
   },
   {
     sequelize,
-    modelName: 'User',
-    tableName: 'users',
+    modelName: "User",
+    tableName: "users",
     indexes: [
       {
         unique: true,
-        fields: ['walletAddress'],
+        fields: ["walletAddress"],
       },
     ],
   }

@@ -55,11 +55,9 @@ export class ArbitrageService {
     try {
       // Get latest funding rates from database
       const latestRates = await FundingRate.getLatestRates();
-      // console.log(`Fetched ${latestRates.length} latest funding rates from DB`);
 
       // Group by token
       const ratesByToken = this.groupRatesByToken(latestRates);
-      // console.log(`Rates grouped by token: ${Object.keys(ratesByToken).length} tokens found`, ratesByToken);
 
       const opportunities: DetailedArbitrageOpportunity[] = [];
 
@@ -318,10 +316,6 @@ export class ArbitrageService {
 
     return baseSize;
   }
-
-  // private _calculateDailyPnL(spreadAPR: number, positionSize: number): number {
-  //   return (spreadAPR / 365) * (positionSize / 100); // Daily PnL in USD
-  // }
 
   private assessRiskLevel(
     spreadAPR: number,

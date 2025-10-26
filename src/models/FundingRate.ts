@@ -67,7 +67,7 @@ class FundingRate extends Model<
       });
     }
     console.log(
-      `FundingRate - getLatestRates: fetched ${result.length} records from DB for token=${token} exchange=${exchange}`
+      `✅ FundingRate - getLatestRates: fetched ${result.length} records from DB for token=${token} exchange=${exchange}`
     );
     return result;
   }

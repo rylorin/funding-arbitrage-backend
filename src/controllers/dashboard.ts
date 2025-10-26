@@ -282,10 +282,9 @@ export const getArbitrageOpportunities = async (
   try {
     const querySchema = Joi.object({
       minAPR: Joi.number().min(0).default(0),
-      maxSize: Joi.number().min(100).default(10000),
       riskLevel: Joi.string().valid("LOW", "MEDIUM", "HIGH").optional(),
       token: Joi.string().optional(),
-      limit: Joi.number().integer().min(1).max(50).default(20),
+      limit: Joi.number().integer().min(1).max(10_000).default(999),
     });
 
     const { error, value } = querySchema.validate(req.query);

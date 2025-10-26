@@ -106,8 +106,7 @@ interface DashboardResponse {
         "spreadAPR": "23.45%",
         "confidence": 85,
         "riskLevel": "LOW",
-        "expectedDailyReturn": "$12.34",
-        "maxSize": "$10,000"
+        "expectedDailyReturn": "$12.34"
       }
     ],
     "stats": {
@@ -235,10 +234,9 @@ interface FundingRateTableDisplay {
 ```typescript
 interface OpportunitiesQuery {
   minAPR?: number; // Default: 0
-  maxSize?: number; // Default: 10000
   riskLevel?: "LOW" | "MEDIUM" | "HIGH";
   token?: "BTC" | "ETH" | "SOL" | "AVAX" | "ARB" | "OP";
-  limit?: number; // Default: 20
+  limit?: number; // Default: 999
 }
 ```
 
@@ -263,7 +261,6 @@ interface ArbitrageOpportunitiesResponse {
   };
   filters: {
     minAPR: number;
-    maxSize: number;
     riskLevel?: string;
     token?: string;
     limit: number;
@@ -379,7 +376,6 @@ interface ArbitrageOpportunityData {
   },
   "filters": {
     "minAPR": 0,
-    "maxSize": 10000,
     "limit": 20
   },
   "timestamp": "2024-01-01T12:15:30.123Z"
@@ -659,7 +655,6 @@ export interface ArbitrageOpportunity {
   spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
   confidence: number;
   minSize: number;
-  maxSize: number;
   riskLevel: RiskLevel;
   longMarkPrice: number;
   shortMarkPrice: number;
@@ -1049,30 +1044,30 @@ nvm use 20.19.2
 # 2. Clone and install
 git clone <repository>
 cd funding-arbitrage-backend
-npm install
+yarn
 
 # 3. Database setup (PostgreSQL)
 createdb funding_arbitrage
-npm run db:migrate
+yarn db:migrate
 
 # 4. Start development
-npm run dev
+yarn dev
 
 # 5. Run tests
-npm run test
+yarn test
 
 # 6. Type checking
-npm run typecheck
+yarn typecheck
 ```
 
 ### Production Deployment
 
 ```bash
 # Build application
-npm run build
+yarn build
 
 # Start production server
-npm start
+yarn start
 
 # PM2 deployment (recommended)
 pm2 start dist/index.js --name funding-arbitrage-backend
@@ -1113,8 +1108,8 @@ pm2 save
 | ------------------------ | ------------ | --------------------------------------------- | --------------------------- |
 | **Funding Rate Updater** | Every 1 min  | Fetch latest rates from all exchanges         | `FundingRateService`        |
 | **Position Monitor**     | Every 30 sec | Calculate PnL and check auto-close conditions | `PositionMonitoringService` |
-| **Auto Trader**          | Every 5 min  | Execute automated position opening            | `AutoTradingService`        |
-| **Health Check**         | Every 10 min | Monitor system health and exchange status     | `HealthService`             |
+| **Auto Trader**          | Every 2 min  | Execute automated position opening            | `AutoTradingService`        |
+| **Health Check**         | Every 30 sec | Monitor system health and exchange status     | `HealthService`             |
 
 ### Data Flow
 
@@ -1158,16 +1153,16 @@ Request ──► Rate Limiter ──► CORS ──► Helmet ──► JWT Aut
 
 ```bash
 # Run all tests
-npm test
+yarn test
 
 # Watch mode for development
-npm run test:watch
+yern test:watch
 
 # Coverage report
-npm test -- --coverage
+yarn test -- --coverage
 
 # Test specific file
-npm test -- positions.test.ts
+yarn test -- positions.test.ts
 ```
 
 ---
