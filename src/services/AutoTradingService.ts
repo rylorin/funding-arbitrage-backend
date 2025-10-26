@@ -90,7 +90,7 @@ export class AutoTradingService {
       const opportunities = await arbitrageService.findArbitrageOpportunities(
         this.defaultSettings.minAPR,
         this.defaultSettings.maxPositionSize,
-        0.5 // 0.5% max price deviation
+        0.5, // 0.5% max price deviation
       );
 
       if (opportunities.length === 0) {
@@ -110,20 +110,11 @@ export class AutoTradingService {
           const userSettings = this.getUserTradingSettings(user);
           if (!userSettings.enabled) continue;
 
-          const userResults = await this.executeUserTrading(
-            user,
-            opportunities,
-            userSettings
-          );
+          const userResults = await this.executeUserTrading(user, opportunities, userSettings);
           tradingResults.push(...userResults);
         } catch (error) {
-          console.error(
-            `Error executing auto-trading for user ${user.id}:`,
-            error
-          );
-          errors.push(
-            `User ${user.id}: ${error instanceof Error ? error.message : "Unknown error"}`
-          );
+          console.error(`Error executing auto-trading for user ${user.id}:`, error);
+          errors.push(`User ${user.id}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
       }
 
@@ -152,9 +143,7 @@ export class AutoTradingService {
       if (errors.length > 0) {
         console.log(`⚠️ Auto-trading completed with errors: ${result.message}`);
       } else if (tradingResults.some((r) => r.success)) {
-        console.log(
-          `✅ Auto-trading completed successfully: ${result.message}`
-        );
+        console.log(`✅ Auto-trading completed successfully: ${result.message}`);
       } else {
         console.log(`ℹ️ Auto-trading completed: ${result.message}`);
       }
@@ -178,7 +167,7 @@ export class AutoTradingService {
   private async executeUserTrading(
     user: any,
     opportunities: any[],
-    settings: AutoTradingSettings
+    settings: AutoTradingSettings,
   ): Promise<TradingResult[]> {
     const results: TradingResult[] = [];
 
@@ -192,9 +181,7 @@ export class AutoTradingService {
       });
 
       if (activePositions >= settings.maxSimultaneousPositions) {
-        console.log(
-          `User ${user.id} has reached max positions limit (${settings.maxSimultaneousPositions})`
-        );
+        console.log(`User ${user.id} has reached max positions limit (${settings.maxSimultaneousPositions})`);
         return results;
       }
 
@@ -204,12 +191,8 @@ export class AutoTradingService {
         .filter((opp) => this.matchesRiskTolerance(opp, settings.riskTolerance))
         .filter(
           (opp) =>
-            settings.allowedExchanges.includes(
-              opp.longExchange as ExchangeName
-            ) &&
-            settings.allowedExchanges.includes(
-              opp.shortExchange as ExchangeName
-            )
+            settings.allowedExchanges.includes(opp.longExchange as ExchangeName) &&
+            settings.allowedExchanges.includes(opp.shortExchange as ExchangeName),
         )
         .slice(0, settings.maxSimultaneousPositions - activePositions);
 
@@ -221,21 +204,15 @@ export class AutoTradingService {
       // Execute trades for filtered opportunities
       for (const opportunity of filteredOpportunities) {
         try {
-          const tradingResult = await this.executeTrade(
-            user,
-            opportunity,
-            settings
-          );
+          const tradingResult = await this.executeTrade(user, opportunity, settings);
           results.push(tradingResult);
 
           if (tradingResult.success) {
             console.log(
-              `✅ Successfully opened position for user ${user.id}: ${opportunity.token} ${opportunity.spreadAPR.toFixed(2)}% APR`
+              `✅ Successfully opened position for user ${user.id}: ${opportunity.token} ${opportunity.spreadAPR.toFixed(2)}% APR`,
             );
           } else {
-            console.log(
-              `❌ Failed to open position for user ${user.id}: ${tradingResult.error}`
-            );
+            console.log(`❌ Failed to open position for user ${user.id}: ${tradingResult.error}`);
           }
         } catch (error) {
           results.push({
@@ -252,48 +229,27 @@ export class AutoTradingService {
     return results;
   }
 
-  private async executeTrade(
-    user: any,
-    opportunity: any,
-    settings: AutoTradingSettings
-  ): Promise<TradingResult> {
+  private async executeTrade(user: any, opportunity: any, settings: AutoTradingSettings): Promise<TradingResult> {
     try {
-      const longExchange =
-        this.exchanges[opportunity.longExchange as keyof typeof this.exchanges];
-      const shortExchange =
-        this.exchanges[
-          opportunity.shortExchange as keyof typeof this.exchanges
-        ];
+      const longExchange = this.exchanges[opportunity.longExchange as keyof typeof this.exchanges];
+      const shortExchange = this.exchanges[opportunity.shortExchange as keyof typeof this.exchanges];
 
       if (!longExchange || !shortExchange) {
-        throw new Error(
-          `Exchange not available: ${opportunity.longExchange} or ${opportunity.shortExchange}`
-        );
+        throw new Error(`Exchange not available: ${opportunity.longExchange} or ${opportunity.shortExchange}`);
       }
 
       // Calculate position size based on settings
-      const positionSize = Math.min(
-        settings.maxPositionSize,
-        opportunity.maxSize
-      );
+      const positionSize = Math.min(settings.maxPositionSize, opportunity.maxSize);
 
       console.log(
-        `🚀 Executing trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange}) Short(${opportunity.shortExchange}) Size: $${positionSize}`
+        `🚀 Executing trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange}) Short(${opportunity.shortExchange}) Size: $${positionSize}`,
       );
 
       // Open long position
-      const longOrderId = await longExchange.openPosition(
-        opportunity.token as TokenSymbol,
-        "long",
-        positionSize
-      );
+      const longOrderId = await longExchange.openPosition(opportunity.token as TokenSymbol, "long", positionSize);
 
       // Open short position
-      const shortOrderId = await shortExchange.openPosition(
-        opportunity.token as TokenSymbol,
-        "short",
-        positionSize
-      );
+      const shortOrderId = await shortExchange.openPosition(opportunity.token as TokenSymbol, "short", positionSize);
 
       // Create position record
       const position = await Position.create({
@@ -373,18 +329,12 @@ export class AutoTradingService {
     };
   }
 
-  private matchesRiskTolerance(
-    opportunity: any,
-    riskTolerance: string
-  ): boolean {
+  private matchesRiskTolerance(opportunity: any, riskTolerance: string): boolean {
     switch (riskTolerance) {
       case "low":
         return opportunity.riskLevel === "LOW" && opportunity.confidence >= 80;
       case "medium":
-        return (
-          ["LOW", "MEDIUM"].includes(opportunity.riskLevel) &&
-          opportunity.confidence >= 70
-        );
+        return ["LOW", "MEDIUM"].includes(opportunity.riskLevel) && opportunity.confidence >= 70;
       case "high":
         return opportunity.confidence >= 60;
       default:
@@ -392,11 +342,7 @@ export class AutoTradingService {
     }
   }
 
-  public async manualTrade(
-    userId: string,
-    opportunityIndex: number,
-    positionSize?: number
-  ): Promise<TradingResult> {
+  public async manualTrade(userId: string, opportunityIndex: number, positionSize?: number): Promise<TradingResult> {
     try {
       // Get current opportunities
       const opportunities = await arbitrageService.findArbitrageOpportunities();

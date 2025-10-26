@@ -120,24 +120,8 @@ export const CONSTANTS = {
   },
 
   // Supported tokens and exchanges
-  SUPPORTED_TOKENS: [
-    "BTC",
-    "ETH",
-    "SOL",
-    "AVAX",
-    "MATIC",
-    "ARB",
-    "OP",
-  ] as const,
-  SUPPORTED_EXCHANGES: [
-    "vest",
-    "hyperliquid",
-    "orderly",
-    "extended",
-    "paradex",
-    "backpack",
-    "hibachi",
-  ] as const,
+  SUPPORTED_TOKENS: ["BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"] as const,
+  SUPPORTED_EXCHANGES: ["vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"] as const,
 
   // Token configurations
   TOKEN_CONFIG: {

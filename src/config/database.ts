@@ -59,8 +59,7 @@ const databaseConfig: DatabaseConfig = {
   },
 };
 
-const environment =
-  (process.env.NODE_ENV as keyof DatabaseConfig) || "development";
+const environment = (process.env.NODE_ENV as keyof DatabaseConfig) || "development";
 const dbConfig = databaseConfig[environment];
 
 export const sequelize = new Sequelize(dbConfig);

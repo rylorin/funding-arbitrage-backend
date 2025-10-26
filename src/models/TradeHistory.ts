@@ -11,13 +11,7 @@ interface TradeHistoryAttributes {
   action: "OPEN" | "CLOSE" | "PARTIAL_CLOSE";
   exchange: ExchangeName;
   token: TokenSymbol;
-  side:
-    | "long"
-    | "short"
-    | "close_long"
-    | "close_short"
-    | "DELTA_NEUTRAL"
-    | "AUTO_CLOSE";
+  side: "long" | "short" | "close_long" | "close_short" | "DELTA_NEUTRAL" | "AUTO_CLOSE";
   size: number;
   price: number;
   fee: number;
@@ -28,8 +22,7 @@ interface TradeHistoryAttributes {
   updatedAt: Date;
 }
 
-interface TradeHistoryCreationAttributes
-  extends Optional<TradeHistoryAttributes, "id" | "createdAt" | "updatedAt"> {}
+interface TradeHistoryCreationAttributes extends Optional<TradeHistoryAttributes, "id" | "createdAt" | "updatedAt"> {}
 
 class TradeHistory
   extends Model<TradeHistoryAttributes, TradeHistoryCreationAttributes>
@@ -41,13 +34,7 @@ class TradeHistory
   public action!: "OPEN" | "CLOSE" | "PARTIAL_CLOSE";
   public exchange!: ExchangeName;
   public token!: TokenSymbol;
-  public side!:
-    | "long"
-    | "short"
-    | "close_long"
-    | "close_short"
-    | "DELTA_NEUTRAL"
-    | "AUTO_CLOSE";
+  public side!: "long" | "short" | "close_long" | "close_short" | "DELTA_NEUTRAL" | "AUTO_CLOSE";
   public size!: number;
   public price!: number;
   public fee!: number;
@@ -126,15 +113,7 @@ TradeHistory.init(
       allowNull: false,
     },
     exchange: {
-      type: DataTypes.ENUM(
-        "vest",
-        "hyperliquid",
-        "orderly",
-        "extended",
-        "paradex",
-        "backpack",
-        "hibachi",
-      ),
+      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
       allowNull: false,
     },
     token: {
@@ -142,14 +121,7 @@ TradeHistory.init(
       allowNull: false,
     },
     side: {
-      type: DataTypes.ENUM(
-        "long",
-        "short",
-        "close_long",
-        "close_short",
-        "DELTA_NEUTRAL",
-        "AUTO_CLOSE",
-      ),
+      type: DataTypes.ENUM("long", "short", "close_long", "close_short", "DELTA_NEUTRAL", "AUTO_CLOSE"),
       allowNull: false,
     },
     size: {

@@ -1,12 +1,7 @@
 import { jobManager } from "@/jobs";
 import { connectDatabase } from "../config/database";
 import { JobResult } from "../types/index";
-import {
-  extendedExchange,
-  hyperliquidExchange,
-  vestExchange,
-  woofiExchange,
-} from "./exchanges/index";
+import { extendedExchange, hyperliquidExchange, vestExchange, woofiExchange } from "./exchanges/index";
 
 interface HealthStatus {
   status: "healthy" | "warning" | "unhealthy";
@@ -78,12 +73,7 @@ export class HealthService {
       const jobsHealth = await jobManager.getHealthCheck();
 
       // Overall status determination
-      const overallStatus = this.determineOverallStatus(
-        databaseHealth,
-        exchangesHealth,
-        systemHealth,
-        jobsHealth,
-      );
+      const overallStatus = this.determineOverallStatus(databaseHealth, exchangesHealth, systemHealth, jobsHealth);
 
       const healthStatus: HealthStatus = {
         status: overallStatus,
@@ -108,13 +98,9 @@ export class HealthService {
       if (overallStatus === "unhealthy") {
         console.log(`❌ Health check completed with issues: ${result.message}`);
       } else if (overallStatus === "warning") {
-        console.log(
-          `⚠️  Health check completed with warnings: ${result.message}`,
-        );
+        console.log(`⚠️  Health check completed with warnings: ${result.message}`);
       } else {
-        console.log(
-          `✅ Health check completed successfully: ${result.message}`,
-        );
+        console.log(`✅ Health check completed successfully: ${result.message}`);
       }
 
       return result;
@@ -146,8 +132,7 @@ export class HealthService {
       console.error("Database health check failed:", error);
       return {
         status: "error",
-        message:
-          error instanceof Error ? error.message : "Database connection failed",
+        message: error instanceof Error ? error.message : "Database connection failed",
       };
     }
   }
@@ -187,8 +172,7 @@ export class HealthService {
         console.warn(`Exchange ${exchangeName} health check failed:`, error);
         results[exchangeName] = {
           status: "error",
-          message:
-            error instanceof Error ? error.message : "Health check failed",
+          message: error instanceof Error ? error.message : "Health check failed",
           lastChecked: new Date().toISOString(),
         };
       }
@@ -222,9 +206,7 @@ export class HealthService {
 
     // Count exchange issues
     const exchangeStatuses = Object.values(exchanges);
-    const connectedExchanges = exchangeStatuses.filter(
-      (status: any) => status.status === "connected",
-    ).length;
+    const connectedExchanges = exchangeStatuses.filter((status: any) => status.status === "connected").length;
     const totalExchanges = exchangeStatuses.length;
 
     // If more than half of exchanges are down, system is unhealthy
@@ -245,9 +227,7 @@ export class HealthService {
     return "healthy";
   }
 
-  private getStatusMessage(
-    status: "healthy" | "warning" | "unhealthy",
-  ): string {
+  private getStatusMessage(status: "healthy" | "warning" | "unhealthy"): string {
     switch (status) {
       case "healthy":
         return "All systems operational";

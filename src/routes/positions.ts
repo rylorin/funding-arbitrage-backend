@@ -29,37 +29,12 @@ router.get("/performance", generalRateLimit, getPositionPerformance);
 // Position CRUD operations
 router.post("/", positionRateLimit, createPosition);
 router.get("/", generalRateLimit, getPositions);
-router.get(
-  "/:id",
-  generalRateLimit,
-  validateParams(Joi.object({ id: schemas.uuid })),
-  getPosition,
-);
-router.get(
-  "/:id/details",
-  generalRateLimit,
-  validateParams(Joi.object({ id: schemas.uuid })),
-  getPositionDetails,
-);
-router.put(
-  "/:id",
-  generalRateLimit,
-  validateParams(Joi.object({ id: schemas.uuid })),
-  updatePosition,
-);
-router.delete(
-  "/:id",
-  positionRateLimit,
-  validateParams(Joi.object({ id: schemas.uuid })),
-  closePosition,
-);
+router.get("/:id", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), getPosition);
+router.get("/:id/details", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), getPositionDetails);
+router.put("/:id", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), updatePosition);
+router.delete("/:id", positionRateLimit, validateParams(Joi.object({ id: schemas.uuid })), closePosition);
 
 // Position analytics
-router.get(
-  "/:id/pnl",
-  generalRateLimit,
-  validateParams(Joi.object({ id: schemas.uuid })),
-  getPositionPnL,
-);
+router.get("/:id/pnl", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), getPositionPnL);
 
 export default router;

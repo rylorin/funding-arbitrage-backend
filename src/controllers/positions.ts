@@ -5,30 +5,12 @@ import { FundingRate, Position, TradeHistory, User } from "../models/index";
 import { positionSyncService } from "../services/PositionSyncService";
 
 const createPositionSchema = Joi.object({
-  token: Joi.string()
-    .valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP")
-    .required(),
+  token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").required(),
   longExchange: Joi.string()
-    .valid(
-      "vest",
-      "hyperliquid",
-      "orderly",
-      "extended",
-      "paradex",
-      "backpack",
-      "hibachi"
-    )
+    .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
     .required(),
   shortExchange: Joi.string()
-    .valid(
-      "vest",
-      "hyperliquid",
-      "orderly",
-      "extended",
-      "paradex",
-      "backpack",
-      "hibachi"
-    )
+    .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
     .required(),
   size: Joi.number().positive().required(),
   entryFundingRates: Joi.object({
@@ -50,10 +32,7 @@ const createPositionSchema = Joi.object({
     "custom.sameExchange": "Long and short exchanges must be different",
   });
 
-export const createPosition = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const createPosition = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { error, value } = createPositionSchema.validate(req.body);
     if (error) {
@@ -82,10 +61,8 @@ export const createPosition = async (
     }
 
     // Use user settings as defaults if not provided
-    const finalAPRThreshold =
-      autoCloseAPRThreshold || user.settings.autoCloseAPRThreshold;
-    const finalPnLThreshold =
-      autoClosePnLThreshold || user.settings.autoClosePnLThreshold;
+    const finalAPRThreshold = autoCloseAPRThreshold || user.settings.autoCloseAPRThreshold;
+    const finalPnLThreshold = autoClosePnLThreshold || user.settings.autoClosePnLThreshold;
 
     // Create the position record
     const position = await Position.create({
@@ -129,18 +106,11 @@ export const createPosition = async (
   }
 };
 
-export const getPositions = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getPositions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
-      status: Joi.string()
-        .valid("OPEN", "CLOSED", "ERROR", "CLOSING")
-        .optional(),
-      token: Joi.string()
-        .valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP")
-        .optional(),
+      status: Joi.string().valid("OPEN", "CLOSED", "ERROR", "CLOSING").optional(),
+      token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").optional(),
       page: Joi.number().integer().min(1).default(1),
       limit: Joi.number().integer().min(1).max(100).default(20),
     });
@@ -185,10 +155,7 @@ export const getPositions = async (
   }
 };
 
-export const getPosition = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getPosition = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -218,10 +185,7 @@ export const getPosition = async (
   }
 };
 
-export const updatePosition = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const updatePosition = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -253,9 +217,7 @@ export const updatePosition = async (
     }
 
     if (position.status !== "OPEN") {
-      res
-        .status(400)
-        .json({ error: "Cannot update closed or error positions" });
+      res.status(400).json({ error: "Cannot update closed or error positions" });
       return;
     }
 
@@ -271,10 +233,7 @@ export const updatePosition = async (
   }
 };
 
-export const closePosition = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const closePosition = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -326,10 +285,7 @@ export const closePosition = async (
   }
 };
 
-export const getPositionPnL = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getPositionPnL = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -367,15 +323,10 @@ export const getPositionPnL = async (
 
 // Enhanced position display/monitoring endpoints for Priority 2
 
-export const getPositionsDashboard = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getPositionsDashboard = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
-      timeframe: Joi.string()
-        .valid("1h", "6h", "24h", "7d", "30d")
-        .default("24h"),
+      timeframe: Joi.string().valid("1h", "6h", "24h", "7d", "30d").default("24h"),
     });
 
     const { error, value } = querySchema.validate(req.query);
@@ -402,8 +353,7 @@ export const getPositionsDashboard = async (
       allPositions
         .filter((pos) => pos.status === "OPEN")
         .map(async (position) => {
-          const currentPnL =
-            await positionSyncService.calculatePositionPnL(position);
+          const currentPnL = await positionSyncService.calculatePositionPnL(position);
           const currentAPR = await calculateCurrentAPR(position);
           const hoursOpen = calculateHoursOpen(position.createdAt);
 
@@ -414,16 +364,9 @@ export const getPositionsDashboard = async (
             shortExchange: position.shortExchange,
             size: position.size,
             sizeFormatted: `$${position.size.toLocaleString()}`,
-            entrySpreadAPR:
-              position.entrySpreadAPR ||
-              position.entryFundingRates?.spreadAPR ||
-              0,
+            entrySpreadAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
             currentAPR,
-            aprChange:
-              currentAPR -
-              (position.entrySpreadAPR ||
-                position.entryFundingRates?.spreadAPR ||
-                0),
+            aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
             currentPnL,
             currentPnLFormatted: formatCurrency(currentPnL),
             pnlPercentage: (currentPnL / position.size) * 100,
@@ -441,23 +384,16 @@ export const getPositionsDashboard = async (
               short: getExchangeColor(position.shortExchange),
             },
             metrics: {
-              fundingFeesReceived: estimateFundingFeesReceived(
-                position,
-                hoursOpen
-              ),
+              fundingFeesReceived: estimateFundingFeesReceived(position, hoursOpen),
               tradingFeesEstimate: estimateTradingFees(position),
               netPnL: currentPnL - estimateTradingFees(position),
             },
           };
-        })
+        }),
     );
 
     // Calculate portfolio statistics
-    const portfolioStats = calculatePortfolioStats(
-      activePositions,
-      allPositions,
-      timeframe
-    );
+    const portfolioStats = calculatePortfolioStats(activePositions, allPositions, timeframe);
 
     // Get position history for charts
     const positionHistory = await getPositionHistoryData(userId, timeframe);
@@ -466,9 +402,7 @@ export const getPositionsDashboard = async (
       success: true,
       data: {
         summary: portfolioStats,
-        activePositions: activePositions.sort(
-          (a, b) => b.currentPnL - a.currentPnL
-        ),
+        activePositions: activePositions.sort((a, b) => b.currentPnL - a.currentPnL),
         positionHistory,
         alerts: generatePositionAlerts(activePositions),
         recommendations: generatePositionRecommendations(activePositions),
@@ -485,10 +419,7 @@ export const getPositionsDashboard = async (
   }
 };
 
-export const getPositionDetails = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getPositionDetails = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
@@ -513,11 +444,11 @@ export const getPositionDetails = async (
     // Get current funding rates
     const longRate = await FundingRate.getLatestForTokenAndExchange(
       position.longToken || position.token,
-      position.longExchange
+      position.longExchange,
     );
     const shortRate = await FundingRate.getLatestForTokenAndExchange(
       position.shortToken || position.token,
-      position.shortExchange
+      position.shortExchange,
     );
 
     // Get position trade history
@@ -560,14 +491,9 @@ export const getPositionDetails = async (
         shouldClose: shouldPositionClose(position, currentAPR, currentPnL),
       },
       performance: {
-        entryAPR:
-          position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
+        entryAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
         currentAPR,
-        aprChange:
-          currentAPR -
-          (position.entrySpreadAPR ||
-            position.entryFundingRates?.spreadAPR ||
-            0),
+        aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
         currentPnL,
         pnlFormatted: formatCurrency(currentPnL),
         pnlPercentage: (currentPnL / position.size) * 100,
@@ -583,12 +509,7 @@ export const getPositionDetails = async (
         aprThreshold: position.autoCloseAPRThreshold,
         pnlThreshold: position.autoClosePnLThreshold,
         timeoutHours: position.autoCloseTimeoutHours,
-        willTrigger: checkAutoCloseTriggers(
-          position,
-          currentAPR,
-          currentPnL,
-          hoursOpen
-        ),
+        willTrigger: checkAutoCloseTriggers(position, currentAPR, currentPnL, hoursOpen),
       },
       status: position.status,
       history: {
@@ -621,10 +542,7 @@ export const getPositionDetails = async (
   }
 };
 
-export const getPositionAlerts = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getPositionAlerts = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
 
@@ -635,8 +553,7 @@ export const getPositionAlerts = async (
     const alerts = [];
 
     for (const position of activePositions) {
-      const currentPnL =
-        await positionSyncService.calculatePositionPnL(position);
+      const currentPnL = await positionSyncService.calculatePositionPnL(position);
       const currentAPR = await calculateCurrentAPR(position);
       const hoursOpen = calculateHoursOpen(position.createdAt);
 
@@ -667,9 +584,7 @@ export const getPositionAlerts = async (
             MEDIUM: 2,
             LOW: 1,
           };
-          return (
-            (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0)
-          );
+          return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
         }),
         summary: {
           total: alerts.length,
@@ -690,18 +605,11 @@ export const getPositionAlerts = async (
   }
 };
 
-export const getPositionPerformance = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const getPositionPerformance = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
-      timeframe: Joi.string()
-        .valid("1h", "6h", "24h", "7d", "30d")
-        .default("24h"),
-      groupBy: Joi.string()
-        .valid("token", "exchange", "day", "hour")
-        .default("token"),
+      timeframe: Joi.string().valid("1h", "6h", "24h", "7d", "30d").default("24h"),
+      groupBy: Joi.string().valid("token", "exchange", "day", "hour").default("token"),
     });
 
     const { error, value } = querySchema.validate(req.query);
@@ -722,11 +630,7 @@ export const getPositionPerformance = async (
       order: [["createdAt", "DESC"]],
     });
 
-    const performanceData = await calculatePerformanceMetrics(
-      allPositions,
-      timeframe,
-      groupBy
-    );
+    const performanceData = await calculatePerformanceMetrics(allPositions, timeframe, groupBy);
 
     res.json({
       success: true,
@@ -748,20 +652,17 @@ async function calculateCurrentAPR(position: any): Promise<number> {
   try {
     const longRate = await FundingRate.getLatestForTokenAndExchange(
       position.longToken || position.token,
-      position.longExchange
+      position.longExchange,
     );
     const shortRate = await FundingRate.getLatestForTokenAndExchange(
       position.shortToken || position.token,
-      position.shortExchange
+      position.shortExchange,
     );
 
     if (!longRate || !shortRate) return 0;
 
     const spread = shortRate.fundingRate - longRate.fundingRate;
-    const periodsPerYear = getFundingPeriods(
-      position.longExchange,
-      position.shortExchange
-    );
+    const periodsPerYear = getFundingPeriods(position.longExchange, position.shortExchange);
 
     return spread * periodsPerYear * 100;
   } catch (error) {
@@ -776,10 +677,7 @@ function calculateHoursOpen(createdAt: Date): number {
   return diffMs / (1000 * 60 * 60);
 }
 
-function getFundingPeriods(
-  longExchange: string,
-  shortExchange: string
-): number {
+function getFundingPeriods(longExchange: string, shortExchange: string): number {
   const hourlyExchanges = ["vest", "extended"];
 
   const longIsHourly = hourlyExchanges.includes(longExchange);
@@ -832,12 +730,10 @@ function getExchangeColor(exchange: string): string {
 function assessPositionRisk(
   position: any,
   currentAPR: number,
-  currentPnL: number
+  currentPnL: number,
 ): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" {
   const pnlPercentage = (currentPnL / position.size) * 100;
-  const aprDecline =
-    (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) -
-    currentAPR;
+  const aprDecline = (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) - currentAPR;
 
   if (pnlPercentage < -5 || aprDecline > 20) return "CRITICAL";
   if (pnlPercentage < -2 || aprDecline > 10) return "HIGH";
@@ -845,35 +741,22 @@ function assessPositionRisk(
   return "LOW";
 }
 
-function shouldPositionClose(
-  position: any,
-  currentAPR: number,
-  currentPnL: number
-): boolean {
+function shouldPositionClose(position: any, currentAPR: number, currentPnL: number): boolean {
   if (!position.autoCloseEnabled) return false;
 
   // Check APR threshold
-  if (
-    position.autoCloseAPRThreshold &&
-    currentAPR < position.autoCloseAPRThreshold
-  ) {
+  if (position.autoCloseAPRThreshold && currentAPR < position.autoCloseAPRThreshold) {
     return true;
   }
 
   // Check PnL threshold
-  if (
-    position.autoClosePnLThreshold &&
-    currentPnL <= -Math.abs(position.autoClosePnLThreshold)
-  ) {
+  if (position.autoClosePnLThreshold && currentPnL <= -Math.abs(position.autoClosePnLThreshold)) {
     return true;
   }
 
   // Check timeout
   const hoursOpen = calculateHoursOpen(position.createdAt);
-  if (
-    position.autoCloseTimeoutHours &&
-    hoursOpen >= position.autoCloseTimeoutHours
-  ) {
+  if (position.autoCloseTimeoutHours && hoursOpen >= position.autoCloseTimeoutHours) {
     return true;
   }
 
@@ -881,9 +764,7 @@ function shouldPositionClose(
 }
 
 function estimateFundingFeesReceived(position: any, hoursOpen: number): number {
-  const avgHourlyRate =
-    (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) /
-    8760; // Convert APR to hourly
+  const avgHourlyRate = (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) / 8760; // Convert APR to hourly
   return (avgHourlyRate / 100) * position.size * hoursOpen;
 }
 
@@ -893,21 +774,11 @@ function estimateTradingFees(position: any): number {
 }
 
 function estimateTotalFees(position: any, hoursOpen: number): number {
-  return (
-    estimateTradingFees(position) +
-    estimateFundingFeesReceived(position, hoursOpen) * 0.1
-  ); // 10% fee on funding
+  return estimateTradingFees(position) + estimateFundingFeesReceived(position, hoursOpen) * 0.1; // 10% fee on funding
 }
 
-function calculatePortfolioStats(
-  activePositions: any[],
-  allPositions: any[],
-  timeframe: string
-) {
-  const totalPnL = activePositions.reduce(
-    (sum, pos) => sum + pos.currentPnL,
-    0
-  );
+function calculatePortfolioStats(activePositions: any[], allPositions: any[], timeframe: string) {
+  const totalPnL = activePositions.reduce((sum, pos) => sum + pos.currentPnL, 0);
   const totalSize = activePositions.reduce((sum, pos) => sum + pos.size, 0);
 
   // Calculate closed positions in timeframe
@@ -915,15 +786,10 @@ function calculatePortfolioStats(
   const cutoffDate = new Date(Date.now() - timeframeDays * 24 * 60 * 60 * 1000);
 
   const recentClosedPositions = allPositions.filter(
-    (pos) =>
-      pos.status === "CLOSED" &&
-      new Date(pos.closedAt || pos.updatedAt) >= cutoffDate
+    (pos) => pos.status === "CLOSED" && new Date(pos.closedAt || pos.updatedAt) >= cutoffDate,
   );
 
-  const realizedPnL = recentClosedPositions.reduce(
-    (sum, pos) => sum + (pos.realizedPnL || 0),
-    0
-  );
+  const realizedPnL = recentClosedPositions.reduce((sum, pos) => sum + (pos.realizedPnL || 0), 0);
 
   return {
     totalPositions: activePositions.length,
@@ -937,16 +803,13 @@ function calculatePortfolioStats(
     totalPnLFormatted: formatCurrency(totalPnL + realizedPnL),
     avgAPR:
       activePositions.length > 0
-        ? activePositions.reduce((sum, pos) => sum + pos.currentAPR, 0) /
-          activePositions.length
+        ? activePositions.reduce((sum, pos) => sum + pos.currentAPR, 0) / activePositions.length
         : 0,
     riskDistribution: {
       LOW: activePositions.filter((pos) => pos.riskLevel === "LOW").length,
-      MEDIUM: activePositions.filter((pos) => pos.riskLevel === "MEDIUM")
-        .length,
+      MEDIUM: activePositions.filter((pos) => pos.riskLevel === "MEDIUM").length,
       HIGH: activePositions.filter((pos) => pos.riskLevel === "HIGH").length,
-      CRITICAL: activePositions.filter((pos) => pos.riskLevel === "CRITICAL")
-        .length,
+      CRITICAL: activePositions.filter((pos) => pos.riskLevel === "CRITICAL").length,
     },
     shouldCloseCount: activePositions.filter((pos) => pos.shouldClose).length,
   };
@@ -1087,20 +950,13 @@ async function getPositionPnLHistory(_positionId: string) {
   return [];
 }
 
-function analyzeRiskFactors(
-  position: any,
-  longRate: any,
-  shortRate: any,
-  currentAPR: number
-) {
+function analyzeRiskFactors(position: any, longRate: any, shortRate: any, currentAPR: number) {
   const factors = [];
 
   // Price deviation
   if (longRate && shortRate) {
     const priceDeviation =
-      (Math.abs(longRate.markPrice - shortRate.markPrice) /
-        ((longRate.markPrice + shortRate.markPrice) / 2)) *
-      100;
+      (Math.abs(longRate.markPrice - shortRate.markPrice) / ((longRate.markPrice + shortRate.markPrice) / 2)) * 100;
 
     if (priceDeviation > 1) {
       factors.push({
@@ -1113,9 +969,7 @@ function analyzeRiskFactors(
   }
 
   // APR volatility
-  const aprChange =
-    (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) -
-    currentAPR;
+  const aprChange = (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) - currentAPR;
   if (Math.abs(aprChange) > 5) {
     factors.push({
       type: "APR_VOLATILITY",
@@ -1127,10 +981,7 @@ function analyzeRiskFactors(
 
   // Exchange risk
   const smallExchanges = ["extended", "orderly", "paradex"];
-  if (
-    smallExchanges.includes(position.longExchange) ||
-    smallExchanges.includes(position.shortExchange)
-  ) {
+  if (smallExchanges.includes(position.longExchange) || smallExchanges.includes(position.shortExchange)) {
     factors.push({
       type: "EXCHANGE_RISK",
       severity: "LOW",
@@ -1142,18 +993,10 @@ function analyzeRiskFactors(
   return factors;
 }
 
-function checkAutoCloseTriggers(
-  position: any,
-  currentAPR: number,
-  currentPnL: number,
-  hoursOpen: number
-) {
+function checkAutoCloseTriggers(position: any, currentAPR: number, currentPnL: number, hoursOpen: number) {
   const triggers = [];
 
-  if (
-    position.autoCloseAPRThreshold &&
-    currentAPR < position.autoCloseAPRThreshold
-  ) {
+  if (position.autoCloseAPRThreshold && currentAPR < position.autoCloseAPRThreshold) {
     triggers.push({
       type: "APR_THRESHOLD",
       threshold: position.autoCloseAPRThreshold,
@@ -1162,10 +1005,7 @@ function checkAutoCloseTriggers(
     });
   }
 
-  if (
-    position.autoClosePnLThreshold &&
-    currentPnL <= -Math.abs(position.autoClosePnLThreshold)
-  ) {
+  if (position.autoClosePnLThreshold && currentPnL <= -Math.abs(position.autoClosePnLThreshold)) {
     triggers.push({
       type: "PNL_THRESHOLD",
       threshold: position.autoClosePnLThreshold,
@@ -1174,10 +1014,7 @@ function checkAutoCloseTriggers(
     });
   }
 
-  if (
-    position.autoCloseTimeoutHours &&
-    hoursOpen >= position.autoCloseTimeoutHours
-  ) {
+  if (position.autoCloseTimeoutHours && hoursOpen >= position.autoCloseTimeoutHours) {
     triggers.push({
       type: "TIMEOUT",
       threshold: position.autoCloseTimeoutHours,
@@ -1189,22 +1026,14 @@ function checkAutoCloseTriggers(
   return triggers;
 }
 
-async function calculatePerformanceMetrics(
-  allPositions: any[],
-  _timeframe: string,
-  _groupBy: string
-) {
+async function calculatePerformanceMetrics(allPositions: any[], _timeframe: string, _groupBy: string) {
   // This would implement comprehensive performance analysis
   // For now, return basic structure
   return {
     summary: {
       totalPositions: allPositions.length,
-      profitablePositions: allPositions.filter((p) => (p.realizedPnL || 0) > 0)
-        .length,
-      totalReturn: allPositions.reduce(
-        (sum, p) => sum + (p.realizedPnL || 0),
-        0
-      ),
+      profitablePositions: allPositions.filter((p) => (p.realizedPnL || 0) > 0).length,
+      totalReturn: allPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0),
       averageAPR: 0,
       winRate: 0,
     },

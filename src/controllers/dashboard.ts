@@ -2,10 +2,7 @@ import { Request, Response } from "express";
 import Joi from "joi";
 import { exchangeConfigs } from "../config/exchanges";
 import { FundingRate } from "../models/index";
-import {
-  arbitrageService,
-  DetailedArbitrageOpportunity,
-} from "../services/ArbitrageService";
+import { arbitrageService, DetailedArbitrageOpportunity } from "../services/ArbitrageService";
 import { ArbitrageOpportunityData, ExchangeName } from "../types";
 
 // Interface pour les données formatées pour le tableau des taux
@@ -53,38 +50,29 @@ function getFundingFrequencyText(exchange: ExchangeName): string {
   else return `${exchangeConfigs[exchange].fundingFrequency} Hours`;
 }
 
-export const getDashboard = async (
-  _req: Request,
-  res: Response,
-): Promise<void> => {
+export const getDashboard = async (_req: Request, res: Response): Promise<void> => {
   try {
     // Get latest funding rates for all exchanges and tokens
     const latestRates = await FundingRate.getLatestRates();
 
     // Format funding rates for display
-    const fundingRatesDisplay: FundingRateDisplay[] = latestRates.map(
-      (rate) => ({
-        exchange: rate.exchange.toUpperCase(),
-        symbol: `${rate.token}-PERP`,
-        fundingRate: rate.fundingRate,
-        fundingRatePercent: (rate.fundingRate * 100).toFixed(6),
-        fundingAPR: (
-          rate.fundingRate *
-          getFundingFrequency(rate.exchange.toLowerCase() as ExchangeName) *
-          100
-        ).toFixed(2),
-        fundingFrequency:
-          rate.fundingFrequency ||
-          exchangeConfigs[rate.exchange.toLowerCase() as ExchangeName]
-            .fundingFrequency, // in hours
-        nextFunding: formatTimeToFunding(rate.nextFunding),
-        timeToFunding: getTimeToFunding(rate.nextFunding),
-        markPrice: rate.markPrice || 0,
-        indexPrice: rate.indexPrice || 0,
-        status: "ACTIVE" as const,
-        category: getTokenCategory(rate.token),
-      }),
-    );
+    const fundingRatesDisplay: FundingRateDisplay[] = latestRates.map((rate) => ({
+      exchange: rate.exchange.toUpperCase(),
+      symbol: `${rate.token}-PERP`,
+      fundingRate: rate.fundingRate,
+      fundingRatePercent: (rate.fundingRate * 100).toFixed(6),
+      fundingAPR: (rate.fundingRate * getFundingFrequency(rate.exchange.toLowerCase() as ExchangeName) * 100).toFixed(
+        2,
+      ),
+      fundingFrequency:
+        rate.fundingFrequency || exchangeConfigs[rate.exchange.toLowerCase() as ExchangeName].fundingFrequency, // in hours
+      nextFunding: formatTimeToFunding(rate.nextFunding),
+      timeToFunding: getTimeToFunding(rate.nextFunding),
+      markPrice: rate.markPrice || 0,
+      indexPrice: rate.indexPrice || 0,
+      status: "ACTIVE" as const,
+      category: getTokenCategory(rate.token),
+    }));
 
     // Group by token for better display
     const ratesByToken = groupByToken(fundingRatesDisplay);
@@ -93,34 +81,25 @@ export const getDashboard = async (
     const exchangeStats = calculateExchangeStats(latestRates);
 
     // Get best arbitrage opportunities
-    const opportunities = await arbitrageService.findArbitrageOpportunities(
-      5,
-      10000,
-      0.5,
-    );
-    const opportunitiesDisplay: ArbitrageOpportunityDisplay[] =
-      opportunities.map((opp, index) => ({
-        rank: index + 1,
-        token: opp.token,
-        longExchange: opp.longExchange.toUpperCase(),
-        shortExchange: opp.shortExchange.toUpperCase(),
-        longFundingRate: (opp.longFundingRate * 100).toFixed(6) + "%",
-        shortFundingRate: (opp.shortFundingRate * 100).toFixed(6) + "%",
-        spreadPercent:
-          ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) + "%",
-        spreadAPR: opp.spreadAPR.toFixed(2) + "%",
-        confidence: opp.confidence,
-        riskLevel: opp.riskLevel,
-        expectedDailyReturn:
-          ((opp.spreadAPR / 365) * (opp.maxSize / 100)).toFixed(2) + "$",
-        nextFunding: getNextFundingTime(opp),
-        priceDeviation: opp.priceDeviation
-          ? opp.priceDeviation.toFixed(3) + "%"
-          : "0.000%",
-        maxSize: "$" + opp.maxSize.toLocaleString(),
-        longPrice: opp.longMarkPrice,
-        shortPrice: opp.shortMarkPrice,
-      }));
+    const opportunities = await arbitrageService.findArbitrageOpportunities(5, 10000, 0.5);
+    const opportunitiesDisplay: ArbitrageOpportunityDisplay[] = opportunities.map((opp, index) => ({
+      rank: index + 1,
+      token: opp.token,
+      longExchange: opp.longExchange.toUpperCase(),
+      shortExchange: opp.shortExchange.toUpperCase(),
+      longFundingRate: (opp.longFundingRate * 100).toFixed(6) + "%",
+      shortFundingRate: (opp.shortFundingRate * 100).toFixed(6) + "%",
+      spreadPercent: ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) + "%",
+      spreadAPR: opp.spreadAPR.toFixed(2) + "%",
+      confidence: opp.confidence,
+      riskLevel: opp.riskLevel,
+      expectedDailyReturn: ((opp.spreadAPR / 365) * (opp.maxSize / 100)).toFixed(2) + "$",
+      nextFunding: getNextFundingTime(opp),
+      priceDeviation: opp.priceDeviation ? opp.priceDeviation.toFixed(3) + "%" : "0.000%",
+      maxSize: "$" + opp.maxSize.toLocaleString(),
+      longPrice: opp.longMarkPrice,
+      shortPrice: opp.shortMarkPrice,
+    }));
 
     res.json({
       success: true,
@@ -149,21 +128,12 @@ export const getDashboard = async (
   }
 };
 
-export const getFundingRatesTable = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getFundingRatesTable = async (req: Request, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
-      token: Joi.string()
-        .valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP")
-        .optional(),
-      exchange: Joi.string()
-        .valid("vest", "hyperliquid", "orderly", "extended")
-        .optional(),
-      sortBy: Joi.string()
-        .valid("fundingRate", "apr", "exchange", "nextFunding")
-        .default("fundingRate"),
+      token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").optional(),
+      exchange: Joi.string().valid("vest", "hyperliquid", "orderly", "extended").optional(),
+      sortBy: Joi.string().valid("fundingRate", "apr", "exchange", "nextFunding").default("fundingRate"),
       sortOrder: Joi.string().valid("asc", "desc").default("desc"),
     });
 
@@ -198,20 +168,12 @@ export const getFundingRatesTable = async (
           100
         ).toFixed(2),
         fundingFrequency: getFundingFrequencyText(rateData.exchange),
-        nextFunding: rateData.nextFunding
-          ? rateData.nextFunding.toISOString()
-          : new Date().toISOString(),
-        nextFundingFormatted: rateData.nextFunding
-          ? formatTimeToFunding(rateData.nextFunding)
-          : "N/A",
-        timeToFunding: rateData.nextFunding
-          ? getTimeToFunding(rateData.nextFunding)
-          : "N/A",
+        nextFunding: rateData.nextFunding ? rateData.nextFunding.toISOString() : new Date().toISOString(),
+        nextFundingFormatted: rateData.nextFunding ? formatTimeToFunding(rateData.nextFunding) : "N/A",
+        timeToFunding: rateData.nextFunding ? getTimeToFunding(rateData.nextFunding) : "N/A",
         markPrice: rateData.markPrice || 0,
         indexPrice: rateData.indexPrice || 0,
-        timestamp: rateData.timestamp
-          ? rateData.timestamp.toISOString()
-          : new Date().toISOString(),
+        timestamp: rateData.timestamp ? rateData.timestamp.toISOString() : new Date().toISOString(),
         isPositive: rateData.fundingRate > 0,
         isNegative: rateData.fundingRate < 0,
         category: getTokenCategory(rateData.token),
@@ -233,9 +195,7 @@ export const getFundingRatesTable = async (
           comparison = a.exchange.localeCompare(b.exchange);
           break;
         case "nextFunding":
-          comparison =
-            new Date(a.nextFunding).getTime() -
-            new Date(b.nextFunding).getTime();
+          comparison = new Date(a.nextFunding).getTime() - new Date(b.nextFunding).getTime();
           break;
         default:
           comparison = a.fundingRate - b.fundingRate;
@@ -252,15 +212,9 @@ export const getFundingRatesTable = async (
           totalRates: formattedRates.length,
           positiveRates: formattedRates.filter((r) => r.isPositive).length,
           negativeRates: formattedRates.filter((r) => r.isNegative).length,
-          avgFundingRate:
-            formattedRates.reduce((sum, r) => sum + r.fundingRate, 0) /
-            formattedRates.length,
-          maxAPR: Math.max(
-            ...formattedRates.map((r) => parseFloat(r.fundingAPR)),
-          ),
-          minAPR: Math.min(
-            ...formattedRates.map((r) => parseFloat(r.fundingAPR)),
-          ),
+          avgFundingRate: formattedRates.reduce((sum, r) => sum + r.fundingRate, 0) / formattedRates.length,
+          maxAPR: Math.max(...formattedRates.map((r) => parseFloat(r.fundingAPR))),
+          minAPR: Math.min(...formattedRates.map((r) => parseFloat(r.fundingAPR))),
         },
       },
       filters: { token, exchange, sortBy, sortOrder },
@@ -275,10 +229,7 @@ export const getFundingRatesTable = async (
   }
 };
 
-export const getArbitrageOpportunities = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getArbitrageOpportunities = async (req: Request, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
       minAPR: Joi.number().min(0).default(0),
@@ -300,17 +251,11 @@ export const getArbitrageOpportunities = async (
     const { minAPR, maxSize, riskLevel, token, limit } = value;
 
     // Get opportunities
-    let opportunities = await arbitrageService.findArbitrageOpportunities(
-      minAPR,
-      maxSize,
-      0.5,
-    );
+    let opportunities = await arbitrageService.findArbitrageOpportunities(minAPR, maxSize, 0.5);
 
     // Apply filters
     if (riskLevel) {
-      opportunities = opportunities.filter(
-        (opp) => opp.riskLevel === riskLevel,
-      );
+      opportunities = opportunities.filter((opp) => opp.riskLevel === riskLevel);
     }
 
     if (token) {
@@ -321,8 +266,8 @@ export const getArbitrageOpportunities = async (
     opportunities = opportunities.slice(0, limit);
 
     // Format for display
-    const formattedOpportunities: ArbitrageOpportunityData[] =
-      opportunities.map((opp: DetailedArbitrageOpportunity, index) => ({
+    const formattedOpportunities: ArbitrageOpportunityData[] = opportunities.map(
+      (opp: DetailedArbitrageOpportunity, index) => ({
         id: `${opp.token}-${opp.longExchange}-${opp.shortExchange}`,
         rank: index + 1,
         token: opp.token,
@@ -343,32 +288,26 @@ export const getArbitrageOpportunities = async (
         },
         spread: {
           absolute: opp.shortFundingRate - opp.longFundingRate,
-          percent:
-            ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) +
-            "%",
+          percent: ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) + "%",
           apr: opp.spreadAPR,
         },
         metrics: {
           confidence: opp.confidence,
           riskLevel: opp.riskLevel,
           riskColor: getRiskColor(opp.riskLevel),
-          expectedDailyReturn: (
-            (opp.spreadAPR / 365) *
-            (maxSize / 100)
-          ).toFixed(2),
+          expectedDailyReturn: ((opp.spreadAPR / 365) * (maxSize / 100)).toFixed(2),
           maxSize: opp.maxSize,
           maxSizeFormatted: "$" + opp.maxSize.toLocaleString(),
           priceDeviation: opp.priceDeviation,
-          priceDeviationFormatted: opp.priceDeviation
-            ? opp.priceDeviation.toFixed(3) + "%"
-            : "0.000%",
+          priceDeviationFormatted: opp.priceDeviation ? opp.priceDeviation.toFixed(3) + "%" : "0.000%",
         },
         timing: {
           nextFunding: getNextFundingTime(opp),
           longFrequency: opp.fundingFrequency.longExchange,
           shortFrequency: opp.fundingFrequency.shortExchange,
         },
-      }));
+      }),
+    );
 
     const result = {
       success: true,
@@ -376,34 +315,20 @@ export const getArbitrageOpportunities = async (
         opportunities: formattedOpportunities,
         summary: {
           totalOpportunities: formattedOpportunities.length,
-          bestAPR:
-            formattedOpportunities.length > 0
-              ? formattedOpportunities[0].spread.apr
-              : 0,
+          bestAPR: formattedOpportunities.length > 0 ? formattedOpportunities[0].spread.apr : 0,
           avgAPR:
             formattedOpportunities.length > 0
-              ? formattedOpportunities.reduce(
-                  (sum, opp) => sum + opp.spread.apr,
-                  0,
-                ) / formattedOpportunities.length
+              ? formattedOpportunities.reduce((sum, opp) => sum + opp.spread.apr, 0) / formattedOpportunities.length
               : 0,
           avgConfidence:
             formattedOpportunities.length > 0
-              ? formattedOpportunities.reduce(
-                  (sum, opp) => sum + opp.metrics.confidence,
-                  0,
-                ) / formattedOpportunities.length
+              ? formattedOpportunities.reduce((sum, opp) => sum + opp.metrics.confidence, 0) /
+                formattedOpportunities.length
               : 0,
           riskDistribution: {
-            LOW: formattedOpportunities.filter(
-              (opp) => opp.metrics.riskLevel === "LOW",
-            ).length,
-            MEDIUM: formattedOpportunities.filter(
-              (opp) => opp.metrics.riskLevel === "MEDIUM",
-            ).length,
-            HIGH: formattedOpportunities.filter(
-              (opp) => opp.metrics.riskLevel === "HIGH",
-            ).length,
+            LOW: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === "LOW").length,
+            MEDIUM: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === "MEDIUM").length,
+            HIGH: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === "HIGH").length,
           },
         },
       },
@@ -484,9 +409,7 @@ function getTokenIcon(token: string): string {
   return `/icons/${token.toLowerCase()}.png`;
 }
 
-function groupByToken(
-  rates: FundingRateDisplay[],
-): Record<string, FundingRateDisplay[]> {
+function groupByToken(rates: FundingRateDisplay[]): Record<string, FundingRateDisplay[]> {
   return rates.reduce(
     (acc, rate) => {
       if (!acc[rate.symbol]) {
@@ -501,8 +424,7 @@ function groupByToken(
 
 function calculateExchangeStats(rates: any[]) {
   const exchanges = [...new Set(rates.map((r) => r.exchange))];
-  const avgFundingRate =
-    rates.reduce((sum, r) => sum + r.fundingRate, 0) / rates.length;
+  const avgFundingRate = rates.reduce((sum, r) => sum + r.fundingRate, 0) / rates.length;
 
   return {
     totalExchanges: exchanges.length,
@@ -519,17 +441,10 @@ function getNextFundingTime(opportunity: any): string {
   return formatTimeToFunding(nextTime);
 }
 
-export const getMarketOverview = async (
-  _req: Request,
-  res: Response,
-): Promise<void> => {
+export const getMarketOverview = async (_req: Request, res: Response): Promise<void> => {
   try {
     const latestRates = await FundingRate.getLatestRates();
-    const opportunities = await arbitrageService.findArbitrageOpportunities(
-      5,
-      10000,
-      0.5,
-    );
+    const opportunities = await arbitrageService.findArbitrageOpportunities(5, 10000, 0.5);
 
     // Calculate market statistics
     const totalVolume = latestRates.reduce((sum, _rate) => sum + 0, 0); // TODO: Add volume24h to FundingRate model
@@ -556,8 +471,7 @@ export const getMarketOverview = async (
     // Calculate averages
     Object.values(exchangeStats).forEach((stat: any) => {
       stat.avgFundingRate = stat.avgFundingRate / stat.marketsCount;
-      stat.avgFundingRateFormatted =
-        (stat.avgFundingRate * 100).toFixed(6) + "%";
+      stat.avgFundingRateFormatted = (stat.avgFundingRate * 100).toFixed(6) + "%";
     });
 
     // Token performance
@@ -582,9 +496,7 @@ export const getMarketOverview = async (
 
     // Find best opportunity for each token
     Object.keys(tokenStats).forEach((token) => {
-      const tokenOpportunities = opportunities.filter(
-        (opp) => opp.token === token,
-      );
+      const tokenOpportunities = opportunities.filter((opp) => opp.token === token);
       if (tokenOpportunities.length > 0) {
         tokenStats[token].bestOpportunity = tokenOpportunities[0];
       }
@@ -594,9 +506,7 @@ export const getMarketOverview = async (
       stat.avgFundingRate = stat.avgFundingRate / stat.exchangesCount;
 
       if (stat.prices.length > 1) {
-        const avgPrice =
-          stat.prices.reduce((sum: number, price: number) => sum + price, 0) /
-          stat.prices.length;
+        const avgPrice = stat.prices.reduce((sum: number, price: number) => sum + price, 0) / stat.prices.length;
         const maxPrice = Math.max(...stat.prices);
         const minPrice = Math.min(...stat.prices);
         stat.priceDeviation = ((maxPrice - minPrice) / avgPrice) * 100;
@@ -611,62 +521,42 @@ export const getMarketOverview = async (
         totalVolume24h: totalVolume,
         totalVolumeFormatted: "$" + totalVolume.toLocaleString(),
         bestOpportunityAPR: opportunities[0]?.spreadAPR || 0,
-        averageFundingRate:
-          latestRates.reduce((sum, r) => sum + Math.abs(r.fundingRate), 0) /
-          latestRates.length,
-        marketSentiment:
-          positiveRates.length > negativeRates.length ? "BULLISH" : "BEARISH",
+        averageFundingRate: latestRates.reduce((sum, r) => sum + Math.abs(r.fundingRate), 0) / latestRates.length,
+        marketSentiment: positiveRates.length > negativeRates.length ? "BULLISH" : "BEARISH",
         lastUpdated: new Date().toISOString(),
       },
       fundingDistribution: {
         positive: {
           count: positiveRates.length,
           percentage: (positiveRates.length / latestRates.length) * 100,
-          avgRate:
-            positiveRates.reduce((sum, r) => sum + r.fundingRate, 0) /
-              positiveRates.length || 0,
+          avgRate: positiveRates.reduce((sum, r) => sum + r.fundingRate, 0) / positiveRates.length || 0,
         },
         negative: {
           count: negativeRates.length,
           percentage: (negativeRates.length / latestRates.length) * 100,
-          avgRate:
-            negativeRates.reduce((sum, r) => sum + r.fundingRate, 0) /
-              negativeRates.length || 0,
+          avgRate: negativeRates.reduce((sum, r) => sum + r.fundingRate, 0) / negativeRates.length || 0,
         },
         neutral: {
-          count: latestRates.filter((r) => Math.abs(r.fundingRate) < 0.0001)
-            .length,
+          count: latestRates.filter((r) => Math.abs(r.fundingRate) < 0.0001).length,
         },
       },
       exchangeStats: Object.values(exchangeStats),
       tokenStats: Object.values(tokenStats).sort(
-        (a: any, b: any) =>
-          (b.bestOpportunity?.spreadAPR || 0) -
-          (a.bestOpportunity?.spreadAPR || 0),
+        (a: any, b: any) => (b.bestOpportunity?.spreadAPR || 0) - (a.bestOpportunity?.spreadAPR || 0),
       ),
       riskMetrics: {
         lowRisk: opportunities.filter((opp) => opp.riskLevel === "LOW").length,
-        mediumRisk: opportunities.filter((opp) => opp.riskLevel === "MEDIUM")
-          .length,
-        highRisk: opportunities.filter((opp) => opp.riskLevel === "HIGH")
-          .length,
-        avgConfidence:
-          opportunities.reduce((sum, opp) => sum + opp.confidence, 0) /
-            opportunities.length || 0,
-        maxPriceDeviation: Math.max(
-          ...opportunities.map((opp) => opp.priceDeviation || 0),
-        ),
+        mediumRisk: opportunities.filter((opp) => opp.riskLevel === "MEDIUM").length,
+        highRisk: opportunities.filter((opp) => opp.riskLevel === "HIGH").length,
+        avgConfidence: opportunities.reduce((sum, opp) => sum + opp.confidence, 0) / opportunities.length || 0,
+        maxPriceDeviation: Math.max(...opportunities.map((opp) => opp.priceDeviation || 0)),
       },
       trends: {
         hourlyOpportunities: opportunities.filter(
-          (opp) =>
-            opp.fundingFrequency.longExchange === "Hourly" ||
-            opp.fundingFrequency.shortExchange === "Hourly",
+          (opp) => opp.fundingFrequency.longExchange === "Hourly" || opp.fundingFrequency.shortExchange === "Hourly",
         ).length,
         eightHourOpportunities: opportunities.filter(
-          (opp) =>
-            opp.fundingFrequency.longExchange === "8 Hours" &&
-            opp.fundingFrequency.shortExchange === "8 Hours",
+          (opp) => opp.fundingFrequency.longExchange === "8 Hours" && opp.fundingFrequency.shortExchange === "8 Hours",
         ).length,
       },
     };

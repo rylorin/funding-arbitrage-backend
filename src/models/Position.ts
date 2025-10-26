@@ -45,20 +45,10 @@ interface PositionAttributes {
 interface PositionCreationAttributes
   extends Optional<
     PositionAttributes,
-    | "id"
-    | "createdAt"
-    | "updatedAt"
-    | "currentPnl"
-    | "closedAt"
-    | "closedReason"
-    | "longPositionId"
-    | "shortPositionId"
+    "id" | "createdAt" | "updatedAt" | "currentPnl" | "closedAt" | "closedReason" | "longPositionId" | "shortPositionId"
   > {}
 
-class Position
-  extends Model<PositionAttributes, PositionCreationAttributes>
-  implements PositionAttributes
-{
+class Position extends Model<PositionAttributes, PositionCreationAttributes> implements PositionAttributes {
   public id!: string;
   public userId!: string;
   public token!: TokenSymbol;
@@ -112,9 +102,7 @@ class Position
     const hoursOpen = this.getHoursOpen();
     const timeoutHours = 168; // 7 days default
 
-    return (
-      this.currentPnl <= this.autoClosePnLThreshold || hoursOpen >= timeoutHours
-    );
+    return this.currentPnl <= this.autoClosePnLThreshold || hoursOpen >= timeoutHours;
   }
 }
 
@@ -138,27 +126,11 @@ Position.init(
       allowNull: false,
     },
     longExchange: {
-      type: DataTypes.ENUM(
-        "vest",
-        "hyperliquid",
-        "orderly",
-        "extended",
-        "paradex",
-        "backpack",
-        "hibachi",
-      ),
+      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
       allowNull: false,
     },
     shortExchange: {
-      type: DataTypes.ENUM(
-        "vest",
-        "hyperliquid",
-        "orderly",
-        "extended",
-        "paradex",
-        "backpack",
-        "hibachi",
-      ),
+      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
       allowNull: false,
     },
     size: {
@@ -186,9 +158,7 @@ Position.init(
             typeof value.shortRate !== "number" ||
             typeof value.spreadAPR !== "number"
           ) {
-            throw new Error(
-              "entryFundingRates must contain longRate, shortRate, and spreadAPR",
-            );
+            throw new Error("entryFundingRates must contain longRate, shortRate, and spreadAPR");
           }
         },
       },

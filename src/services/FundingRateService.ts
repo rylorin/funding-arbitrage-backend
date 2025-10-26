@@ -19,25 +19,25 @@ export class FundingRateService {
       name: "vest",
       connector: vestExchange,
       // isConnected: vestExchange.isConnected,
-      getFundingRates: () => vestExchange.getFundingRates(),
+      getFundingRates: async () => vestExchange.getFundingRates(),
     },
     {
       name: "hyperliquid",
       connector: hyperliquidExchange,
       // isConnected: hyperliquidExchange.isConnected,
-      getFundingRates: () => hyperliquidExchange.getFundingRates(),
+      getFundingRates: async () => hyperliquidExchange.getFundingRates(),
     },
     {
       name: "orderly",
       connector: woofiExchange,
       // isConnected: woofiExchange.isConnected,
-      getFundingRates: () => woofiExchange.getFundingRates(),
+      getFundingRates: async () => woofiExchange.getFundingRates(),
     },
     {
       name: "extended",
       connector: extendedExchange,
       // isConnected: extendedExchange.isConnected,
-      getFundingRates: () => extendedExchange.getFundingRates(),
+      getFundingRates: async () => extendedExchange.getFundingRates(),
     },
   ];
 
@@ -63,14 +63,9 @@ export class FundingRateService {
           const exchangeRates = await exchange.getFundingRates();
           await this.saveRatesToDatabase(exchangeRates, updatedRates, errors);
 
-          console.log(
-            `✅ Updated ${exchangeRates.length} rates from ${exchange.name}`
-          );
+          console.log(`✅ Updated ${exchangeRates.length} rates from ${exchange.name}`);
         } catch (exchangeError) {
-          console.error(
-            `Error fetching ${exchange.name} rates:`,
-            exchangeError
-          );
+          console.error(`Error fetching ${exchange.name} rates:`, exchangeError);
           errors.push(`${exchange.name} exchange error`);
         }
       }
@@ -99,13 +94,9 @@ export class FundingRateService {
       };
 
       if (errors.length === 0) {
-        console.log(
-          `✅ Funding rate update completed: ${result.message} (${executionTime}ms)`
-        );
+        console.log(`✅ Funding rate update completed: ${result.message} (${executionTime}ms)`);
       } else {
-        console.log(
-          `⚠️ Funding rate update completed with errors: ${result.message} (${executionTime}ms)`
-        );
+        console.log(`⚠️ Funding rate update completed with errors: ${result.message} (${executionTime}ms)`);
         console.log(`❌ Errors: ${errors.join(", ")}`);
       }
 
@@ -126,9 +117,7 @@ export class FundingRateService {
   /**
    * Met à jour les funding rates d'un exchange spécifique
    */
-  public async updateExchangeFundingRates(
-    exchangeName: string
-  ): Promise<JobResult> {
+  public async updateExchangeFundingRates(exchangeName: string): Promise<JobResult> {
     const startTime = Date.now();
     const exchange = this.exchanges.find((e) => e.name === exchangeName);
 
@@ -178,9 +167,7 @@ export class FundingRateService {
   /**
    * Récupère les funding rates les plus récents pour un token spécifique
    */
-  public async getFundingRatesForToken(
-    token: string
-  ): Promise<FundingRateData[]> {
+  public async getFundingRatesForToken(token: string): Promise<FundingRateData[]> {
     try {
       const rates = await FundingRate.findAll({
         where: { token },
@@ -198,20 +185,14 @@ export class FundingRateService {
   /**
    * Récupère les funding rates les plus récents pour une paire exchange/token
    */
-  public async getLatestForTokenAndExchange(
-    token: string,
-    exchange: string
-  ): Promise<FundingRate | null> {
+  public async getLatestForTokenAndExchange(token: string, exchange: string): Promise<FundingRate | null> {
     try {
       return await FundingRate.findOne({
         where: { token, exchange },
         order: [["timestamp", "DESC"]],
       });
     } catch (error) {
-      console.error(
-        `Error fetching latest rate for ${token}/${exchange}:`,
-        error
-      );
+      console.error(`Error fetching latest rate for ${token}/${exchange}:`, error);
       return null;
     }
   }
@@ -222,7 +203,7 @@ export class FundingRateService {
   private async saveRatesToDatabase(
     exchangeRates: FundingRateData[],
     updatedRates: FundingRateData[],
-    errors: string[]
+    errors: string[],
   ): Promise<void> {
     for (const rate of exchangeRates) {
       try {
@@ -246,10 +227,7 @@ export class FundingRateService {
         await FundingRate.upsert(upsertData);
         updatedRates.push(rate);
       } catch (dbError) {
-        console.error(
-          `Error saving ${rate.token} rate for ${rate.exchange}:`,
-          dbError
-        );
+        console.error(`Error saving ${rate.token} rate for ${rate.exchange}:`, dbError);
         errors.push(`Database error for ${rate.token}/${rate.exchange}`);
       }
     }

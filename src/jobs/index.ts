@@ -27,10 +27,7 @@ export class JobManager {
       console.log(`▶️ Initial run: ${job.constructor.name}`);
       await job.execute();
     });
-    Object.values(this.jobs).reduce(
-      async (p, job) => p.then(async () => job.execute().then()),
-      Promise.resolve()
-    );
+    Object.values(this.jobs).reduce(async (p, job) => p.then(async () => job.execute().then()), Promise.resolve());
 
     console.log("✅ All background jobs started");
   }
@@ -100,9 +97,7 @@ export class JobManager {
 
       // Consider a job in error state if it hasn't run in the last 10 minutes
       const now = new Date();
-      const lastExecution = status.lastExecution
-        ? new Date(status.lastExecution)
-        : null;
+      const lastExecution = status.lastExecution ? new Date(status.lastExecution) : null;
       const minutesSinceLastExecution = lastExecution
         ? Math.floor((now.getTime() - lastExecution.getTime()) / 60000)
         : Infinity;

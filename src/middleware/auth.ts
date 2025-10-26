@@ -64,11 +64,7 @@ export const authenticateToken = async (
   }
 };
 
-export const optionalAuth = async (
-  req: AuthenticatedRequest,
-  _res: Response,
-  next: NextFunction,
-): Promise<void> => {
+export const optionalAuth = async (req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(" ")[1];

@@ -15,10 +15,7 @@ export class WebSocketBroadcaster {
   constructor(httpServer: HTTPServer) {
     this.io = new SocketIOServer(httpServer, {
       cors: {
-        origin: process.env.CORS_ORIGINS?.split(",") || [
-          "http://localhost:3000",
-          "http://localhost:3001",
-        ],
+        origin: process.env.CORS_ORIGINS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -32,9 +29,7 @@ export class WebSocketBroadcaster {
   private setupEventHandlers(): void {
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
-        const token =
-          socket.handshake.auth.token ||
-          socket.handshake.headers.authorization?.replace("Bearer ", "");
+        const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace("Bearer ", "");
 
         // If no token provided, allow connection as anonymous user
         if (!token) {
@@ -69,9 +64,7 @@ export class WebSocketBroadcaster {
     });
 
     this.io.on("connection", (socket: AuthenticatedSocket) => {
-      console.log(
-        `✅ WebSocket client connected: ${socket.id} (User: ${socket.walletAddress})`,
-      );
+      console.log(`✅ WebSocket client connected: ${socket.id} (User: ${socket.walletAddress})`);
 
       if (socket.userId) {
         this.authenticatedClients.set(socket.id, socket);
@@ -112,9 +105,7 @@ export class WebSocketBroadcaster {
       });
 
       socket.on("disconnect", (reason) => {
-        console.log(
-          `❌ WebSocket client disconnected: ${socket.id} (Reason: ${reason})`,
-        );
+        console.log(`❌ WebSocket client disconnected: ${socket.id} (Reason: ${reason})`);
         this.authenticatedClients.delete(socket.id);
       });
 
@@ -139,15 +130,10 @@ export class WebSocketBroadcaster {
     };
 
     this.io.to("funding-rates").emit("funding-rates-update", message.data);
-    console.log(
-      `📡 Broadcasted funding rates update to ${this.getClientCount("funding-rates")} clients`,
-    );
+    console.log(`📡 Broadcasted funding rates update to ${this.getClientCount("funding-rates")} clients`);
   }
 
-  public broadcastPositionPnLUpdate(
-    userId: string,
-    positionPnL: PositionPnL,
-  ): void {
+  public broadcastPositionPnLUpdate(userId: string, positionPnL: PositionPnL): void {
     const message: WebSocketMessage = {
       type: "position-pnl-update",
       data: positionPnL,
@@ -167,17 +153,10 @@ export class WebSocketBroadcaster {
     };
 
     this.io.to("opportunities").emit("opportunity-alert", message.data);
-    console.log(
-      `🚨 Broadcasted opportunity alert: ${opportunity.token} (${opportunity.spreadAPR}% APR)`,
-    );
+    console.log(`🚨 Broadcasted opportunity alert: ${opportunity.token} (${opportunity.spreadAPR}% APR)`);
   }
 
-  public broadcastPositionClosed(
-    userId: string,
-    positionId: string,
-    reason: string,
-    pnl: number,
-  ): void {
+  public broadcastPositionClosed(userId: string, positionId: string, reason: string, pnl: number): void {
     const message: WebSocketMessage = {
       type: "position-closed",
       data: {
@@ -194,10 +173,7 @@ export class WebSocketBroadcaster {
     this.io.to(`user:${userId}`).emit("position-closed", message.data);
   }
 
-  public broadcastSystemAlert(
-    message: string,
-    level: "info" | "warning" | "error" = "info",
-  ): void {
+  public broadcastSystemAlert(message: string, level: "info" | "warning" | "error" = "info"): void {
     const alert: WebSocketMessage = {
       type: "system-alert",
       data: {
@@ -244,9 +220,7 @@ export class WebSocketBroadcaster {
     this.authenticatedClients.forEach((socket, socketId) => {
       if (socket.userId === userId) {
         socket.disconnect();
-        console.log(
-          `🔌 Disconnected user ${userId} from socket ${socketId}: ${reason}`,
-        );
+        console.log(`🔌 Disconnected user ${userId} from socket ${socketId}: ${reason}`);
       }
     });
   }
@@ -260,9 +234,7 @@ export class WebSocketBroadcaster {
 
 let broadcasterInstance: WebSocketBroadcaster | null = null;
 
-export const createWebSocketBroadcaster = (
-  httpServer: HTTPServer,
-): WebSocketBroadcaster => {
+export const createWebSocketBroadcaster = (httpServer: HTTPServer): WebSocketBroadcaster => {
   if (broadcasterInstance) {
     return broadcasterInstance;
   }

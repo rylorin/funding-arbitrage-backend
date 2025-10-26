@@ -10,13 +10,9 @@ interface UserAttributes {
   updatedAt: Date;
 }
 
-interface UserCreationAttributes
-  extends Optional<UserAttributes, "id" | "createdAt" | "updatedAt"> {}
+interface UserCreationAttributes extends Optional<UserAttributes, "id" | "createdAt" | "updatedAt"> {}
 
-class User
-  extends Model<UserAttributes, UserCreationAttributes>
-  implements UserAttributes
-{
+class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare public id: string;
   declare public walletAddress: string;
   declare public settings: UserSettings;

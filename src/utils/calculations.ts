@@ -4,11 +4,7 @@ export class CalculationUtils {
     return fundingRate * fundingsPerYear * 100;
   }
 
-  static _calculateSpreadAPR(
-    longRate: number,
-    shortRate: number,
-    hoursPerFunding = 8,
-  ): number {
+  static _calculateSpreadAPR(longRate: number, shortRate: number, hoursPerFunding = 8): number {
     const spread = shortRate - longRate;
     return this._calculateAPR(spread, hoursPerFunding);
   }
@@ -25,11 +21,7 @@ export class CalculationUtils {
     return pnl - fees;
   }
 
-  static calculateFundingPnL(
-    fundingRate: number,
-    notionalSize: number,
-    side: "long" | "short",
-  ): number {
+  static calculateFundingPnL(fundingRate: number, notionalSize: number, side: "long" | "short"): number {
     // Funding is paid by longs when positive, received when negative
     const fundingPayment = fundingRate * notionalSize;
     return side === "long" ? -fundingPayment : fundingPayment;
@@ -88,9 +80,7 @@ export class CalculationUtils {
     });
 
     // Calculate risk score (0-100, higher = riskier)
-    const exchangeCount = new Set(
-      positions.flatMap((p) => [p.longExchange, p.shortExchange]),
-    ).size;
+    const exchangeCount = new Set(positions.flatMap((p) => [p.longExchange, p.shortExchange])).size;
     const tokenCount = new Set(positions.map((p) => p.token)).size;
     const avgPositionSize = totalSize / positions.length;
 
@@ -150,8 +140,7 @@ export class CalculationUtils {
     const annualFeeImpact = tradingFees * 365; // Assuming fees are daily
     const annualFundingReturn = (fundingAPR / 100) * positionSize;
 
-    const netAPRAfterFees =
-      ((annualFundingReturn - annualFeeImpact) / positionSize) * 100;
+    const netAPRAfterFees = ((annualFundingReturn - annualFeeImpact) / positionSize) * 100;
     const breakEvenDays = tradingFees / (annualFundingReturn / 365);
 
     return {
@@ -160,17 +149,8 @@ export class CalculationUtils {
     };
   }
 
-  static isOpportunityViable(
-    spreadAPR: number,
-    tradingFees: number,
-    positionSize: number,
-    minViableAPR = 5,
-  ): boolean {
-    const { netAPRAfterFees } = this.calculateFeeImpact(
-      tradingFees,
-      spreadAPR,
-      positionSize,
-    );
+  static isOpportunityViable(spreadAPR: number, tradingFees: number, positionSize: number, minViableAPR = 5): boolean {
+    const { netAPRAfterFees } = this.calculateFeeImpact(tradingFees, spreadAPR, positionSize);
     return netAPRAfterFees >= minViableAPR;
   }
 

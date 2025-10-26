@@ -1,9 +1,5 @@
 import { FundingRate, Position } from "../models/index";
-import {
-  ArbitrageOpportunity,
-  ExchangeName,
-  TokenSymbol,
-} from "../types/index";
+import { ArbitrageOpportunity, ExchangeName, TokenSymbol } from "../types/index";
 import { extendedExchange } from "./exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "./exchanges/HyperliquidExchange";
 import { vestExchange } from "./exchanges/VestExchange";
@@ -84,10 +80,7 @@ export class ArbitrageService {
             if (spreadAPR < minAPRThreshold) continue;
 
             // Calculate price deviation
-            const priceDeviation = this.calculatePriceDeviation(
-              longRate,
-              shortRate,
-            );
+            const priceDeviation = this.calculatePriceDeviation(longRate, shortRate);
 
             // Skip if price deviation too high
             if (priceDeviation > maxPriceDeviation) continue;
@@ -97,19 +90,11 @@ export class ArbitrageService {
               longExchange: longRate.exchange,
               shortExchange: shortRate.exchange,
               longFundingRate: longRate.fundingRate / longRate.fundingFrequency,
-              shortFundingRate:
-                shortRate.fundingRate / shortRate.fundingFrequency,
+              shortFundingRate: shortRate.fundingRate / shortRate.fundingFrequency,
               spreadAPR,
-              confidence: this.calculateConfidence(
-                longRate,
-                shortRate,
-                priceDeviation,
-              ),
+              confidence: this.calculateConfidence(longRate, shortRate, priceDeviation),
               minSize: 100,
-              maxSize: Math.min(
-                maxPositionSize,
-                this.calculateMaxSize(longRate, shortRate),
-              ),
+              maxSize: Math.min(maxPositionSize, this.calculateMaxSize(longRate, shortRate)),
               longMarkPrice: longRate.markPrice || 0,
               shortMarkPrice: shortRate.markPrice || 0,
               // expectedDailyPnL: this.calculateDailyPnL(
@@ -118,12 +103,8 @@ export class ArbitrageService {
               // ),
               riskLevel: this.assessRiskLevel(spreadAPR, priceDeviation),
               fundingFrequency: {
-                longExchange:
-                  longRate.fundingFrequency ||
-                  this.getFundingFrequency(longRate.exchange),
-                shortExchange:
-                  shortRate.fundingFrequency ||
-                  this.getFundingFrequency(shortRate.exchange),
+                longExchange: longRate.fundingFrequency || this.getFundingFrequency(longRate.exchange),
+                shortExchange: shortRate.fundingFrequency || this.getFundingFrequency(shortRate.exchange),
               },
               nextFundingTimes: {
                 longExchange: longRate.nextFunding,
@@ -182,45 +163,26 @@ export class ArbitrageService {
   public async calculatePositionPnL(position: any): Promise<number> {
     try {
       // Get current funding rates for both exchanges
-      const longRate = await FundingRate.getLatestForTokenAndExchange(
-        position.longToken,
-        position.longExchange,
-      );
-      const shortRate = await FundingRate.getLatestForTokenAndExchange(
-        position.shortToken,
-        position.shortExchange,
-      );
+      const longRate = await FundingRate.getLatestForTokenAndExchange(position.longToken, position.longExchange);
+      const shortRate = await FundingRate.getLatestForTokenAndExchange(position.shortToken, position.shortExchange);
 
       if (!longRate || !shortRate) return 0;
 
       // Calculate funding fees received since position opened
       const hoursOpen = this.calculateHoursOpen(position.createdAt);
-      const fundingFeesReceived = this.calculateFundingFeesReceived(
-        position,
-        longRate,
-        shortRate,
-        hoursOpen,
-      );
+      const fundingFeesReceived = this.calculateFundingFeesReceived(position, longRate, shortRate, hoursOpen);
 
       // Get current unrealized PnL from both exchanges if available
       let unrealizedPnL = 0;
       try {
-        const longExchange = this.exchanges.find(
-          (e) => e.name === position.longExchange,
-        )?.connector;
-        const shortExchange = this.exchanges.find(
-          (e) => e.name === position.shortExchange,
-        )?.connector;
+        const longExchange = this.exchanges.find((e) => e.name === position.longExchange)?.connector;
+        const shortExchange = this.exchanges.find((e) => e.name === position.shortExchange)?.connector;
 
         if (longExchange && position.longPositionId) {
-          unrealizedPnL += await longExchange.getPositionPnL(
-            position.longPositionId,
-          );
+          unrealizedPnL += await longExchange.getPositionPnL(position.longPositionId);
         }
         if (shortExchange && position.shortPositionId) {
-          unrealizedPnL += await shortExchange.getPositionPnL(
-            position.shortPositionId,
-          );
+          unrealizedPnL += await shortExchange.getPositionPnL(position.shortPositionId);
         }
       } catch (error) {
         console.warn(
@@ -252,14 +214,9 @@ export class ArbitrageService {
     );
   }
 
-  private calculateSpreadAPR(
-    longRate: FundingRate,
-    shortRate: FundingRate,
-  ): number {
-    const longApr =
-      (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
-    const shortApr =
-      (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
+  private calculateSpreadAPR(longRate: FundingRate, shortRate: FundingRate): number {
+    const longApr = (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
+    const shortApr = (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
     const spread = shortApr - longApr;
 
     return spread * 100; // Convert to percentage
@@ -274,11 +231,7 @@ export class ArbitrageService {
     return (priceDiff / avgPrice) * 100; // Percentage deviation
   }
 
-  private calculateConfidence(
-    longRate: any,
-    shortRate: any,
-    priceDeviation: number,
-  ): number {
+  private calculateConfidence(longRate: any, shortRate: any, priceDeviation: number): number {
     let confidence = 90; // Base confidence
 
     // Reduce confidence based on price deviation
@@ -290,10 +243,7 @@ export class ArbitrageService {
 
     // Increase confidence for established exchanges
     const establishedExchanges = ["vest", "hyperliquid"];
-    if (
-      establishedExchanges.includes(longRate.exchange) &&
-      establishedExchanges.includes(shortRate.exchange)
-    ) {
+    if (establishedExchanges.includes(longRate.exchange) && establishedExchanges.includes(shortRate.exchange)) {
       confidence += 10;
     }
 
@@ -307,20 +257,14 @@ export class ArbitrageService {
 
     // Reduce size for newer/smaller exchanges
     const smallExchanges = ["extended", "orderly"];
-    if (
-      smallExchanges.includes(longRate.exchange) ||
-      smallExchanges.includes(shortRate.exchange)
-    ) {
+    if (smallExchanges.includes(longRate.exchange) || smallExchanges.includes(shortRate.exchange)) {
       return baseSize * 0.5;
     }
 
     return baseSize;
   }
 
-  private assessRiskLevel(
-    spreadAPR: number,
-    priceDeviation: number,
-  ): "LOW" | "MEDIUM" | "HIGH" {
+  private assessRiskLevel(spreadAPR: number, priceDeviation: number): "LOW" | "MEDIUM" | "HIGH" {
     if (priceDeviation > 0.3 || spreadAPR > 50) return "HIGH";
     if (priceDeviation > 0.1 || spreadAPR > 20) return "MEDIUM";
     return "LOW";
@@ -339,14 +283,8 @@ export class ArbitrageService {
 
   private async calculateCurrentAPR(position: any): Promise<number> {
     try {
-      const longRate = await FundingRate.getLatestForTokenAndExchange(
-        position.longToken,
-        position.longExchange,
-      );
-      const shortRate = await FundingRate.getLatestForTokenAndExchange(
-        position.shortToken,
-        position.shortExchange,
-      );
+      const longRate = await FundingRate.getLatestForTokenAndExchange(position.longToken, position.longExchange);
+      const shortRate = await FundingRate.getLatestForTokenAndExchange(position.shortToken, position.shortExchange);
 
       if (!longRate || !shortRate) return 0;
 
@@ -357,21 +295,11 @@ export class ArbitrageService {
     }
   }
 
-  private calculateFundingFeesReceived(
-    position: any,
-    longRate: any,
-    shortRate: any,
-    hoursOpen: number,
-  ): number {
+  private calculateFundingFeesReceived(position: any, longRate: any, shortRate: any, hoursOpen: number): number {
     // Simplified calculation - in reality, this would need to track
     // actual funding payments received from each exchange
-    const avgRate =
-      (Math.abs(longRate.fundingRate) + Math.abs(shortRate.fundingRate)) / 2;
-    const fundingCycles =
-      hoursOpen /
-      (longRate.exchange === "vest" || longRate.exchange === "extended"
-        ? 1
-        : 8);
+    const avgRate = (Math.abs(longRate.fundingRate) + Math.abs(shortRate.fundingRate)) / 2;
+    const fundingCycles = hoursOpen / (longRate.exchange === "vest" || longRate.exchange === "extended" ? 1 : 8);
 
     return avgRate * fundingCycles * position.size;
   }

@@ -67,19 +67,9 @@ export const schemas = {
     .pattern(/^0x[a-fA-F0-9]{40}$/)
     .required(),
   uuid: Joi.string().uuid().required(),
-  token: Joi.string()
-    .valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP")
-    .required(),
+  token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").required(),
   exchange: Joi.string()
-    .valid(
-      "vest",
-      "hyperliquid",
-      "orderly",
-      "extended",
-      "paradex",
-      "backpack",
-      "hibachi",
-    )
+    .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
     .required(),
   positiveNumber: Joi.number().positive().required(),
   nonNegativeNumber: Joi.number().min(0).required(),

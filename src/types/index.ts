@@ -86,14 +86,7 @@ export interface JobResult {
 }
 
 export type PositionStatus = "OPEN" | "CLOSED" | "ERROR" | "CLOSING";
-export type ExchangeName =
-  | "vest"
-  | "hyperliquid"
-  | "orderly"
-  | "extended"
-  | "paradex"
-  | "backpack"
-  | "hibachi";
+export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "paradex" | "backpack" | "hibachi";
 export type TokenSymbol = string; // e.g., 'BTC', 'ETH', 'SOL', etc.
 
 export interface ExchangeConnector {
@@ -101,11 +94,7 @@ export interface ExchangeConnector {
   isConnected: boolean;
   getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]>;
   getAccountBalance(): Promise<Record<string, number>>;
-  openPosition(
-    token: TokenSymbol,
-    side: "long" | "short",
-    size: number,
-  ): Promise<string>;
+  openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string>;
   closePosition(positionId: string): Promise<boolean>;
   getPositionPnL(positionId: string): Promise<number>;
 }

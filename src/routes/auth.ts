@@ -1,11 +1,5 @@
 import { Router } from "express";
-import {
-  generateChallenge,
-  verifySignature,
-  getProfile,
-  updateSettings,
-  refreshToken,
-} from "../controllers/auth";
+import { generateChallenge, verifySignature, getProfile, updateSettings, refreshToken } from "../controllers/auth";
 import { authenticateToken } from "../middleware/auth";
 import { authRateLimit, generalRateLimit } from "../middleware/rateLimit";
 

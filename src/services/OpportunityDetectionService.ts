@@ -1,9 +1,5 @@
 import { FundingRate } from "../models/index";
-import {
-  ArbitrageOpportunity,
-  ExchangeName,
-  TokenSymbol,
-} from "../types/index";
+import { ArbitrageOpportunity, ExchangeName, TokenSymbol } from "../types/index";
 
 interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
   longMarkPrice: number;
@@ -32,15 +28,8 @@ export class OpportunityDetectionService {
   /**
    * Trouve les meilleures opportunités d'arbitrage selon les filtres
    */
-  public async findOpportunities(
-    filters: OpportunityFilters = {}
-  ): Promise<DetailedArbitrageOpportunity[]> {
-    const {
-      minAPRThreshold = 5,
-      maxPositionSize = 10000,
-      maxPriceDeviation = 0.5,
-      allowedExchanges,
-    } = filters;
+  public async findOpportunities(filters: OpportunityFilters = {}): Promise<DetailedArbitrageOpportunity[]> {
+    const { minAPRThreshold = 5, maxPositionSize = 10000, maxPriceDeviation = 0.5, allowedExchanges } = filters;
 
     try {
       // Récupérer les rates les plus récents depuis la DB
@@ -82,10 +71,7 @@ export class OpportunityDetectionService {
             if (spreadAPR < minAPRThreshold) continue;
 
             // Calculer la déviation de prix
-            const priceDeviation = this.calculatePriceDeviation(
-              longRate,
-              shortRate
-            );
+            const priceDeviation = this.calculatePriceDeviation(longRate, shortRate);
 
             // Filtrer par déviation de prix maximale
             if (priceDeviation > maxPriceDeviation) continue;
@@ -95,29 +81,17 @@ export class OpportunityDetectionService {
               longExchange: longRate.exchange,
               shortExchange: shortRate.exchange,
               longFundingRate: longRate.fundingRate / longRate.fundingFrequency,
-              shortFundingRate:
-                shortRate.fundingRate / shortRate.fundingFrequency,
+              shortFundingRate: shortRate.fundingRate / shortRate.fundingFrequency,
               spreadAPR,
-              confidence: this.calculateConfidence(
-                longRate,
-                shortRate,
-                priceDeviation
-              ),
+              confidence: this.calculateConfidence(longRate, shortRate, priceDeviation),
               minSize: 100,
-              maxSize: Math.min(
-                maxPositionSize,
-                this.calculateMaxSize(longRate, shortRate)
-              ),
+              maxSize: Math.min(maxPositionSize, this.calculateMaxSize(longRate, shortRate)),
               longMarkPrice: longRate.markPrice || 0,
               shortMarkPrice: shortRate.markPrice || 0,
               riskLevel: this.assessRiskLevel(spreadAPR, priceDeviation),
               fundingFrequency: {
-                longExchange:
-                  longRate.fundingFrequency ||
-                  this.getFundingFrequency(longRate.exchange),
-                shortExchange:
-                  shortRate.fundingFrequency ||
-                  this.getFundingFrequency(shortRate.exchange),
+                longExchange: longRate.fundingFrequency || this.getFundingFrequency(longRate.exchange),
+                shortExchange: shortRate.fundingFrequency || this.getFundingFrequency(shortRate.exchange),
               },
               nextFundingTimes: {
                 longExchange: longRate.nextFunding,
@@ -151,7 +125,7 @@ export class OpportunityDetectionService {
       maxPositionSize?: number;
       riskTolerance?: "LOW" | "MEDIUM" | "HIGH";
       allowedExchanges?: ExchangeName[];
-    }
+    },
   ): DetailedArbitrageOpportunity[] {
     return opportunities.filter((opp) => {
       // Filtre APR minimum
@@ -160,30 +134,20 @@ export class OpportunityDetectionService {
       }
 
       // Filtre taille maximum
-      if (
-        userSettings.maxPositionSize &&
-        opp.maxSize > userSettings.maxPositionSize
-      ) {
+      if (userSettings.maxPositionSize && opp.maxSize > userSettings.maxPositionSize) {
         return false;
       }
 
       // Filtre tolérance au risque
-      if (
-        userSettings.riskTolerance &&
-        !this.matchesRiskTolerance(opp, userSettings.riskTolerance)
-      ) {
+      if (userSettings.riskTolerance && !this.matchesRiskTolerance(opp, userSettings.riskTolerance)) {
         return false;
       }
 
       // Filtre exchanges autorisés
       if (
         userSettings.allowedExchanges &&
-        (!userSettings.allowedExchanges.includes(
-          opp.longExchange as ExchangeName
-        ) ||
-          !userSettings.allowedExchanges.includes(
-            opp.shortExchange as ExchangeName
-          ))
+        (!userSettings.allowedExchanges.includes(opp.longExchange as ExchangeName) ||
+          !userSettings.allowedExchanges.includes(opp.shortExchange as ExchangeName))
       ) {
         return false;
       }
@@ -196,10 +160,8 @@ export class OpportunityDetectionService {
    * Calcule l'APR du spread entre deux rates
    */
   private calculateSpreadAPR(longRate: any, shortRate: any): number {
-    const longApr =
-      (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
-    const shortApr =
-      (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
+    const longApr = (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
+    const shortApr = (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
     const spread = shortApr - longApr;
 
     return spread * 100; // Convertir en pourcentage
@@ -220,11 +182,7 @@ export class OpportunityDetectionService {
   /**
    * Calcule le niveau de confiance d'une opportunité
    */
-  private calculateConfidence(
-    longRate: any,
-    shortRate: any,
-    priceDeviation: number
-  ): number {
+  private calculateConfidence(longRate: any, shortRate: any, priceDeviation: number): number {
     let confidence = 90; // Confiance de base
 
     // Réduire la confiance selon la déviation de prix
@@ -236,10 +194,7 @@ export class OpportunityDetectionService {
 
     // Augmenter la confiance pour les exchanges établis
     const establishedExchanges = ["vest", "hyperliquid"];
-    if (
-      establishedExchanges.includes(longRate.exchange) &&
-      establishedExchanges.includes(shortRate.exchange)
-    ) {
+    if (establishedExchanges.includes(longRate.exchange) && establishedExchanges.includes(shortRate.exchange)) {
       confidence += 10;
     }
 
@@ -256,10 +211,7 @@ export class OpportunityDetectionService {
 
     // Réduire la taille pour les exchanges plus petits/nouveaux
     const smallExchanges = ["extended", "orderly"];
-    if (
-      smallExchanges.includes(longRate.exchange) ||
-      smallExchanges.includes(shortRate.exchange)
-    ) {
+    if (smallExchanges.includes(longRate.exchange) || smallExchanges.includes(shortRate.exchange)) {
       return baseSize * 0.5;
     }
 
@@ -269,10 +221,7 @@ export class OpportunityDetectionService {
   /**
    * Évalue le niveau de risque
    */
-  private assessRiskLevel(
-    spreadAPR: number,
-    priceDeviation: number
-  ): "LOW" | "MEDIUM" | "HIGH" {
+  private assessRiskLevel(spreadAPR: number, priceDeviation: number): "LOW" | "MEDIUM" | "HIGH" {
     if (priceDeviation > 0.3 || spreadAPR > 50) return "HIGH";
     if (priceDeviation > 0.1 || spreadAPR > 20) return "MEDIUM";
     return "LOW";
@@ -283,16 +232,13 @@ export class OpportunityDetectionService {
    */
   private matchesRiskTolerance(
     opportunity: DetailedArbitrageOpportunity,
-    riskTolerance: "LOW" | "MEDIUM" | "HIGH"
+    riskTolerance: "LOW" | "MEDIUM" | "HIGH",
   ): boolean {
     switch (riskTolerance) {
       case "LOW":
         return opportunity.riskLevel === "LOW" && opportunity.confidence >= 80;
       case "MEDIUM":
-        return (
-          ["LOW", "MEDIUM"].includes(opportunity.riskLevel) &&
-          opportunity.confidence >= 70
-        );
+        return ["LOW", "MEDIUM"].includes(opportunity.riskLevel) && opportunity.confidence >= 70;
       case "HIGH":
         return opportunity.confidence >= 60;
       default:
@@ -329,7 +275,7 @@ export class OpportunityDetectionService {
         acc[rateData.token].push(rateData);
         return acc;
       },
-      {} as Record<string, any[]>
+      {} as Record<string, any[]>,
     );
   }
 }

@@ -8,25 +8,12 @@ import { extendedExchange } from "../services/exchanges/ExtendedExchange";
 import { TokenSymbol, ArbitrageOpportunity } from "../types/index";
 import { AuthenticatedRequest } from "../middleware/auth";
 
-export const getFundingRates = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getFundingRates = async (req: Request, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
-      token: Joi.string()
-        .valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP")
-        .optional(),
+      token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").optional(),
       exchange: Joi.string()
-        .valid(
-          "vest",
-          "hyperliquid",
-          "orderly",
-          "extended",
-          "paradex",
-          "backpack",
-          "hibachi",
-        )
+        .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
         .optional(),
       hours: Joi.number().integer().min(1).max(168).default(24), // max 1 week
     });
@@ -44,11 +31,7 @@ export const getFundingRates = async (
 
     if (token && exchange) {
       // Get historical rates for specific token and exchange
-      const rates = await FundingRate.getHistoricalRates(
-        token,
-        exchange,
-        hours,
-      );
+      const rates = await FundingRate.getHistoricalRates(token, exchange, hours);
       res.json({ rates });
       return;
     }
@@ -82,15 +65,10 @@ export const getFundingRates = async (
   }
 };
 
-export const getArbitrageOpportunities = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getArbitrageOpportunities = async (req: Request, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
-      token: Joi.string()
-        .valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP")
-        .optional(),
+      token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").optional(),
       minAPR: Joi.number().min(0).default(5), // minimum 5% APR
       limit: Joi.number().integer().min(1).max(50).default(10),
     });
@@ -134,8 +112,7 @@ export const getArbitrageOpportunities = async (
 
           if (longRate.exchange === shortRate.exchange) continue;
 
-          const spreadAPR =
-            (shortRate.fundingRate - longRate.fundingRate) * 8760 * 100; // Convert to annual %
+          const spreadAPR = (shortRate.fundingRate - longRate.fundingRate) * 8760 * 100; // Convert to annual %
 
           if (spreadAPR >= minAPR) {
             opportunities.push({
@@ -169,38 +146,19 @@ export const getArbitrageOpportunities = async (
   }
 };
 
-export const getExchangePairs = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getExchangePairs = async (req: Request, res: Response): Promise<void> => {
   try {
     const { exchange } = req.params;
 
     const exchangeSchema = Joi.string()
-      .valid(
-        "vest",
-        "hyperliquid",
-        "orderly",
-        "extended",
-        "paradex",
-        "backpack",
-        "hibachi",
-      )
+      .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
       .required();
     const { error } = exchangeSchema.validate(exchange);
 
     if (error) {
       res.status(400).json({
         error: "Invalid exchange name",
-        validExchanges: [
-          "vest",
-          "hyperliquid",
-          "orderly",
-          "extended",
-          "paradex",
-          "backpack",
-          "hibachi",
-        ],
+        validExchanges: ["vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"],
       });
       return;
     }
@@ -208,21 +166,9 @@ export const getExchangePairs = async (
     // TODO: Get actual pairs from exchange APIs
     // For now, return static data based on exchange
     const exchangePairs: Record<string, string[]> = {
-      vest: [
-        "BTC-USDT-PERP",
-        "ETH-USDT-PERP",
-        "SOL-USDT-PERP",
-        "ARB-USDT-PERP",
-        "OP-USDT-PERP",
-      ],
+      vest: ["BTC-USDT-PERP", "ETH-USDT-PERP", "SOL-USDT-PERP", "ARB-USDT-PERP", "OP-USDT-PERP"],
       hyperliquid: ["BTC-USD", "ETH-USD", "SOL-USD", "AVAX-USD", "ARB-USD"],
-      orderly: [
-        "PERP_BTC_USDC",
-        "PERP_ETH_USDC",
-        "PERP_SOL_USDC",
-        "PERP_AVAX_USDC",
-        "PERP_MATIC_USDC",
-      ],
+      orderly: ["PERP_BTC_USDC", "PERP_ETH_USDC", "PERP_SOL_USDC", "PERP_AVAX_USDC", "PERP_MATIC_USDC"],
       extended: ["BTC-USDT", "ETH-USDT", "SOL-USDT", "AVAX-USDT"],
       paradex: ["BTC-USD-PERP", "ETH-USD-PERP", "SOL-USD-PERP"],
       backpack: ["BTC_USDC", "ETH_USDC", "SOL_USDC"],
@@ -243,10 +189,7 @@ export const getExchangePairs = async (
   }
 };
 
-export const getExchangeStatus = async (
-  _req: Request,
-  res: Response,
-): Promise<void> => {
+export const getExchangeStatus = async (_req: Request, res: Response): Promise<void> => {
   try {
     const exchangeStatuses = [
       {
@@ -275,9 +218,7 @@ export const getExchangeStatus = async (
       },
     ];
 
-    const connectedCount = exchangeStatuses.filter(
-      (ex) => ex.isConnected,
-    ).length;
+    const connectedCount = exchangeStatuses.filter((ex) => ex.isConnected).length;
     const totalCount = exchangeStatuses.length;
 
     res.json({
@@ -295,10 +236,7 @@ export const getExchangeStatus = async (
   }
 };
 
-export const refreshFundingRates = async (
-  _req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> => {
+export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     // This endpoint triggers a manual refresh of funding rates
     // In production, this would be rate-limited and possibly restricted to admin users
@@ -338,8 +276,7 @@ export const refreshFundingRates = async (
     // Update Hyperliquid rates
     if (hyperliquidExchange.isConnected) {
       try {
-        const hyperliquidRates =
-          await hyperliquidExchange.getFundingRates(tokensToUpdate);
+        const hyperliquidRates = await hyperliquidExchange.getFundingRates(tokensToUpdate);
         for (const rate of hyperliquidRates) {
           const upsertData: any = {
             exchange: rate.exchange as any,
@@ -397,8 +334,7 @@ export const refreshFundingRates = async (
     // Update Extended rates
     if (extendedExchange.isConnected) {
       try {
-        const extendedRates =
-          await extendedExchange.getFundingRates(tokensToUpdate);
+        const extendedRates = await extendedExchange.getFundingRates(tokensToUpdate);
         for (const rate of extendedRates) {
           const upsertData: any = {
             exchange: rate.exchange as any,
@@ -427,9 +363,7 @@ export const refreshFundingRates = async (
     res.json({
       message: "Funding rates refresh initiated",
       updatedRates: updatedRates.length,
-      exchanges: updatedRates
-        .map((r) => r.exchange)
-        .filter((v, i, a) => a.indexOf(v) === i),
+      exchanges: updatedRates.map((r) => r.exchange).filter((v, i, a) => a.indexOf(v) === i),
       timestamp: new Date(),
     });
   } catch (error) {

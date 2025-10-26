@@ -21,10 +21,7 @@ type FundingRateCreationAttributes = Optional<
   "id" | "createdAt" | "updatedAt" | "markPrice" | "indexPrice"
 >;
 
-class FundingRate extends Model<
-  FundingRateAttributes,
-  FundingRateCreationAttributes
-> {
+class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttributes> {
   declare public id: string;
   declare public exchange: ExchangeName;
   declare public token: TokenSymbol;
@@ -37,10 +34,7 @@ class FundingRate extends Model<
   declare public readonly createdAt: Date;
   declare public readonly updatedAt: Date;
 
-  public static async getLatestRates(
-    token?: TokenSymbol,
-    exchange?: ExchangeName,
-  ): Promise<FundingRate[]> {
+  public static async getLatestRates(token?: TokenSymbol, exchange?: ExchangeName): Promise<FundingRate[]> {
     let result: FundingRate[];
     const now = Date.now();
 
@@ -72,21 +66,14 @@ class FundingRate extends Model<
     return result;
   }
 
-  public static async getLatestForTokenAndExchange(
-    token: TokenSymbol,
-    exchange: ExchangeName,
-  ) {
+  public static async getLatestForTokenAndExchange(token: TokenSymbol, exchange: ExchangeName) {
     return await FundingRate.findOne({
       where: { token, exchange },
       order: [["timestamp", "DESC"]],
     });
   }
 
-  public static async getHistoricalRates(
-    token: TokenSymbol,
-    exchange: ExchangeName,
-    hours = 24,
-  ) {
+  public static async getHistoricalRates(token: TokenSymbol, exchange: ExchangeName, hours = 24) {
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - hours);
 
@@ -111,15 +98,7 @@ FundingRate.init(
       primaryKey: true,
     },
     exchange: {
-      type: DataTypes.ENUM(
-        "vest",
-        "hyperliquid",
-        "orderly",
-        "extended",
-        "paradex",
-        "backpack",
-        "hibachi",
-      ),
+      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
       allowNull: false,
     },
     token: {

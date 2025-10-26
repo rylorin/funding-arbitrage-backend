@@ -13,8 +13,7 @@ const createRateLimiter = (windowMs: number, max: number, message?: string) => {
     legacyHeaders: false,
     keyGenerator: (req: Request): string => {
       // Use authenticated user ID if available, otherwise fall back to IP
-      const userIdentifier =
-        (req as any).user?.id || ipKeyGenerator(req.ip || "-");
+      const userIdentifier = (req as any).user?.id || ipKeyGenerator(req.ip || "-");
       return `${req.route?.path || req.path}:${userIdentifier}`;
     },
     handler: (_req: Request, res: Response) => {

@@ -97,8 +97,7 @@ export class PositionSyncService {
             positionPnL,
           });
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
           console.error(`Error syncing position ${position.id}:`, error);
           failedPositions.push({ id: position.id, error: errorMessage });
         }
@@ -128,13 +127,9 @@ export class PositionSyncService {
       };
 
       if (failedPositions.length === 0) {
-        console.log(
-          `✅ Position sync completed: ${result.message} (${executionTime}ms)`
-        );
+        console.log(`✅ Position sync completed: ${result.message} (${executionTime}ms)`);
       } else {
-        console.log(
-          `⚠️ Position sync completed with failures: ${result.message} (${executionTime}ms)`
-        );
+        console.log(`⚠️ Position sync completed with failures: ${result.message} (${executionTime}ms)`);
       }
 
       return result;
@@ -180,10 +175,7 @@ export class PositionSyncService {
         lastUpdated: new Date(),
       };
     } catch (error) {
-      console.error(
-        `Error calculating metrics for position ${position.id}:`,
-        error
-      );
+      console.error(`Error calculating metrics for position ${position.id}:`, error);
       throw error;
     }
   }
@@ -194,57 +186,37 @@ export class PositionSyncService {
   public async calculatePositionPnL(position: any): Promise<number> {
     try {
       // Récupérer les funding rates actuels
-      const longRate = await FundingRate.getLatestForTokenAndExchange(
-        position.longToken,
-        position.longExchange
-      );
+      const longRate = await FundingRate.getLatestForTokenAndExchange(position.longToken, position.longExchange);
       const shortRate = await FundingRate.getLatestForTokenAndExchange(
         position.shortToken || position.longToken,
-        position.shortExchange
+        position.shortExchange,
       );
 
       if (!longRate || !shortRate) return 0;
 
       // Calculer les frais de funding reçus depuis l'ouverture
       const hoursOpen = this.calculateHoursOpen(position.createdAt);
-      const fundingFeesReceived = this.calculateFundingFeesReceived(
-        position,
-        longRate,
-        shortRate,
-        hoursOpen
-      );
+      const fundingFeesReceived = this.calculateFundingFeesReceived(position, longRate, shortRate, hoursOpen);
 
       // Récupérer le PnL non réalisé depuis les exchanges si disponible
       let unrealizedPnL = 0;
       try {
-        const longExchange =
-          this.exchanges[position.longExchange as keyof typeof this.exchanges];
-        const shortExchange =
-          this.exchanges[position.shortExchange as keyof typeof this.exchanges];
+        const longExchange = this.exchanges[position.longExchange as keyof typeof this.exchanges];
+        const shortExchange = this.exchanges[position.shortExchange as keyof typeof this.exchanges];
 
         if (longExchange && position.longPositionId) {
-          unrealizedPnL += await longExchange.getPositionPnL(
-            position.longPositionId
-          );
+          unrealizedPnL += await longExchange.getPositionPnL(position.longPositionId);
         }
         if (shortExchange && position.shortPositionId) {
-          unrealizedPnL += await shortExchange.getPositionPnL(
-            position.shortPositionId
-          );
+          unrealizedPnL += await shortExchange.getPositionPnL(position.shortPositionId);
         }
       } catch (error) {
-        console.warn(
-          `Could not fetch unrealized PnL from exchanges for position ${position.id}:`,
-          error
-        );
+        console.warn(`Could not fetch unrealized PnL from exchanges for position ${position.id}:`, error);
       }
 
       return fundingFeesReceived + unrealizedPnL;
     } catch (error) {
-      console.error(
-        `Error calculating PnL for position ${position.id}:`,
-        error
-      );
+      console.error(`Error calculating PnL for position ${position.id}:`, error);
       return 0;
     }
   }
@@ -254,30 +226,22 @@ export class PositionSyncService {
    */
   public async calculateCurrentAPR(position: any): Promise<number> {
     try {
-      const longRate = await FundingRate.getLatestForTokenAndExchange(
-        position.longToken,
-        position.longExchange
-      );
+      const longRate = await FundingRate.getLatestForTokenAndExchange(position.longToken, position.longExchange);
       const shortRate = await FundingRate.getLatestForTokenAndExchange(
         position.shortToken || position.longToken,
-        position.shortExchange
+        position.shortExchange,
       );
 
       if (!longRate || !shortRate) return 0;
 
       // Calculer le spread APR actuel
-      const longApr =
-        (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
-      const shortApr =
-        (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
+      const longApr = (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
+      const shortApr = (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
       const spread = shortApr - longApr;
 
       return spread * 100; // Convertir en pourcentage
     } catch (error) {
-      console.error(
-        `Error calculating APR for position ${position.id}:`,
-        error
-      );
+      console.error(`Error calculating APR for position ${position.id}:`, error);
       return 0;
     }
   }
@@ -303,20 +267,10 @@ export class PositionSyncService {
   /**
    * Calcule les frais de funding reçus
    */
-  private calculateFundingFeesReceived(
-    position: any,
-    longRate: any,
-    shortRate: any,
-    hoursOpen: number
-  ): number {
+  private calculateFundingFeesReceived(position: any, longRate: any, shortRate: any, hoursOpen: number): number {
     // Calcul simplifié - en réalité, il faudrait tracker les paiements de funding réels
-    const avgRate =
-      (Math.abs(longRate.fundingRate) + Math.abs(shortRate.fundingRate)) / 2;
-    const fundingCycles =
-      hoursOpen /
-      (longRate.exchange === "vest" || longRate.exchange === "extended"
-        ? 1
-        : 8);
+    const avgRate = (Math.abs(longRate.fundingRate) + Math.abs(shortRate.fundingRate)) / 2;
+    const fundingCycles = hoursOpen / (longRate.exchange === "vest" || longRate.exchange === "extended" ? 1 : 8);
 
     return avgRate * fundingCycles * position.size;
   }
@@ -343,7 +297,7 @@ export class PositionSyncService {
             hoursOpen: metrics.hoursOpen,
             shouldClose: metrics.currentAPR < position.autoCloseAPRThreshold,
           };
-        })
+        }),
       );
 
       return enrichedPositions;

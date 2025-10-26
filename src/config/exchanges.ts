@@ -49,10 +49,7 @@ export const exchangeEndpoints = {
       process.env.NODE_ENV === "production"
         ? "https://server-prod.hz.vestmarkets.com/v2"
         : "https://server-dev.hz.vestmarkets.com/v2",
-    websocket:
-      process.env.NODE_ENV === "production"
-        ? "wss://ws.vest.exchange"
-        : "wss://ws.vest.exchange",
+    websocket: process.env.NODE_ENV === "production" ? "wss://ws.vest.exchange" : "wss://ws.vest.exchange",
     // : 'wss://testnet-ws.vest.exchange',
   },
   hyperliquid: {
@@ -60,15 +57,9 @@ export const exchangeEndpoints = {
     websocket: "wss://api.hyperliquid.xyz/ws",
   },
   orderly: {
-    baseUrl:
-      process.env.NODE_ENV === "production"
-        ? "https://api.orderly.org"
-        : "https://api.orderly.org",
+    baseUrl: process.env.NODE_ENV === "production" ? "https://api.orderly.org" : "https://api.orderly.org",
     // : 'https://testnet-api.orderly.org',
-    websocket:
-      process.env.NODE_ENV === "production"
-        ? "wss://ws-evm.orderly.org"
-        : "wss://ws-evm.orderly.org",
+    websocket: process.env.NODE_ENV === "production" ? "wss://ws-evm.orderly.org" : "wss://ws-evm.orderly.org",
     // : 'wss://testnet-ws-evm.orderly.org',
   },
   extended: {
@@ -76,15 +67,9 @@ export const exchangeEndpoints = {
     websocket: "wss://api.starknet.extended.exchange/ws",
   },
   paradex: {
-    baseUrl:
-      process.env.NODE_ENV === "production"
-        ? "https://api.paradex.trade"
-        : "https://api.paradex.trade",
+    baseUrl: process.env.NODE_ENV === "production" ? "https://api.paradex.trade" : "https://api.paradex.trade",
     // : 'https://api.testnet.paradex.trade',
-    websocket:
-      process.env.NODE_ENV === "production"
-        ? "wss://ws.paradex.trade"
-        : "wss://ws.paradex.trade",
+    websocket: process.env.NODE_ENV === "production" ? "wss://ws.paradex.trade" : "wss://ws.paradex.trade",
     // : 'wss://ws.testnet.paradex.trade',
   },
   backpack: {

@@ -17,10 +17,7 @@ const verifySchema = Joi.object({
   message: Joi.string().required(),
 });
 
-export const generateChallenge = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const generateChallenge = async (req: Request, res: Response): Promise<void> => {
   try {
     const { error, value } = challengeSchema.validate(req.body);
     if (error) {
@@ -56,10 +53,7 @@ export const generateChallenge = async (
   }
 };
 
-export const verifySignature = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const verifySignature = async (req: Request, res: Response): Promise<void> => {
   try {
     const { error, value } = verifySchema.validate(req.body);
     if (error) {
@@ -72,11 +66,7 @@ export const verifySignature = async (
 
     const { walletAddress, signature, message } = value;
 
-    const result = await authService.verifySignature(
-      walletAddress,
-      signature,
-      message,
-    );
+    const result = await authService.verifySignature(walletAddress, signature, message);
 
     if (!result.success) {
       res.status(401).json({
@@ -104,9 +94,7 @@ export const verifySignature = async (
 
 export const getProfile = async (req: any, res: Response): Promise<void> => {
   try {
-    const user = await authService.getUserFromToken(
-      req.headers.authorization?.split(" ")[1],
-    );
+    const user = await authService.getUserFromToken(req.headers.authorization?.split(" ")[1]);
 
     if (!user) {
       res.status(404).json({ error: "User not found" });
@@ -126,27 +114,14 @@ export const getProfile = async (req: any, res: Response): Promise<void> => {
   }
 };
 
-export const updateSettings = async (
-  req: any,
-  res: Response,
-): Promise<void> => {
+export const updateSettings = async (req: any, res: Response): Promise<void> => {
   try {
     const settingsSchema = Joi.object({
       autoCloseAPRThreshold: Joi.number().min(0).max(100).optional(),
       autoClosePnLThreshold: Joi.number().min(-100).max(0).optional(),
       autoCloseTimeoutHours: Joi.number().integer().min(1).max(8760).optional(), // max 1 year
       preferredExchanges: Joi.array()
-        .items(
-          Joi.string().valid(
-            "vest",
-            "hyperliquid",
-            "orderly",
-            "extended",
-            "paradex",
-            "backpack",
-            "hibachi",
-          ),
-        )
+        .items(Joi.string().valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"))
         .optional(),
       riskTolerance: Joi.string().valid("low", "medium", "high").optional(),
       notificationPreferences: Joi.object({
@@ -165,9 +140,7 @@ export const updateSettings = async (
       return;
     }
 
-    const user = await authService.getUserFromToken(
-      req.headers.authorization?.split(" ")[1],
-    );
+    const user = await authService.getUserFromToken(req.headers.authorization?.split(" ")[1]);
 
     if (!user) {
       res.status(404).json({ error: "User not found" });
