@@ -1,4 +1,4 @@
-import autoTradingService from "@/services/AutoTradingService";
+import { deltaNeutralTradingService } from "../services/DeltaNeutralTradingService";
 import { JobResult } from "../types/index";
 import { CronJob } from "./cronJob";
 
@@ -8,7 +8,7 @@ export class AutoTrader extends CronJob {
   }
 
   public async runOnce(): Promise<JobResult> {
-    return autoTradingService.runOnce();
+    return deltaNeutralTradingService.runOnce();
   }
 }
 

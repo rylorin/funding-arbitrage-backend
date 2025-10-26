@@ -100,11 +100,11 @@ export interface ExchangeConnector {
   name: ExchangeName;
   isConnected: boolean;
   getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]>;
-  getAccountBalance(): Promise<{ [token: string]: number }>;
+  getAccountBalance(): Promise<Record<string, number>>;
   openPosition(
     token: TokenSymbol,
     side: "long" | "short",
-    size: number
+    size: number,
   ): Promise<string>;
   closePosition(positionId: string): Promise<boolean>;
   getPositionPnL(positionId: string): Promise<number>;

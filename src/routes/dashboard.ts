@@ -1,11 +1,11 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
   getDashboard,
   getFundingRatesTable,
   getArbitrageOpportunities,
-  getMarketOverview
-} from '../controllers/dashboard';
-import { generalRateLimit } from '../middleware/rateLimit';
+  getMarketOverview,
+} from "../controllers/dashboard";
+import { generalRateLimit } from "../middleware/rateLimit";
 
 const router = Router();
 
@@ -13,15 +13,15 @@ const router = Router();
 router.use(generalRateLimit);
 
 // Main dashboard endpoint
-router.get('/', getDashboard);
+router.get("/", getDashboard);
 
 // Funding rates table with sorting and filtering
-router.get('/funding-rates', getFundingRatesTable);
+router.get("/funding-rates", getFundingRatesTable);
 
 // Arbitrage opportunities with filtering
-router.get('/opportunities', getArbitrageOpportunities);
+router.get("/opportunities", getArbitrageOpportunities);
 
 // Market overview and statistics
-router.get('/overview', getMarketOverview);
+router.get("/overview", getMarketOverview);
 
 export default router;

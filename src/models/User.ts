@@ -78,7 +78,7 @@ User.init(
         fields: ["walletAddress"],
       },
     ],
-  }
+  },
 );
 
 export default User;

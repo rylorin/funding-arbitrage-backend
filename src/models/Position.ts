@@ -1,7 +1,7 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
-import { PositionStatus, ExchangeName, TokenSymbol } from '../types/index';
-import User from './User';
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/database";
+import { PositionStatus, ExchangeName, TokenSymbol } from "../types/index";
+import User from "./User";
 
 interface PositionAttributes {
   id: string;
@@ -42,12 +42,23 @@ interface PositionAttributes {
   updatedAt: Date;
 }
 
-interface PositionCreationAttributes extends Optional<
-  PositionAttributes,
-  'id' | 'createdAt' | 'updatedAt' | 'currentPnl' | 'closedAt' | 'closedReason' | 'longPositionId' | 'shortPositionId'
-> {}
+interface PositionCreationAttributes
+  extends Optional<
+    PositionAttributes,
+    | "id"
+    | "createdAt"
+    | "updatedAt"
+    | "currentPnl"
+    | "closedAt"
+    | "closedReason"
+    | "longPositionId"
+    | "shortPositionId"
+  > {}
 
-class Position extends Model<PositionAttributes, PositionCreationAttributes> implements PositionAttributes {
+class Position
+  extends Model<PositionAttributes, PositionCreationAttributes>
+  implements PositionAttributes
+{
   public id!: string;
   public userId!: string;
   public token!: TokenSymbol;
@@ -86,7 +97,7 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
   public readonly updatedAt!: Date;
 
   public static associate() {
-    Position.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+    Position.belongsTo(User, { foreignKey: "userId", as: "user" });
   }
 
   public getHoursOpen(): number {
@@ -96,14 +107,13 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
   }
 
   public shouldAutoClose(): boolean {
-    if (!this.autoCloseEnabled || this.status !== 'OPEN') return false;
+    if (!this.autoCloseEnabled || this.status !== "OPEN") return false;
 
     const hoursOpen = this.getHoursOpen();
     const timeoutHours = 168; // 7 days default
 
     return (
-      this.currentPnl <= this.autoClosePnLThreshold ||
-      hoursOpen >= timeoutHours
+      this.currentPnl <= this.autoClosePnLThreshold || hoursOpen >= timeoutHours
     );
   }
 }
@@ -120,19 +130,35 @@ Position.init(
       allowNull: false,
       references: {
         model: User,
-        key: 'id',
+        key: "id",
       },
     },
     token: {
-      type: DataTypes.ENUM('BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'OP'),
+      type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
       allowNull: false,
     },
     longExchange: {
-      type: DataTypes.ENUM('vest', 'hyperliquid', 'orderly', 'extended', 'paradex', 'backpack', 'hibachi'),
+      type: DataTypes.ENUM(
+        "vest",
+        "hyperliquid",
+        "orderly",
+        "extended",
+        "paradex",
+        "backpack",
+        "hibachi",
+      ),
       allowNull: false,
     },
     shortExchange: {
-      type: DataTypes.ENUM('vest', 'hyperliquid', 'orderly', 'extended', 'paradex', 'backpack', 'hibachi'),
+      type: DataTypes.ENUM(
+        "vest",
+        "hyperliquid",
+        "orderly",
+        "extended",
+        "paradex",
+        "backpack",
+        "hibachi",
+      ),
       allowNull: false,
     },
     size: {
@@ -152,11 +178,17 @@ Position.init(
       allowNull: false,
       validate: {
         hasRequiredFields(value: any) {
-          if (!value || typeof value !== 'object') {
-            throw new Error('entryFundingRates must be an object');
+          if (!value || typeof value !== "object") {
+            throw new Error("entryFundingRates must be an object");
           }
-          if (typeof value.longRate !== 'number' || typeof value.shortRate !== 'number' || typeof value.spreadAPR !== 'number') {
-            throw new Error('entryFundingRates must contain longRate, shortRate, and spreadAPR');
+          if (
+            typeof value.longRate !== "number" ||
+            typeof value.shortRate !== "number" ||
+            typeof value.spreadAPR !== "number"
+          ) {
+            throw new Error(
+              "entryFundingRates must contain longRate, shortRate, and spreadAPR",
+            );
           }
         },
       },
@@ -182,9 +214,9 @@ Position.init(
       defaultValue: -5,
     },
     status: {
-      type: DataTypes.ENUM('OPEN', 'CLOSED', 'ERROR', 'CLOSING'),
+      type: DataTypes.ENUM("OPEN", "CLOSED", "ERROR", "CLOSING"),
       allowNull: false,
-      defaultValue: 'OPEN',
+      defaultValue: "OPEN",
     },
     closedAt: {
       type: DataTypes.DATE,
@@ -203,11 +235,11 @@ Position.init(
       allowNull: true,
     },
     longToken: {
-      type: DataTypes.ENUM('BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'OP'),
+      type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
       allowNull: true,
     },
     shortToken: {
-      type: DataTypes.ENUM('BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'OP'),
+      type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
       allowNull: true,
     },
     entrySpreadAPR: {
@@ -266,23 +298,23 @@ Position.init(
   },
   {
     sequelize,
-    modelName: 'Position',
-    tableName: 'positions',
+    modelName: "Position",
+    tableName: "positions",
     indexes: [
       {
-        fields: ['userId'],
+        fields: ["userId"],
       },
       {
-        fields: ['status'],
+        fields: ["status"],
       },
       {
-        fields: ['token'],
+        fields: ["token"],
       },
       {
-        fields: ['entryTimestamp'],
+        fields: ["entryTimestamp"],
       },
     ],
-  }
+  },
 );
 
 export default Position;

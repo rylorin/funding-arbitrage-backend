@@ -19,16 +19,17 @@ interface HealthStatus {
     status: "connected" | "disconnected" | "error";
     message?: string;
   };
-  exchanges: {
-    [exchangeName: string]: {
+  exchanges: Record<
+    string,
+    {
       status: "connected" | "disconnected" | "error";
       message?: string;
       lastChecked: string;
-    };
-  };
+    }
+  >;
   jobs: {
     overall: "healthy" | "warning" | "unhealthy";
-    jobs: { [key: string]: any };
+    jobs: Record<string, any>;
     summary: {
       total: number;
       running: number;
@@ -81,7 +82,7 @@ export class HealthService {
         databaseHealth,
         exchangesHealth,
         systemHealth,
-        jobsHealth
+        jobsHealth,
       );
 
       const healthStatus: HealthStatus = {
@@ -108,11 +109,11 @@ export class HealthService {
         console.log(`❌ Health check completed with issues: ${result.message}`);
       } else if (overallStatus === "warning") {
         console.log(
-          `⚠️  Health check completed with warnings: ${result.message}`
+          `⚠️  Health check completed with warnings: ${result.message}`,
         );
       } else {
         console.log(
-          `✅ Health check completed successfully: ${result.message}`
+          `✅ Health check completed successfully: ${result.message}`,
         );
       }
 
@@ -151,13 +152,16 @@ export class HealthService {
     }
   }
 
-  private async checkExchangesHealth(): Promise<{
-    [exchangeName: string]: {
-      status: "connected" | "disconnected" | "error";
-      message?: string;
-      lastChecked: string;
-    };
-  }> {
+  private async checkExchangesHealth(): Promise<
+    Record<
+      string,
+      {
+        status: "connected" | "disconnected" | "error";
+        message?: string;
+        lastChecked: string;
+      }
+    >
+  > {
     const results: any = {};
 
     for (const [exchangeName, exchange] of Object.entries(this.exchanges)) {
@@ -209,7 +213,7 @@ export class HealthService {
     database: any,
     exchanges: any,
     _system: any,
-    jobs: any
+    jobs: any,
   ): "healthy" | "warning" | "unhealthy" {
     // If database is not connected, system is unhealthy
     if (database.status !== "connected") {
@@ -219,7 +223,7 @@ export class HealthService {
     // Count exchange issues
     const exchangeStatuses = Object.values(exchanges);
     const connectedExchanges = exchangeStatuses.filter(
-      (status: any) => status.status === "connected"
+      (status: any) => status.status === "connected",
     ).length;
     const totalExchanges = exchangeStatuses.length;
 
@@ -242,7 +246,7 @@ export class HealthService {
   }
 
   private getStatusMessage(
-    status: "healthy" | "warning" | "unhealthy"
+    status: "healthy" | "warning" | "unhealthy",
   ): string {
     switch (status) {
       case "healthy":

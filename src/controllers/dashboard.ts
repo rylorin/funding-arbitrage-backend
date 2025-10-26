@@ -55,7 +55,7 @@ function getFundingFrequencyText(exchange: ExchangeName): string {
 
 export const getDashboard = async (
   _req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     // Get latest funding rates for all exchanges and tokens
@@ -83,7 +83,7 @@ export const getDashboard = async (
         indexPrice: rate.indexPrice || 0,
         status: "ACTIVE" as const,
         category: getTokenCategory(rate.token),
-      })
+      }),
     );
 
     // Group by token for better display
@@ -96,7 +96,7 @@ export const getDashboard = async (
     const opportunities = await arbitrageService.findArbitrageOpportunities(
       5,
       10000,
-      0.5
+      0.5,
     );
     const opportunitiesDisplay: ArbitrageOpportunityDisplay[] =
       opportunities.map((opp, index) => ({
@@ -151,7 +151,7 @@ export const getDashboard = async (
 
 export const getFundingRatesTable = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const querySchema = Joi.object({
@@ -183,7 +183,7 @@ export const getFundingRatesTable = async (
     const rates = await FundingRate.getLatestRates(token, exchange);
 
     // Format for table display
-    let formattedRates = rates.map((rate: any) => {
+    const formattedRates = rates.map((rate: any) => {
       const rateData = rate.dataValues || rate;
       return {
         exchange: rateData.exchange,
@@ -256,10 +256,10 @@ export const getFundingRatesTable = async (
             formattedRates.reduce((sum, r) => sum + r.fundingRate, 0) /
             formattedRates.length,
           maxAPR: Math.max(
-            ...formattedRates.map((r) => parseFloat(r.fundingAPR))
+            ...formattedRates.map((r) => parseFloat(r.fundingAPR)),
           ),
           minAPR: Math.min(
-            ...formattedRates.map((r) => parseFloat(r.fundingAPR))
+            ...formattedRates.map((r) => parseFloat(r.fundingAPR)),
           ),
         },
       },
@@ -277,7 +277,7 @@ export const getFundingRatesTable = async (
 
 export const getArbitrageOpportunities = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const querySchema = Joi.object({
@@ -303,13 +303,13 @@ export const getArbitrageOpportunities = async (
     let opportunities = await arbitrageService.findArbitrageOpportunities(
       minAPR,
       maxSize,
-      0.5
+      0.5,
     );
 
     // Apply filters
     if (riskLevel) {
       opportunities = opportunities.filter(
-        (opp) => opp.riskLevel === riskLevel
+        (opp) => opp.riskLevel === riskLevel,
       );
     }
 
@@ -384,25 +384,25 @@ export const getArbitrageOpportunities = async (
             formattedOpportunities.length > 0
               ? formattedOpportunities.reduce(
                   (sum, opp) => sum + opp.spread.apr,
-                  0
+                  0,
                 ) / formattedOpportunities.length
               : 0,
           avgConfidence:
             formattedOpportunities.length > 0
               ? formattedOpportunities.reduce(
                   (sum, opp) => sum + opp.metrics.confidence,
-                  0
+                  0,
                 ) / formattedOpportunities.length
               : 0,
           riskDistribution: {
             LOW: formattedOpportunities.filter(
-              (opp) => opp.metrics.riskLevel === "LOW"
+              (opp) => opp.metrics.riskLevel === "LOW",
             ).length,
             MEDIUM: formattedOpportunities.filter(
-              (opp) => opp.metrics.riskLevel === "MEDIUM"
+              (opp) => opp.metrics.riskLevel === "MEDIUM",
             ).length,
             HIGH: formattedOpportunities.filter(
-              (opp) => opp.metrics.riskLevel === "HIGH"
+              (opp) => opp.metrics.riskLevel === "HIGH",
             ).length,
           },
         },
@@ -485,7 +485,7 @@ function getTokenIcon(token: string): string {
 }
 
 function groupByToken(
-  rates: FundingRateDisplay[]
+  rates: FundingRateDisplay[],
 ): Record<string, FundingRateDisplay[]> {
   return rates.reduce(
     (acc, rate) => {
@@ -495,7 +495,7 @@ function groupByToken(
       acc[rate.symbol].push(rate);
       return acc;
     },
-    {} as Record<string, FundingRateDisplay[]>
+    {} as Record<string, FundingRateDisplay[]>,
   );
 }
 
@@ -521,14 +521,14 @@ function getNextFundingTime(opportunity: any): string {
 
 export const getMarketOverview = async (
   _req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const latestRates = await FundingRate.getLatestRates();
     const opportunities = await arbitrageService.findArbitrageOpportunities(
       5,
       10000,
-      0.5
+      0.5,
     );
 
     // Calculate market statistics
@@ -583,7 +583,7 @@ export const getMarketOverview = async (
     // Find best opportunity for each token
     Object.keys(tokenStats).forEach((token) => {
       const tokenOpportunities = opportunities.filter(
-        (opp) => opp.token === token
+        (opp) => opp.token === token,
       );
       if (tokenOpportunities.length > 0) {
         tokenStats[token].bestOpportunity = tokenOpportunities[0];
@@ -642,7 +642,7 @@ export const getMarketOverview = async (
       tokenStats: Object.values(tokenStats).sort(
         (a: any, b: any) =>
           (b.bestOpportunity?.spreadAPR || 0) -
-          (a.bestOpportunity?.spreadAPR || 0)
+          (a.bestOpportunity?.spreadAPR || 0),
       ),
       riskMetrics: {
         lowRisk: opportunities.filter((opp) => opp.riskLevel === "LOW").length,
@@ -654,19 +654,19 @@ export const getMarketOverview = async (
           opportunities.reduce((sum, opp) => sum + opp.confidence, 0) /
             opportunities.length || 0,
         maxPriceDeviation: Math.max(
-          ...opportunities.map((opp) => opp.priceDeviation || 0)
+          ...opportunities.map((opp) => opp.priceDeviation || 0),
         ),
       },
       trends: {
         hourlyOpportunities: opportunities.filter(
           (opp) =>
             opp.fundingFrequency.longExchange === "Hourly" ||
-            opp.fundingFrequency.shortExchange === "Hourly"
+            opp.fundingFrequency.shortExchange === "Hourly",
         ).length,
         eightHourOpportunities: opportunities.filter(
           (opp) =>
             opp.fundingFrequency.longExchange === "8 Hours" &&
-            opp.fundingFrequency.shortExchange === "8 Hours"
+            opp.fundingFrequency.shortExchange === "8 Hours",
         ).length,
       },
     };

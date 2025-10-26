@@ -1,8 +1,5 @@
 export class CalculationUtils {
-  static _calculateAPR(
-    fundingRate: number,
-    hoursPerFunding: number = 8
-  ): number {
+  static _calculateAPR(fundingRate: number, hoursPerFunding = 8): number {
     const fundingsPerYear = (365 * 24) / hoursPerFunding;
     return fundingRate * fundingsPerYear * 100;
   }
@@ -10,7 +7,7 @@ export class CalculationUtils {
   static _calculateSpreadAPR(
     longRate: number,
     shortRate: number,
-    hoursPerFunding: number = 8
+    hoursPerFunding = 8,
   ): number {
     const spread = shortRate - longRate;
     return this._calculateAPR(spread, hoursPerFunding);
@@ -21,7 +18,7 @@ export class CalculationUtils {
     currentPrice: number,
     size: number,
     side: "long" | "short",
-    fees: number = 0
+    fees = 0,
   ): number {
     const priceChange = currentPrice - entryPrice;
     const pnl = side === "long" ? priceChange * size : -priceChange * size;
@@ -31,7 +28,7 @@ export class CalculationUtils {
   static calculateFundingPnL(
     fundingRate: number,
     notionalSize: number,
-    side: "long" | "short"
+    side: "long" | "short",
   ): number {
     // Funding is paid by longs when positive, received when negative
     const fundingPayment = fundingRate * notionalSize;
@@ -92,7 +89,7 @@ export class CalculationUtils {
 
     // Calculate risk score (0-100, higher = riskier)
     const exchangeCount = new Set(
-      positions.flatMap((p) => [p.longExchange, p.shortExchange])
+      positions.flatMap((p) => [p.longExchange, p.shortExchange]),
     ).size;
     const tokenCount = new Set(positions.map((p) => p.token)).size;
     const avgPositionSize = totalSize / positions.length;
@@ -132,7 +129,7 @@ export class CalculationUtils {
     availableBalance: number,
     riskPercentage: number,
     expectedVolatility: number,
-    maxLeverage: number = 1
+    maxLeverage = 1,
   ): number {
     // Kelly Criterion adapted for funding arbitrage
     const riskAmount = availableBalance * (riskPercentage / 100);
@@ -148,7 +145,7 @@ export class CalculationUtils {
   static calculateFeeImpact(
     tradingFees: number,
     fundingAPR: number,
-    positionSize: number
+    positionSize: number,
   ): { breakEvenDays: number; netAPRAfterFees: number } {
     const annualFeeImpact = tradingFees * 365; // Assuming fees are daily
     const annualFundingReturn = (fundingAPR / 100) * positionSize;
@@ -167,12 +164,12 @@ export class CalculationUtils {
     spreadAPR: number,
     tradingFees: number,
     positionSize: number,
-    minViableAPR: number = 5
+    minViableAPR = 5,
   ): boolean {
     const { netAPRAfterFees } = this.calculateFeeImpact(
       tradingFees,
       spreadAPR,
-      positionSize
+      positionSize,
     );
     return netAPRAfterFees >= minViableAPR;
   }
@@ -181,11 +178,11 @@ export class CalculationUtils {
     return Number(num.toFixed(decimals));
   }
 
-  static formatPercentage(num: number, decimals: number = 2): string {
+  static formatPercentage(num: number, decimals = 2): string {
     return `${this.roundToDecimals(num, decimals)}%`;
   }
 
-  static formatCurrency(num: number, decimals: number = 2): string {
+  static formatCurrency(num: number, decimals = 2): string {
     return `$${this.roundToDecimals(num, decimals).toLocaleString()}`;
   }
 }

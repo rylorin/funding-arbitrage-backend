@@ -4,12 +4,12 @@ import { autoTrader } from "./autoTrader";
 import { CronJob } from "./cronJob";
 import { fundingRateUpdater } from "./fundingRateUpdater";
 import { healthJob } from "./healthJob";
-import { positionMonitor } from "./positionMonitor";
+import { positionSync } from "./positionSync";
 
 export class JobManager {
   private jobs: Record<string, CronJob> = {
     fundingRateUpdater,
-    positionMonitor,
+    positionSync,
     autoCloser,
     autoTrader,
     healthJob,
@@ -28,7 +28,7 @@ export class JobManager {
       await job.execute();
     });
     Object.values(this.jobs).reduce(
-      (p, job) => p.then(() => job.execute().then()),
+      async (p, job) => p.then(async () => job.execute().then()),
       Promise.resolve()
     );
 
@@ -64,7 +64,7 @@ export class JobManager {
   }
 
   public getAllJobStatuses() {
-    const statuses: { [key: string]: any } = {};
+    const statuses: Record<string, any> = {};
 
     Object.keys(this.jobs).forEach((jobName) => {
       const job = this.jobs[jobName as keyof typeof this.jobs];
@@ -77,7 +77,7 @@ export class JobManager {
 
   public async getHealthCheck(): Promise<{
     overall: "healthy" | "warning" | "unhealthy";
-    jobs: { [key: string]: any };
+    jobs: Record<string, any>;
     summary: {
       total: number;
       running: number;
@@ -159,4 +159,4 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-export { autoCloser, fundingRateUpdater, positionMonitor };
+export { autoCloser, fundingRateUpdater, positionSync };

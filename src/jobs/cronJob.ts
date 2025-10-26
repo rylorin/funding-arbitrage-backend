@@ -5,7 +5,7 @@ export abstract class CronJob {
   protected lastExecution: Date | null = null;
   protected cronJob: ScheduledTask | null = null;
 
-  constructor(schedule: string = "* * * * *") {
+  constructor(schedule = "* * * * *") {
     this.cronJob = cron.createTask(
       schedule,
       async () => {
@@ -13,7 +13,7 @@ export abstract class CronJob {
       },
       {
         noOverlap: true,
-      }
+      },
     );
     console.log(`📅 ${this.constructor.name} scheduled`);
   }

@@ -2,7 +2,7 @@ import { DataTypes, Model, Op, Optional } from "sequelize";
 import { sequelize } from "../config/database";
 import { ExchangeName, TokenSymbol } from "../types/index";
 
-type FundingRateAttributes = {
+interface FundingRateAttributes {
   id: string;
   exchange: ExchangeName;
   token: TokenSymbol;
@@ -14,7 +14,7 @@ type FundingRateAttributes = {
   indexPrice?: number;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
 type FundingRateCreationAttributes = Optional<
   FundingRateAttributes,
@@ -39,7 +39,7 @@ class FundingRate extends Model<
 
   public static async getLatestRates(
     token?: TokenSymbol,
-    exchange?: ExchangeName
+    exchange?: ExchangeName,
   ): Promise<FundingRate[]> {
     let result: FundingRate[];
     const now = Date.now();
@@ -67,14 +67,14 @@ class FundingRate extends Model<
       });
     }
     console.log(
-      `✅ FundingRate - getLatestRates: fetched ${result.length} records from DB for token=${token} exchange=${exchange}`
+      `✅ FundingRate - getLatestRates: fetched ${result.length} records from DB for token=${token} exchange=${exchange}`,
     );
     return result;
   }
 
   public static async getLatestForTokenAndExchange(
     token: TokenSymbol,
-    exchange: ExchangeName
+    exchange: ExchangeName,
   ) {
     return await FundingRate.findOne({
       where: { token, exchange },
@@ -85,7 +85,7 @@ class FundingRate extends Model<
   public static async getHistoricalRates(
     token: TokenSymbol,
     exchange: ExchangeName,
-    hours: number = 24
+    hours = 24,
   ) {
     const cutoff = new Date();
     cutoff.setHours(cutoff.getHours() - hours);
@@ -118,7 +118,7 @@ FundingRate.init(
         "extended",
         "paradex",
         "backpack",
-        "hibachi"
+        "hibachi",
       ),
       allowNull: false,
     },
@@ -183,7 +183,7 @@ FundingRate.init(
         fields: ["nextFunding"],
       },
     ],
-  }
+  },
 );
 
 export default FundingRate;

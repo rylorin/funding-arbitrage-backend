@@ -14,7 +14,7 @@ export const CONSTANTS = {
   MAX_POSITION_SIZE: 100000,
   MIN_POSITION_SIZE: 10,
   MAX_POSITIONS_PER_USER: 50,
-  
+
   // Rate limiting
   DEFAULT_RATE_LIMIT_WINDOW: 15 * 60 * 1000, // 15 minutes
   DEFAULT_RATE_LIMIT_MAX: 100,
@@ -101,27 +101,43 @@ export const CONSTANTS = {
 
   // Error messages
   ERROR_MESSAGES: {
-    INVALID_TOKEN: 'Invalid or expired authentication token',
-    INSUFFICIENT_BALANCE: 'Insufficient balance for this operation',
-    POSITION_NOT_FOUND: 'Position not found',
-    EXCHANGE_UNAVAILABLE: 'Exchange is currently unavailable',
-    RATE_LIMIT_EXCEEDED: 'Rate limit exceeded, please try again later',
-    VALIDATION_ERROR: 'Validation error in request data',
-    INTERNAL_ERROR: 'Internal server error',
+    INVALID_TOKEN: "Invalid or expired authentication token",
+    INSUFFICIENT_BALANCE: "Insufficient balance for this operation",
+    POSITION_NOT_FOUND: "Position not found",
+    EXCHANGE_UNAVAILABLE: "Exchange is currently unavailable",
+    RATE_LIMIT_EXCEEDED: "Rate limit exceeded, please try again later",
+    VALIDATION_ERROR: "Validation error in request data",
+    INTERNAL_ERROR: "Internal server error",
   },
 
   // Success messages
   SUCCESS_MESSAGES: {
-    POSITION_CREATED: 'Position created successfully',
-    POSITION_UPDATED: 'Position updated successfully',
-    POSITION_CLOSED: 'Position closed successfully',
-    SETTINGS_UPDATED: 'Settings updated successfully',
-    AUTH_SUCCESS: 'Authentication successful',
+    POSITION_CREATED: "Position created successfully",
+    POSITION_UPDATED: "Position updated successfully",
+    POSITION_CLOSED: "Position closed successfully",
+    SETTINGS_UPDATED: "Settings updated successfully",
+    AUTH_SUCCESS: "Authentication successful",
   },
 
   // Supported tokens and exchanges
-  SUPPORTED_TOKENS: ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'OP'] as const,
-  SUPPORTED_EXCHANGES: ['vest', 'hyperliquid', 'orderly', 'extended', 'paradex', 'backpack', 'hibachi'] as const,
+  SUPPORTED_TOKENS: [
+    "BTC",
+    "ETH",
+    "SOL",
+    "AVAX",
+    "MATIC",
+    "ARB",
+    "OP",
+  ] as const,
+  SUPPORTED_EXCHANGES: [
+    "vest",
+    "hyperliquid",
+    "orderly",
+    "extended",
+    "paradex",
+    "backpack",
+    "hibachi",
+  ] as const,
 
   // Token configurations
   TOKEN_CONFIG: {
@@ -182,17 +198,17 @@ export const CONSTANTS = {
   },
 
   // Environment
-  NODE_ENVIRONMENTS: ['development', 'test', 'production'] as const,
-  
+  NODE_ENVIRONMENTS: ["development", "test", "production"] as const,
+
   // Logging levels
-  LOG_LEVELS: ['error', 'warn', 'info', 'debug'] as const,
+  LOG_LEVELS: ["error", "warn", "info", "debug"] as const,
 } as const;
 
 // Type exports for constants
 // export type SupportedToken = typeof CONSTANTS.SUPPORTED_TOKENS[number];
-export type SupportedExchange = typeof CONSTANTS.SUPPORTED_EXCHANGES[number];
-export type NodeEnvironment = typeof CONSTANTS.NODE_ENVIRONMENTS[number];
-export type LogLevel = typeof CONSTANTS.LOG_LEVELS[number];
+export type SupportedExchange = (typeof CONSTANTS.SUPPORTED_EXCHANGES)[number];
+export type NodeEnvironment = (typeof CONSTANTS.NODE_ENVIRONMENTS)[number];
+export type LogLevel = (typeof CONSTANTS.LOG_LEVELS)[number];
 export type RiskTolerance = keyof typeof CONSTANTS.RISK_TOLERANCE;
 
 export default CONSTANTS;
