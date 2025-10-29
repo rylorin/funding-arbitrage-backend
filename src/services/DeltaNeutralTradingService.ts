@@ -1,5 +1,5 @@
 import { Position, TradeHistory, User } from "../models/index";
-import { ExchangeName, JobResult, TokenSymbol } from "../types/index";
+import { JobResult, RiskLevel, TokenSymbol, UserSettings } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { extendedExchange } from "./exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "./exchanges/HyperliquidExchange";
@@ -7,19 +7,6 @@ import { vestExchange } from "./exchanges/VestExchange";
 import { woofiExchange } from "./exchanges/WoofiExchange";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
-
-interface AutoTradingSettings {
-  enabled: boolean;
-  minAPR: number;
-  maxPositionSize: number;
-  maxSimultaneousPositions: number;
-  riskTolerance: "LOW" | "MEDIUM" | "HIGH";
-  allowedExchanges: ExchangeName[];
-  autoCloseEnabled: boolean;
-  autoCloseAPRThreshold: number;
-  autoClosePnLThreshold: number;
-  autoCloseTimeoutHours: number;
-}
 
 interface TradingResult {
   success: boolean;
@@ -39,17 +26,22 @@ export class DeltaNeutralTradingService {
     extended: extendedExchange,
   };
 
-  private defaultSettings: AutoTradingSettings = {
+  private defaultSettings: UserSettings = {
     enabled: false, // Désactivé par défaut pour la sécurité
-    minAPR: 15, // APR minimum de 15%
-    maxPositionSize: 1000, // $1000 max par position
+    minAPR: 45, // APR minimum de 50%
+    maxPositionSize: 1_000, // $1000 max par position
     maxSimultaneousPositions: 3,
-    riskTolerance: "MEDIUM",
-    allowedExchanges: ["vest", "hyperliquid"],
+    riskTolerance: RiskLevel.MEDIUM,
+    preferredExchanges: ["orderly", "hyperliquid", "extended", "vest"],
     autoCloseEnabled: true,
     autoCloseAPRThreshold: 5, // Fermer si APR < 5%
     autoClosePnLThreshold: 100, // Fermer si perte > $100
     autoCloseTimeoutHours: 72, // Fermer après 72h max
+    notificationPreferences: {
+      email: true,
+      webhook: true,
+      discord: true,
+    },
   };
 
   /**
@@ -92,10 +84,11 @@ export class DeltaNeutralTradingService {
 
       // Trouver les meilleures opportunités
       const opportunities = await opportunityDetectionService.findOpportunities({
-        minAPRThreshold: this.defaultSettings.minAPR,
-        maxPositionSize: this.defaultSettings.maxPositionSize,
-        maxPriceDeviation: 0.5, // 0.5% déviation de prix max
-        allowedExchanges: this.defaultSettings.allowedExchanges,
+        // minAPRThreshold: userSettings.minAPR,
+        // maxPositionSize: userSettings.maxPositionSize,
+        // maxPriceDeviation: 0.5, // 0.5% déviation de prix max
+        // allowedExchanges: userSettings.allowedExchanges,
+        // riskTolerance: userSettings.riskTolerance,
       });
 
       if (opportunities.length === 0) {
@@ -107,13 +100,13 @@ export class DeltaNeutralTradingService {
         };
       }
 
-      console.log(`🎯 Found ${opportunities.length} potential opportunities`);
-
       // Exécuter les trades pour chaque utilisateur éligible
       for (const user of autoTradingUsers) {
         try {
           const userSettings = this.getUserTradingSettings(user);
           if (!userSettings.enabled) continue;
+
+          console.log(`🎯 Found ${opportunities.length} potential opportunities`);
 
           const userResults = await this.executeUserTrading(user, opportunities, userSettings);
           tradingResults.push(...userResults);
@@ -136,7 +129,7 @@ export class DeltaNeutralTradingService {
         success: tradingResults.some((r) => r.success),
         message: `Auto-trading completed: ${tradingResults.filter((r) => r.success).length} successful trades, ${errors.length} errors`,
         data: {
-          opportunitiesFound: opportunities.length,
+          // opportunitiesFound: opportunities.length,
           tradesExecuted: tradingResults.filter((r) => r.success).length,
           tradingResults,
           errors,
@@ -414,11 +407,7 @@ export class DeltaNeutralTradingService {
   /**
    * Exécute le trading pour un utilisateur spécifique
    */
-  private async executeUserTrading(
-    user: any,
-    opportunities: any[],
-    settings: AutoTradingSettings,
-  ): Promise<TradingResult[]> {
+  private async executeUserTrading(user: any, opportunities: any[], settings: UserSettings): Promise<TradingResult[]> {
     const results: TradingResult[] = [];
 
     try {
@@ -440,19 +429,25 @@ export class DeltaNeutralTradingService {
         .filterByUserSettings(opportunities, {
           minAPR: settings.minAPR,
           maxPositionSize: settings.maxPositionSize,
-          riskTolerance: settings.riskTolerance as "LOW" | "MEDIUM" | "HIGH",
-          allowedExchanges: settings.allowedExchanges,
+          riskTolerance: settings.riskTolerance,
+          allowedExchanges: settings.preferredExchanges,
         })
         .slice(0, settings.maxSimultaneousPositions - activePositions);
 
       if (filteredOpportunities.length === 0) {
         console.log(`No suitable opportunities for user ${user.id}`);
+        console.log(settings);
+        // console.log( opportunities);
         return results;
       }
 
       // Exécuter les trades pour les opportunités filtrées
       for (const opportunity of filteredOpportunities) {
         try {
+          console.log(
+            `Attempting to open position for user ${user.id} on opportunity: ${opportunity.token} ${opportunity.spreadAPR.toFixed(2)}% APR`,
+            opportunity,
+          );
           const tradingResult = await this.executeTrade(user, opportunity, settings);
           results.push(tradingResult);
 
@@ -481,7 +476,7 @@ export class DeltaNeutralTradingService {
   /**
    * Exécute un trade delta-neutral
    */
-  private async executeTrade(user: any, opportunity: any, settings: AutoTradingSettings): Promise<TradingResult> {
+  private async executeTrade(user: any, opportunity: any, settings: UserSettings): Promise<TradingResult> {
     try {
       const longExchange = this.exchanges[opportunity.longExchange as keyof typeof this.exchanges];
       const shortExchange = this.exchanges[opportunity.shortExchange as keyof typeof this.exchanges];
@@ -574,12 +569,12 @@ export class DeltaNeutralTradingService {
   /**
    * Récupère les settings de trading d'un utilisateur
    */
-  private getUserTradingSettings(_user: any): AutoTradingSettings {
+  private getUserTradingSettings(user: User): UserSettings {
     // En implémentation réelle, ceci récupérerait les settings spécifiques de l'utilisateur depuis la DB
     return {
       ...this.defaultSettings,
       // Override avec les settings utilisateur si disponibles
-      // ...user.autoTradingSettings
+      ...user.settings,
     };
   }
 

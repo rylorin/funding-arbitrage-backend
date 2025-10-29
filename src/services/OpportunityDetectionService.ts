@@ -1,10 +1,10 @@
 import { FundingRate } from "../models/index";
-import { ArbitrageOpportunity, ExchangeName, TokenSymbol } from "../types/index";
+import { ArbitrageOpportunity, ExchangeName, RiskLevel, TokenSymbol } from "../types/index";
 
 interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
   longMarkPrice: number;
   shortMarkPrice: number;
-  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  riskLevel: RiskLevel;
   fundingFrequency: {
     longExchange: string;
     shortExchange: string;
@@ -18,10 +18,11 @@ interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
 
 interface OpportunityFilters {
   minAPRThreshold?: number;
-  maxPositionSize?: number;
+  maxPositionSize?: number; // not implemented yet
   maxPriceDeviation?: number;
   allowedExchanges?: ExchangeName[];
-  riskTolerance?: "LOW" | "MEDIUM" | "HIGH";
+  riskTolerance?: RiskLevel;
+  limit?: number;
 }
 
 export class OpportunityDetectionService {
@@ -29,7 +30,14 @@ export class OpportunityDetectionService {
    * Trouve les meilleures opportunités d'arbitrage selon les filtres
    */
   public async findOpportunities(filters: OpportunityFilters = {}): Promise<DetailedArbitrageOpportunity[]> {
-    const { minAPRThreshold = 5, maxPositionSize = 10000, maxPriceDeviation = 0.5, allowedExchanges } = filters;
+    const {
+      minAPRThreshold = 5,
+      // maxPositionSize = 10_000,
+      maxPriceDeviation = 0.5,
+      allowedExchanges,
+      riskTolerance,
+      limit = null,
+    } = filters;
 
     try {
       // Récupérer les rates les plus récents depuis la DB
@@ -66,6 +74,10 @@ export class OpportunityDetectionService {
 
             // Calculer l'APR du spread
             const spreadAPR = this.calculateSpreadAPR(longRate, shortRate);
+            // if (token === "KAITO")
+            //   console.log(
+            //     `Token: ${token}, Long: ${longRate.exchange} (${longRate.fundingRate}), Short: ${shortRate.exchange} (${shortRate.fundingRate}), Spread APR: ${spreadAPR.toFixed(2)}%`,
+            //   );
 
             // Filtrer par seuil minimum APR
             if (spreadAPR < minAPRThreshold) continue;
@@ -85,7 +97,7 @@ export class OpportunityDetectionService {
               spreadAPR,
               confidence: this.calculateConfidence(longRate, shortRate, priceDeviation),
               minSize: 100,
-              maxSize: Math.min(maxPositionSize, this.calculateMaxSize(longRate, shortRate)),
+              maxSize: this.calculateMaxSize(longRate, shortRate),
               longMarkPrice: longRate.markPrice || 0,
               shortMarkPrice: shortRate.markPrice || 0,
               riskLevel: this.assessRiskLevel(spreadAPR, priceDeviation),
@@ -100,6 +112,11 @@ export class OpportunityDetectionService {
               priceDeviation,
             };
 
+            // Filtrer par tolérance au risque
+            if (riskTolerance && !this.matchesRiskTolerance(opportunity, riskTolerance)) {
+              continue;
+            }
+
             opportunities.push(opportunity);
           }
         }
@@ -108,7 +125,7 @@ export class OpportunityDetectionService {
       // Trier par spreadAPR décroissant
       opportunities.sort((a, b) => b.spreadAPR - a.spreadAPR);
 
-      return opportunities.slice(0, 20); // Retourner les 20 meilleures
+      return limit ? opportunities.slice(0, limit) : opportunities; // Retourner les n meilleures
     } catch (error) {
       console.error("Error finding arbitrage opportunities:", error);
       throw new Error("Failed to find arbitrage opportunities");
@@ -123,23 +140,35 @@ export class OpportunityDetectionService {
     userSettings: {
       minAPR?: number;
       maxPositionSize?: number;
-      riskTolerance?: "LOW" | "MEDIUM" | "HIGH";
+      riskTolerance?: RiskLevel;
       allowedExchanges?: ExchangeName[];
     },
   ): DetailedArbitrageOpportunity[] {
     return opportunities.filter((opp) => {
       // Filtre APR minimum
       if (userSettings.minAPR && opp.spreadAPR < userSettings.minAPR) {
+        console.log(
+          `Filtering out opportunity for ${opp.token} due to min APR: ${opp.spreadAPR} < ${userSettings.minAPR}`,
+          opp,
+        );
         return false;
       }
 
       // Filtre taille maximum
-      if (userSettings.maxPositionSize && opp.maxSize > userSettings.maxPositionSize) {
+      if (userSettings.maxPositionSize && opp.maxSize < userSettings.maxPositionSize) {
+        console.log(
+          `Filtering out opportunity for ${opp.token} due to max position size: ${opp.maxSize} > ${userSettings.maxPositionSize}`,
+          opp,
+        );
         return false;
       }
 
       // Filtre tolérance au risque
       if (userSettings.riskTolerance && !this.matchesRiskTolerance(opp, userSettings.riskTolerance)) {
+        console.log(
+          `Filtering out opportunity for ${opp.token} due to risk tolerance: opportunity risk ${opp.riskLevel}, user tolerance ${userSettings.riskTolerance}`,
+          opp,
+        );
         return false;
       }
 
@@ -149,6 +178,10 @@ export class OpportunityDetectionService {
         (!userSettings.allowedExchanges.includes(opp.longExchange as ExchangeName) ||
           !userSettings.allowedExchanges.includes(opp.shortExchange as ExchangeName))
       ) {
+        console.log(
+          `Filtering out opportunity for ${opp.token} due to allowed exchanges: long ${opp.longExchange}, short ${opp.shortExchange}`,
+          opp,
+        );
         return false;
       }
 
@@ -205,6 +238,8 @@ export class OpportunityDetectionService {
    * Calcule la taille maximale de position
    */
   private calculateMaxSize(longRate: any, shortRate: any): number {
+    // not implemented yet
+    return 1_000_000_000;
     // Basé sur la liquidité et l'open interest disponibles
     // Idéalement, cela viendrait des APIs des exchanges
     const baseSize = 10000;
@@ -221,25 +256,22 @@ export class OpportunityDetectionService {
   /**
    * Évalue le niveau de risque
    */
-  private assessRiskLevel(spreadAPR: number, priceDeviation: number): "LOW" | "MEDIUM" | "HIGH" {
-    if (priceDeviation > 0.3 || spreadAPR > 50) return "HIGH";
-    if (priceDeviation > 0.1 || spreadAPR > 20) return "MEDIUM";
-    return "LOW";
+  private assessRiskLevel(spreadAPR: number, priceDeviation: number): RiskLevel {
+    if (priceDeviation > 0.3 || spreadAPR > 50) return RiskLevel.HIGH;
+    if (priceDeviation > 0.1 || spreadAPR > 20) return RiskLevel.MEDIUM;
+    return RiskLevel.LOW;
   }
 
   /**
    * Vérifie si l'opportunité correspond à la tolérance au risque
    */
-  private matchesRiskTolerance(
-    opportunity: DetailedArbitrageOpportunity,
-    riskTolerance: "LOW" | "MEDIUM" | "HIGH",
-  ): boolean {
+  private matchesRiskTolerance(opportunity: DetailedArbitrageOpportunity, riskTolerance: RiskLevel): boolean {
     switch (riskTolerance) {
-      case "LOW":
-        return opportunity.riskLevel === "LOW" && opportunity.confidence >= 80;
-      case "MEDIUM":
-        return ["LOW", "MEDIUM"].includes(opportunity.riskLevel) && opportunity.confidence >= 70;
-      case "HIGH":
+      case RiskLevel.LOW:
+        return opportunity.riskLevel === RiskLevel.LOW && opportunity.confidence >= 80;
+      case RiskLevel.MEDIUM:
+        return [RiskLevel.LOW, RiskLevel.MEDIUM].includes(opportunity.riskLevel) && opportunity.confidence >= 70;
+      case RiskLevel.HIGH:
         return opportunity.confidence >= 60;
       default:
         return false;

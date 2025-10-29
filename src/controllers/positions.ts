@@ -1,3 +1,4 @@
+import { RiskLevel } from "@/types";
 import { Response } from "express";
 import Joi from "joi";
 import { AuthenticatedRequest } from "../middleware/auth";
@@ -727,18 +728,14 @@ function getExchangeColor(exchange: string): string {
   return colors[exchange] || "#6B7280";
 }
 
-function assessPositionRisk(
-  position: any,
-  currentAPR: number,
-  currentPnL: number,
-): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" {
+function assessPositionRisk(position: any, currentAPR: number, currentPnL: number): RiskLevel {
   const pnlPercentage = (currentPnL / position.size) * 100;
   const aprDecline = (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0) - currentAPR;
 
-  if (pnlPercentage < -5 || aprDecline > 20) return "CRITICAL";
-  if (pnlPercentage < -2 || aprDecline > 10) return "HIGH";
-  if (pnlPercentage < 0 || aprDecline > 5) return "MEDIUM";
-  return "LOW";
+  if (pnlPercentage < -5 || aprDecline > 20) return RiskLevel.CRITICAL;
+  if (pnlPercentage < -2 || aprDecline > 10) return RiskLevel.HIGH;
+  if (pnlPercentage < 0 || aprDecline > 5) return RiskLevel.MEDIUM;
+  return RiskLevel.LOW;
 }
 
 function shouldPositionClose(position: any, currentAPR: number, currentPnL: number): boolean {
@@ -806,10 +803,10 @@ function calculatePortfolioStats(activePositions: any[], allPositions: any[], ti
         ? activePositions.reduce((sum, pos) => sum + pos.currentAPR, 0) / activePositions.length
         : 0,
     riskDistribution: {
-      LOW: activePositions.filter((pos) => pos.riskLevel === "LOW").length,
-      MEDIUM: activePositions.filter((pos) => pos.riskLevel === "MEDIUM").length,
-      HIGH: activePositions.filter((pos) => pos.riskLevel === "HIGH").length,
-      CRITICAL: activePositions.filter((pos) => pos.riskLevel === "CRITICAL").length,
+      [RiskLevel.LOW]: activePositions.filter((pos) => pos.riskLevel === RiskLevel.LOW).length,
+      [RiskLevel.MEDIUM]: activePositions.filter((pos) => pos.riskLevel === RiskLevel.MEDIUM).length,
+      [RiskLevel.HIGH]: activePositions.filter((pos) => pos.riskLevel === RiskLevel.HIGH).length,
+      [RiskLevel.CRITICAL]: activePositions.filter((pos) => pos.riskLevel === RiskLevel.CRITICAL).length,
     },
     shouldCloseCount: activePositions.filter((pos) => pos.shouldClose).length,
   };

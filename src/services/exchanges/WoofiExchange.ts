@@ -2,11 +2,7 @@ import axios, { AxiosInstance } from "axios";
 import crypto from "crypto";
 import WebSocket from "ws";
 import { exchangeConfigs, exchangeEndpoints } from "../../config/exchanges";
-import {
-  ExchangeConnector,
-  FundingRateData,
-  TokenSymbol,
-} from "../../types/index";
+import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 interface WoofiFundingRate {
   symbol: string;
@@ -49,10 +45,7 @@ export class WoofiExchange implements ExchangeConnector {
         const body = config.data ? JSON.stringify(config.data) : "";
 
         const message = `${timestamp}${method}${requestPath}${body}`;
-        const signature = crypto
-          .createHmac("sha256", this.config.secretKey)
-          .update(message)
-          .digest("base64");
+        const signature = crypto.createHmac("sha256", this.config.secretKey).update(message).digest("base64");
 
         config.headers = config.headers || {};
         (config.headers as any)["orderly-timestamp"] = timestamp;
@@ -69,20 +62,14 @@ export class WoofiExchange implements ExchangeConnector {
       // Test connection with public endpoint - get exchange info
       const response = await this.client.get("/v1/public/info");
       this.isConnected = true;
-      console.log(
-        `✅ Woofi (Orderly) Exchange connected: ${
-          response.data.data?.rows?.length || 0
-        } markets available`
-      );
+      console.log(`✅ Woofi (Orderly) Exchange connected: ${response.data.data?.rows?.length || 0} markets available`);
     } catch (error) {
       console.error("❌ Failed to connect to Woofi (Orderly) Exchange:", error);
       this.isConnected = false;
     }
   }
 
-  private extractTokensFromTickers(
-    marketsResponse: WoofiFundingRate[]
-  ): TokenSymbol[] {
+  private extractTokensFromTickers(marketsResponse: WoofiFundingRate[]): TokenSymbol[] {
     return marketsResponse
       .map((row) => {
         // Extract token from symbol like PERP_BTC_USDC
@@ -93,19 +80,58 @@ export class WoofiExchange implements ExchangeConnector {
       .filter((t): t is TokenSymbol => t !== null);
   }
 
-  public async getFundingRates(
-    tokens?: TokenSymbol[]
-  ): Promise<FundingRateData[]> {
+  public async getPrice(
+    tokens?: TokenSymbol[],
+  ): Promise<{ [token: string]: { mark_price: number; index_price: number } }> {
+    try {
+      const prices: { [token: string]: { mark_price: number; index_price: number } } = {};
+
+      // Get all tickers
+      const response = await this.client.get("/v1/public/futures");
+      const tickersData = response.data.data as { rows: any[] };
+
+      // If no tokens specified, extract all available tokens from tickers
+      const tokensToProcess = tokens || this.extractTokensFromTickers(tickersData.rows);
+
+      // For each requested token, find its price
+      for (const token of tokensToProcess) {
+        try {
+          // Woofi/Orderly uses format like PERP_BTC_USDC
+          const symbol = `PERP_${token}_USDC`;
+
+          // Find ticker for this token
+          const tokenTicker = tickersData.rows.find((ticker) => ticker.symbol === symbol);
+
+          if (tokenTicker) {
+            prices[token] = {
+              mark_price: parseFloat(tokenTicker.mark_price),
+              index_price: parseFloat(tokenTicker.index_price),
+            };
+          }
+        } catch (error) {
+          console.warn(`Failed to get price for ${token} on Woofi:`, error);
+        }
+      }
+
+      return prices;
+    } catch (error) {
+      console.error("Error fetching Woofi prices:", error);
+      throw new Error("Failed to fetch prices from Woofi");
+    }
+  }
+
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
+
+      const prices = await this.getPrice(tokens);
 
       // Get all predicted funding rates
       const response = await this.client.get("/v1/public/funding_rates");
       const fundingData = response.data.data as { rows: WoofiFundingRate[] };
 
       // If no tokens specified, extract all available tokens from tickers
-      const tokensToProcess =
-        tokens || this.extractTokensFromTickers(fundingData.rows);
+      const tokensToProcess = tokens || this.extractTokensFromTickers(fundingData.rows);
 
       // For each requested token, find its funding rate
 
@@ -115,9 +141,7 @@ export class WoofiExchange implements ExchangeConnector {
           const symbol = `PERP_${token}_USDC`;
 
           // Find funding rate for this token
-          const tokenFunding = fundingData.rows.find(
-            (funding) => funding.symbol === symbol
-          );
+          const tokenFunding = fundingData.rows.find((funding) => funding.symbol === symbol);
 
           if (tokenFunding) {
             // 1h estimated funding rate (rolling average over 8 hours)
@@ -127,9 +151,7 @@ export class WoofiExchange implements ExchangeConnector {
             const nextFunding = new Date(tokenFunding.next_funding_time);
 
             const fundingFrequency =
-              (tokenFunding.next_funding_time -
-                tokenFunding.last_funding_rate_timestamp) /
-              3600_000; // in hours
+              (tokenFunding.next_funding_time - tokenFunding.last_funding_rate_timestamp) / 3600_000; // in hours
 
             fundingRates.push({
               exchange: "orderly",
@@ -138,13 +160,12 @@ export class WoofiExchange implements ExchangeConnector {
               nextFunding,
               fundingFrequency,
               timestamp: new Date(),
+              markPrice: prices[token].mark_price || 0,
+              indexPrice: prices[token].index_price || 0,
             });
           }
         } catch (error) {
-          console.warn(
-            `Failed to get funding rate for ${token} on Woofi:`,
-            error
-          );
+          console.warn(`Failed to get funding rate for ${token} on Woofi:`, error);
         }
       }
 
@@ -174,11 +195,7 @@ export class WoofiExchange implements ExchangeConnector {
     }
   }
 
-  public async openPosition(
-    token: TokenSymbol,
-    side: "long" | "short",
-    size: number
-  ): Promise<string> {
+  public async openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string> {
     try {
       const symbol = `PERP_${token}_USDC`;
       const orderSide = side === "long" ? "BUY" : "SELL";
@@ -198,14 +215,9 @@ export class WoofiExchange implements ExchangeConnector {
         return orderId.toString();
       }
 
-      throw new Error(
-        `Failed to open position: ${response.data.message || "Unknown error"}`
-      );
+      throw new Error(`Failed to open position: ${response.data.message || "Unknown error"}`);
     } catch (error) {
-      console.error(
-        `Error opening Woofi ${side} position for ${token}:`,
-        error
-      );
+      console.error(`Error opening Woofi ${side} position for ${token}:`, error);
       throw new Error(`Failed to open ${side} position on Woofi`);
     }
   }
@@ -232,9 +244,7 @@ export class WoofiExchange implements ExchangeConnector {
       const response = await this.client.get("/v1/positions");
 
       if (response.data.data?.rows) {
-        const position = response.data.data.rows.find(
-          (pos: any) => pos.position_id === positionId
-        );
+        const position = response.data.data.rows.find((pos: any) => pos.position_id === positionId);
         if (position && position.unrealized_pnl) {
           return parseFloat(position.unrealized_pnl);
         }
@@ -242,10 +252,7 @@ export class WoofiExchange implements ExchangeConnector {
 
       return 0;
     } catch (error) {
-      console.error(
-        `Error fetching Woofi position PnL for ${positionId}:`,
-        error
-      );
+      console.error(`Error fetching Woofi position PnL for ${positionId}:`, error);
       throw new Error("Failed to fetch position PnL from Woofi");
     }
   }
@@ -260,10 +267,7 @@ export class WoofiExchange implements ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(
-    symbol?: string,
-    limit: number = 100
-  ): Promise<any[]> {
+  public async getOrderHistory(symbol?: string, limit: number = 100): Promise<any[]> {
     try {
       const params: any = {};
       if (symbol) params.symbol = symbol;

@@ -105,7 +105,7 @@ interface DashboardResponse {
         "shortExchange": "HYPERLIQUID",
         "spreadAPR": "23.45%",
         "confidence": 85,
-        "riskLevel": "LOW",
+        "riskLevel": "low",
         "expectedDailyReturn": "$12.34"
       }
     ],
@@ -234,7 +234,7 @@ interface FundingRateTableDisplay {
 ```typescript
 interface OpportunitiesQuery {
   minAPR?: number; // Default: 0
-  riskLevel?: "LOW" | "MEDIUM" | "HIGH";
+  riskLevel?: "low" | "medium" | "high";
   token?: "BTC" | "ETH" | "SOL" | "AVAX" | "ARB" | "OP";
   limit?: number; // Default: 999
 }
@@ -347,7 +347,7 @@ interface ArbitrageOpportunityData {
         },
         "metrics": {
           "confidence": 87,
-          "riskLevel": "LOW",
+          "riskLevel": "low",
           "riskColor": "#10B981",
           "expectedDailyReturn": "3.11",
           "maxSize": 10000,
@@ -368,9 +368,9 @@ interface ArbitrageOpportunityData {
       "avgAPR": 7.42,
       "avgConfidence": 78,
       "riskDistribution": {
-        "LOW": 8,
-        "MEDIUM": 3,
-        "HIGH": 1
+        "low": 8,
+        "medium": 3,
+        "high": 1
       }
     }
   },
@@ -419,7 +419,7 @@ interface EnrichedPosition {
   currentAPR: number;
   aprChange: number;
   hoursOpen: number;
-  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  riskLevel: "low" | "medium" | "high" | "critical";
   shouldClose: boolean;
   exchangeColors: {
     long: string;
@@ -613,24 +613,10 @@ interface OpportunityAlert {
 
 ```typescript
 // Enums
-export type ExchangeName =
-  | "vest"
-  | "hyperliquid"
-  | "orderly"
-  | "extended"
-  | "paradex"
-  | "backpack"
-  | "hibachi";
-export type TokenSymbol =
-  | "BTC"
-  | "ETH"
-  | "SOL"
-  | "AVAX"
-  | "MATIC"
-  | "ARB"
-  | "OP";
+export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "paradex" | "backpack" | "hibachi";
+export type TokenSymbol = "BTC" | "ETH" | "SOL" | "AVAX" | "MATIC" | "ARB" | "OP";
 export type PositionStatus = "OPEN" | "CLOSED" | "ERROR" | "CLOSING";
-export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type RiskLevel = "low" | "medium" | "high" | "critical";
 
 // Funding Rate Data
 export interface FundingRateData {
@@ -889,17 +875,14 @@ export function useFundingRates() {
 // store/slices/dashboardSlice.ts
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-export const fetchDashboard = createAsyncThunk(
-  "dashboard/fetch",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get("/dashboard/");
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
+export const fetchDashboard = createAsyncThunk("dashboard/fetch", async (_, { rejectWithValue }) => {
+  try {
+    const response = await api.get("/dashboard/");
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response.data);
   }
-);
+});
 
 const dashboardSlice = createSlice({
   name: "dashboard",
@@ -961,7 +944,7 @@ api.interceptors.response.use(
   (error) => {
     handleApiError(error);
     return Promise.reject(error);
-  }
+  },
 );
 ```
 

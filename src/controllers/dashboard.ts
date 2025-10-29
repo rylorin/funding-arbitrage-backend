@@ -1,9 +1,9 @@
+import { opportunityDetectionService } from "@/services/OpportunityDetectionService";
 import { Request, Response } from "express";
 import Joi from "joi";
 import { exchangeConfigs } from "../config/exchanges";
 import { FundingRate } from "../models/index";
-import { arbitrageService, DetailedArbitrageOpportunity } from "../services/ArbitrageService";
-import { ArbitrageOpportunityData, ExchangeName } from "../types";
+import { ArbitrageOpportunityData, DetailedArbitrageOpportunity, ExchangeName, RiskLevel } from "../types";
 
 // Interface pour les données formatées pour le tableau des taux
 interface FundingRateDisplay {
@@ -81,7 +81,7 @@ export const getDashboard = async (_req: Request, res: Response): Promise<void> 
     const exchangeStats = calculateExchangeStats(latestRates);
 
     // Get best arbitrage opportunities
-    const opportunities = await arbitrageService.findArbitrageOpportunities(5, 10000, 0.5);
+    const opportunities = await opportunityDetectionService.findOpportunities();
     const opportunitiesDisplay: ArbitrageOpportunityDisplay[] = opportunities.map((opp, index) => ({
       rank: index + 1,
       token: opp.token,
@@ -233,9 +233,9 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
   try {
     const querySchema = Joi.object({
       minAPR: Joi.number().min(0).default(0),
-      riskLevel: Joi.string().valid("LOW", "MEDIUM", "HIGH").optional(),
+      riskLevel: Joi.string().valid(RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH).optional(),
       token: Joi.string().optional(),
-      limit: Joi.number().integer().min(1).max(10_000).default(999),
+      limit: Joi.number().integer().min(1).max(10_000).default(10_000),
     });
 
     const { error, value } = querySchema.validate(req.query);
@@ -251,7 +251,11 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
     const { minAPR, maxSize, riskLevel, token, limit } = value;
 
     // Get opportunities
-    let opportunities = await arbitrageService.findArbitrageOpportunities(minAPR, maxSize, 0.5);
+    let opportunities = await opportunityDetectionService.findOpportunities({
+      minAPRThreshold: minAPR,
+      maxPositionSize: maxSize,
+      maxPriceDeviation: 0.5,
+    });
 
     // Apply filters
     if (riskLevel) {
@@ -326,9 +330,10 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
                 formattedOpportunities.length
               : 0,
           riskDistribution: {
-            LOW: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === "LOW").length,
-            MEDIUM: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === "MEDIUM").length,
-            HIGH: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === "HIGH").length,
+            [RiskLevel.LOW]: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === RiskLevel.LOW).length,
+            [RiskLevel.MEDIUM]: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === RiskLevel.MEDIUM)
+              .length,
+            [RiskLevel.HIGH]: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === RiskLevel.HIGH).length,
           },
         },
       },
@@ -444,7 +449,7 @@ function getNextFundingTime(opportunity: any): string {
 export const getMarketOverview = async (_req: Request, res: Response): Promise<void> => {
   try {
     const latestRates = await FundingRate.getLatestRates();
-    const opportunities = await arbitrageService.findArbitrageOpportunities(5, 10000, 0.5);
+    const opportunities = await opportunityDetectionService.findOpportunities();
 
     // Calculate market statistics
     const totalVolume = latestRates.reduce((sum, _rate) => sum + 0, 0); // TODO: Add volume24h to FundingRate model
@@ -545,9 +550,9 @@ export const getMarketOverview = async (_req: Request, res: Response): Promise<v
         (a: any, b: any) => (b.bestOpportunity?.spreadAPR || 0) - (a.bestOpportunity?.spreadAPR || 0),
       ),
       riskMetrics: {
-        lowRisk: opportunities.filter((opp) => opp.riskLevel === "LOW").length,
-        mediumRisk: opportunities.filter((opp) => opp.riskLevel === "MEDIUM").length,
-        highRisk: opportunities.filter((opp) => opp.riskLevel === "HIGH").length,
+        lowRisk: opportunities.filter((opp) => opp.riskLevel === RiskLevel.LOW).length,
+        mediumRisk: opportunities.filter((opp) => opp.riskLevel === RiskLevel.MEDIUM).length,
+        highRisk: opportunities.filter((opp) => opp.riskLevel === RiskLevel.HIGH).length,
         avgConfidence: opportunities.reduce((sum, opp) => sum + opp.confidence, 0) / opportunities.length || 0,
         maxPriceDeviation: Math.max(...opportunities.map((opp) => opp.priceDeviation || 0)),
       },

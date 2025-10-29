@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
-import { UserSettings } from "../types/index";
+import { RiskLevel, UserSettings } from "../types/index";
 
 interface UserAttributes {
   id: string;
@@ -24,6 +24,24 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   }
 }
 
+const defaultSettings: UserSettings = {
+  enabled: false,
+  autoCloseAPRThreshold: 10,
+  autoClosePnLThreshold: -5,
+  autoCloseTimeoutHours: 168,
+  riskTolerance: RiskLevel.MEDIUM,
+  preferredExchanges: ["vest", "hyperliquid"],
+  minAPR: 50,
+  maxPositionSize: 1_000,
+  maxSimultaneousPositions: 3,
+  autoCloseEnabled: false,
+  notificationPreferences: {
+    email: false,
+    webhook: false,
+    discord: false,
+  },
+};
+
 User.init(
   {
     id: {
@@ -42,18 +60,7 @@ User.init(
     settings: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: {
-        autoCloseAPRThreshold: 10, // 10% APR minimum
-        autoClosePnLThreshold: -5, // -5% PnL threshold
-        autoCloseTimeoutHours: 168, // 7 days
-        preferredExchanges: ["vest", "hyperliquid"],
-        riskTolerance: "medium",
-        notificationPreferences: {
-          email: false,
-          webhook: false,
-          discord: false,
-        },
-      },
+      defaultValue: defaultSettings,
     },
     createdAt: {
       type: DataTypes.DATE,

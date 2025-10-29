@@ -1,11 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import WebSocket from "ws";
 import { exchangeConfigs, exchangeEndpoints } from "../../config/exchanges";
-import {
-  ExchangeConnector,
-  FundingRateData,
-  TokenSymbol,
-} from "../../types/index";
+import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 interface HyperliquidFundingHistory {
   coin: string;
@@ -19,14 +15,8 @@ type HyperliquidPredictedFundingElement = {
   fundingRate: string;
   nextFundingTime: number;
 };
-type HyperliquidPredictedFundingItem = [
-  VenueName,
-  HyperliquidPredictedFundingElement
-];
-type HyperliquidPredictedFunding = [
-  TokenSymbol,
-  HyperliquidPredictedFundingItem[]
-];
+type HyperliquidPredictedFundingItem = [VenueName, HyperliquidPredictedFundingElement];
+type HyperliquidPredictedFunding = [TokenSymbol, HyperliquidPredictedFundingItem[]];
 
 export class HyperliquidExchange implements ExchangeConnector {
   public name = "hyperliquid" as const;
@@ -57,20 +47,14 @@ export class HyperliquidExchange implements ExchangeConnector {
       });
 
       this.isConnected = true;
-      console.log(
-        `✅ Hyperliquid Exchange connected: ${
-          Object.keys(response.data || {}).length
-        } markets available`
-      );
+      console.log(`✅ Hyperliquid Exchange connected: ${Object.keys(response.data || {}).length} markets available`);
     } catch (error) {
       console.error("❌ Failed to connect to Hyperliquid Exchange:", error);
       this.isConnected = false;
     }
   }
 
-  private extractTokensFromTickers(
-    marketsResponse: HyperliquidPredictedFunding[]
-  ): TokenSymbol[] {
+  private extractTokensFromTickers(marketsResponse: HyperliquidPredictedFunding[]): TokenSymbol[] {
     return marketsResponse.reduce((p, row) => {
       const [coin, perps] = row;
       const element = perps.find((p) => p[0] === "HlPerp");
@@ -79,36 +63,57 @@ export class HyperliquidExchange implements ExchangeConnector {
     }, [] as TokenSymbol[]);
   }
 
-  public async getFundingRates(
-    tokens?: TokenSymbol[]
-  ): Promise<FundingRateData[]> {
+  public async getPrice(tokens?: TokenSymbol[]): Promise<{ [token: string]: number }> {
+    try {
+      const prices: { [token: string]: number } = {};
+
+      const response = await this.client.post("/info", {
+        type: "allMids",
+      });
+
+      const allMids = response.data as { [token: string]: number };
+
+      const tokensToProcess = tokens || (Object.keys(allMids) as TokenSymbol[]);
+
+      for (const token of tokensToProcess) {
+        if (allMids[token] !== undefined) {
+          prices[token] = allMids[token];
+        }
+      }
+
+      return prices;
+    } catch (error) {
+      console.error("Error fetching Hyperliquid prices:", error);
+      throw new Error("Failed to fetch prices from Hyperliquid");
+    }
+  }
+
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
+
+      const prices = await this.getPrice(tokens);
 
       // Get predicted funding rates for current period
       const predictedResponse = await this.client.post("/info", {
         type: "predictedFundings",
       });
 
-      const predictedFundings =
-        predictedResponse.data as HyperliquidPredictedFunding[];
+      const predictedFundings = predictedResponse.data as HyperliquidPredictedFunding[];
 
       // If no tokens specified, use default supported tokens
-      const tokensToProcess =
-        tokens || this.extractTokensFromTickers(predictedFundings);
+      const tokensToProcess = tokens || this.extractTokensFromTickers(predictedFundings);
       // console.log('Hyperliquid tokens to process:', tokensToProcess);
 
       for (const token of tokensToProcess) {
         try {
           // Find predicted funding for this token
           const predictedFunding = predictedFundings.find(
-            (funding: HyperliquidPredictedFunding) => funding[0] === token
+            (funding: HyperliquidPredictedFunding) => funding[0] === token,
           );
           // console.log(`Hyperliquid predicted funding for ${token}:`, predictedFunding);
           if (predictedFunding) {
-            const nextFundingItem = predictedFunding[1].find(
-              (item) => item[0] === "HlPerp"
-            );
+            const nextFundingItem = predictedFunding[1].find((item) => item[0] === "HlPerp");
             // Hyperliquid has 8-hour funding cycles
             const nextFunding = new Date(nextFundingItem![1].nextFundingTime);
 
@@ -119,6 +124,7 @@ export class HyperliquidExchange implements ExchangeConnector {
               fundingFrequency: exchangeConfigs["hyperliquid"].fundingFrequency, // in hours
               nextFunding,
               timestamp: new Date(),
+              markPrice: prices[token],
             });
           } else {
             // If no predicted funding, try to get the latest historical funding
@@ -128,8 +134,7 @@ export class HyperliquidExchange implements ExchangeConnector {
               startTime: Date.now() - 24 * 60 * 60 * 1000, // Last 24 hours
             });
 
-            const fundingHistory =
-              historyResponse.data as HyperliquidFundingHistory[];
+            const fundingHistory = historyResponse.data as HyperliquidFundingHistory[];
 
             if (fundingHistory && fundingHistory.length > 0) {
               // Get the most recent funding rate
@@ -137,26 +142,21 @@ export class HyperliquidExchange implements ExchangeConnector {
 
               // Calculate next funding time (8-hour cycles)
               const lastFundingTime = new Date(latestFunding.time);
-              const nextFunding = new Date(
-                lastFundingTime.getTime() + 8 * 60 * 60 * 1000
-              );
+              const nextFunding = new Date(lastFundingTime.getTime() + 8 * 60 * 60 * 1000);
 
               fundingRates.push({
                 exchange: "hyperliquid",
                 token,
                 fundingRate: parseFloat(latestFunding.fundingRate),
-                fundingFrequency:
-                  exchangeConfigs["hyperliquid"].fundingFrequency, // in hours
+                fundingFrequency: exchangeConfigs["hyperliquid"].fundingFrequency, // in hours
                 nextFunding,
                 timestamp: new Date(),
+                markPrice: prices[token],
               });
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to get funding rate for ${token} on Hyperliquid:`,
-            error
-          );
+          console.warn(`Failed to get funding rate for ${token} on Hyperliquid:`, error);
         }
       }
 
@@ -171,9 +171,7 @@ export class HyperliquidExchange implements ExchangeConnector {
     try {
       // Note: This requires authentication with user's wallet address
       // For now, return empty object as we don't have user wallet integration
-      console.warn(
-        "Hyperliquid account balance requires user wallet address authentication"
-      );
+      console.warn("Hyperliquid account balance requires user wallet address authentication");
       return {};
     } catch (error) {
       console.error("Error fetching Hyperliquid account balance:", error);
@@ -181,22 +179,13 @@ export class HyperliquidExchange implements ExchangeConnector {
     }
   }
 
-  public async openPosition(
-    token: TokenSymbol,
-    side: "long" | "short",
-    _size: number
-  ): Promise<string> {
+  public async openPosition(token: TokenSymbol, side: "long" | "short", _size: number): Promise<string> {
     try {
       // Note: This requires proper authentication with user's wallet and signing
       // For now, throw an error indicating authentication is needed
-      throw new Error(
-        "Hyperliquid position opening requires wallet authentication and signing"
-      );
+      throw new Error("Hyperliquid position opening requires wallet authentication and signing");
     } catch (error) {
-      console.error(
-        `Error opening Hyperliquid ${side} position for ${token}:`,
-        error
-      );
+      console.error(`Error opening Hyperliquid ${side} position for ${token}:`, error);
       throw new Error(`Failed to open ${side} position on Hyperliquid`);
     }
   }
@@ -205,9 +194,7 @@ export class HyperliquidExchange implements ExchangeConnector {
     try {
       // Note: This requires proper authentication with user's wallet and signing
       // For now, throw an error indicating authentication is needed
-      throw new Error(
-        "Hyperliquid position closing requires wallet authentication and signing"
-      );
+      throw new Error("Hyperliquid position closing requires wallet authentication and signing");
     } catch (error) {
       console.error(`Error closing Hyperliquid position ${positionId}:`, error);
       return false;
@@ -218,14 +205,9 @@ export class HyperliquidExchange implements ExchangeConnector {
     try {
       // Note: This requires user's wallet address to fetch position data
       // For now, throw an error indicating authentication is needed
-      throw new Error(
-        "Hyperliquid position PnL requires user wallet address authentication"
-      );
+      throw new Error("Hyperliquid position PnL requires user wallet address authentication");
     } catch (error) {
-      console.error(
-        `Error fetching Hyperliquid position PnL for ${positionId}:`,
-        error
-      );
+      console.error(`Error fetching Hyperliquid position PnL for ${positionId}:`, error);
       throw new Error("Failed to fetch position PnL from Hyperliquid");
     }
   }
@@ -233,9 +215,7 @@ export class HyperliquidExchange implements ExchangeConnector {
   public async getAllPositions(): Promise<any[]> {
     try {
       // Note: This requires user's wallet address to fetch positions
-      console.warn(
-        "Hyperliquid positions require user wallet address authentication"
-      );
+      console.warn("Hyperliquid positions require user wallet address authentication");
       return [];
     } catch (error) {
       console.error("Error fetching Hyperliquid positions:", error);
@@ -243,15 +223,10 @@ export class HyperliquidExchange implements ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(
-    _symbol?: string,
-    _limit: number = 100
-  ): Promise<any[]> {
+  public async getOrderHistory(_symbol?: string, _limit: number = 100): Promise<any[]> {
     try {
       // Note: This requires user's wallet address for order history
-      console.warn(
-        "Hyperliquid order history requires user wallet address authentication"
-      );
+      console.warn("Hyperliquid order history requires user wallet address authentication");
       return [];
     } catch (error) {
       console.error("Error fetching Hyperliquid order history:", error);

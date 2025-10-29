@@ -11,12 +11,28 @@ export interface AuthTokenPayload {
   exp: number;
 }
 
+export enum RiskLevel {
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  CRITICAL = "critical",
+}
+
 export interface UserSettings {
+  enabled: boolean;
+
   autoCloseAPRThreshold: number;
   autoClosePnLThreshold: number;
   autoCloseTimeoutHours: number;
-  preferredExchanges: string[];
-  riskTolerance: "low" | "medium" | "high";
+  riskTolerance: RiskLevel;
+
+  preferredExchanges: ExchangeName[];
+
+  minAPR: number;
+  maxPositionSize: number;
+  maxSimultaneousPositions: number;
+  autoCloseEnabled: boolean;
+
   notificationPreferences: {
     email: boolean;
     webhook: boolean;
@@ -46,6 +62,21 @@ export interface ArbitrageOpportunity {
   minSize: number;
   maxSize: number;
   estimatedGas?: number;
+}
+
+export interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
+  longMarkPrice: number;
+  shortMarkPrice: number;
+  riskLevel: RiskLevel;
+  fundingFrequency: {
+    longExchange: string;
+    shortExchange: string;
+  };
+  nextFundingTimes: {
+    longExchange: Date;
+    shortExchange: Date;
+  };
+  priceDeviation: number; // Écart de prix entre les exchanges
 }
 
 export interface PositionPnL {
@@ -110,7 +141,6 @@ export interface ArbitrageOpportunityData {
     fundingRate: number;
     fundingRateFormatted: string;
     price: number;
-    // priceFormatted: string;
   };
   shortExchange: {
     name: string;
@@ -118,7 +148,6 @@ export interface ArbitrageOpportunityData {
     fundingRate: number;
     fundingRateFormatted: string;
     price: number;
-    // priceFormatted: string;
   };
   spread: {
     absolute: number;
@@ -127,7 +156,7 @@ export interface ArbitrageOpportunityData {
   };
   metrics: {
     confidence: number;
-    riskLevel: string;
+    riskLevel: RiskLevel;
     riskColor: string;
     expectedDailyReturn: string;
     maxSize: number;
