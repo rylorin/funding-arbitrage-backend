@@ -1,0 +1,17 @@
+{
+  "extended": {
+    "enabled": true,
+    "fundingFrequency": 1
+  },
+  "hyperliquid": {
+    "enabled": true,
+    "fundingFrequency": 1
+  },
+  "vest": {
+    "enabled": true,
+    "fundingFrequency": 1
+  },
+  "woofi": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "hyperliquid": {
+    "apiKey": "HYPERLIQUID_API_KEY"
+  },
+  "vest": {
+    "apiKey": "VEST_API_KEY",
+    "secretKey": "VEST_SECRET_KEY"
+  },
+  "woofi": {
+    "apiKey": "ORDERLY_API_KEY",
+    "secretKey": "ORDERLY_SECRET_KEY"
+  }
+}

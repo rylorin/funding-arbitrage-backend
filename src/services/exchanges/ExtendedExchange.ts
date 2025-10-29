@@ -1,11 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import WebSocket from "ws";
-import { exchangeConfigs, exchangeEndpoints } from "../../config/exchanges";
-import {
-  ExchangeConnector,
-  FundingRateData,
-  TokenSymbol,
-} from "../../types/index";
+import { exchangeEndpoints } from "../../config/exchanges";
+import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 interface ExtendedMarketStats {
   dailyVolume: string;
@@ -43,17 +39,15 @@ interface ExtendedMarketsResponse {
   data: ExtendedMarket[];
 }
 
-export class ExtendedExchange implements ExchangeConnector {
-  public name = "extended" as const;
-  public isConnected = false;
-
+export class ExtendedExchange extends ExchangeConnector {
   private client: AxiosInstance;
-  private config = exchangeConfigs.extended;
   private baseUrl = exchangeEndpoints.extended.baseUrl;
   private wsUrl = exchangeEndpoints.extended.websocket;
   private ws: WebSocket | null = null;
 
   constructor() {
+    super("extended");
+
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,
@@ -63,8 +57,8 @@ export class ExtendedExchange implements ExchangeConnector {
     });
 
     // Add API key if available
-    if (this.config.apiKey) {
-      this.client.defaults.headers["X-Api-Key"] = this.config.apiKey;
+    if (this.config.has("apiKey")) {
+      this.client.defaults.headers["X-Api-Key"] = this.config.get("apiKey");
     }
 
     this.testConnection();
@@ -77,20 +71,14 @@ export class ExtendedExchange implements ExchangeConnector {
       const marketsResponse = response.data as ExtendedMarketsResponse;
 
       this.isConnected = true;
-      console.log(
-        `✅ Extended Exchange connected: ${
-          marketsResponse.data?.length || 0
-        } markets available`
-      );
+      console.log(`✅ Extended Exchange connected: ${marketsResponse.data?.length || 0} markets available`);
     } catch (error) {
       console.error("❌ Failed to connect to Extended Exchange:", error);
       this.isConnected = false;
     }
   }
 
-  private extractTokensFromTickers(
-    marketsResponse: ExtendedMarket[]
-  ): TokenSymbol[] {
+  private extractTokensFromTickers(marketsResponse: ExtendedMarket[]): TokenSymbol[] {
     return marketsResponse
       .map((m) => {
         // Extract token from market name like BTC-USD
@@ -100,9 +88,7 @@ export class ExtendedExchange implements ExchangeConnector {
       .filter((t): t is TokenSymbol => t !== null);
   }
 
-  public async getFundingRates(
-    tokens?: TokenSymbol[]
-  ): Promise<FundingRateData[]> {
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
 
@@ -111,8 +97,7 @@ export class ExtendedExchange implements ExchangeConnector {
       const marketsResponse = response.data as ExtendedMarketsResponse;
 
       // If no tokens specified, extract all available tokens from tickers
-      const tokensToProcess =
-        tokens || this.extractTokensFromTickers(marketsResponse.data);
+      const tokensToProcess = tokens || this.extractTokensFromTickers(marketsResponse.data);
 
       // For each requested token, find its funding rate
 
@@ -135,7 +120,7 @@ export class ExtendedExchange implements ExchangeConnector {
               exchange: "extended",
               token,
               fundingRate,
-              fundingFrequency: exchangeConfigs["extended"].fundingFrequency, // in hours
+              fundingFrequency: this.config.get("fundingFrequency"), // in hours
               nextFunding,
               timestamp: new Date(),
               markPrice: parseFloat(market.marketStats.markPrice),
@@ -143,10 +128,7 @@ export class ExtendedExchange implements ExchangeConnector {
             });
           }
         } catch (error) {
-          console.warn(
-            `Failed to get funding rate for ${token} on Extended:`,
-            error
-          );
+          console.warn(`Failed to get funding rate for ${token} on Extended:`, error);
         }
       }
 
@@ -161,9 +143,7 @@ export class ExtendedExchange implements ExchangeConnector {
     try {
       // Extended requires Stark signature for private endpoints
       // For now, return empty object as we don't have user wallet integration
-      console.warn(
-        "Extended account balance requires Stark signature authentication"
-      );
+      console.warn("Extended account balance requires Stark signature authentication");
       return {};
     } catch (error) {
       console.error("Error fetching Extended account balance:", error);
@@ -171,22 +151,13 @@ export class ExtendedExchange implements ExchangeConnector {
     }
   }
 
-  public async openPosition(
-    token: TokenSymbol,
-    side: "long" | "short",
-    _size: number
-  ): Promise<string> {
+  public async openPosition(token: TokenSymbol, side: "long" | "short", _size: number): Promise<string> {
     try {
       // Note: Extended requires Stark signature for trading operations
       // For now, throw an error indicating authentication is needed
-      throw new Error(
-        "Extended position opening requires Stark signature authentication"
-      );
+      throw new Error("Extended position opening requires Stark signature authentication");
     } catch (error) {
-      console.error(
-        `Error opening Extended ${side} position for ${token}:`,
-        error
-      );
+      console.error(`Error opening Extended ${side} position for ${token}:`, error);
       throw new Error(`Failed to open ${side} position on Extended`);
     }
   }
@@ -194,9 +165,7 @@ export class ExtendedExchange implements ExchangeConnector {
   public async closePosition(positionId: string): Promise<boolean> {
     try {
       // Note: Extended requires Stark signature for trading operations
-      throw new Error(
-        "Extended position closing requires Stark signature authentication"
-      );
+      throw new Error("Extended position closing requires Stark signature authentication");
     } catch (error) {
       console.error(`Error closing Extended position ${positionId}:`, error);
       return false;
@@ -206,14 +175,9 @@ export class ExtendedExchange implements ExchangeConnector {
   public async getPositionPnL(positionId: string): Promise<number> {
     try {
       // Note: Extended requires authentication for position data
-      throw new Error(
-        "Extended position PnL requires Stark signature authentication"
-      );
+      throw new Error("Extended position PnL requires Stark signature authentication");
     } catch (error) {
-      console.error(
-        `Error fetching Extended position PnL for ${positionId}:`,
-        error
-      );
+      console.error(`Error fetching Extended position PnL for ${positionId}:`, error);
       throw new Error("Failed to fetch position PnL from Extended");
     }
   }
@@ -229,15 +193,10 @@ export class ExtendedExchange implements ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(
-    _symbol?: string,
-    _limit: number = 100
-  ): Promise<any[]> {
+  public async getOrderHistory(_symbol?: string, _limit: number = 100): Promise<any[]> {
     try {
       // Note: Extended requires authentication for order history
-      console.warn(
-        "Extended order history requires Stark signature authentication"
-      );
+      console.warn("Extended order history requires Stark signature authentication");
       return [];
     } catch (error) {
       console.error("Error fetching Extended order history:", error);
@@ -295,3 +254,4 @@ export class ExtendedExchange implements ExchangeConnector {
 }
 
 export const extendedExchange = new ExtendedExchange();
+export default extendedExchange;

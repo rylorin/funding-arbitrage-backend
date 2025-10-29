@@ -1,42 +1,31 @@
 import axios, { AxiosInstance } from "axios";
 import crypto from "crypto";
 import WebSocket from "ws";
-import { exchangeConfigs, exchangeEndpoints } from "../../config/exchanges";
-import {
-  ExchangeConnector,
-  FundingRateData,
-  TokenSymbol,
-} from "../../types/index";
+import { exchangeEndpoints } from "../../config/exchanges";
+import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
-export class VestExchange implements ExchangeConnector {
-  public name = "vest" as const;
-  public isConnected = false;
-
+export class VestExchange extends ExchangeConnector {
   private client: AxiosInstance;
-  private config = exchangeConfigs.vest;
   private baseUrl = exchangeEndpoints.vest.baseUrl;
   private wsUrl = exchangeEndpoints.vest.websocket;
   private ws: WebSocket | null = null;
 
   constructor() {
+    super("vest");
+
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": this.config.apiKey,
+        "X-API-Key": this.config.get("apiKey"),
       },
     });
 
     this.client.interceptors.request.use((config) => {
       if (config.data || config.method === "get") {
         const timestamp = Date.now().toString();
-        const signature = this.generateSignature(
-          config.method!,
-          config.url!,
-          config.data || "",
-          timestamp
-        );
+        const signature = this.generateSignature(config.method!, config.url!, config.data || "", timestamp);
 
         config.headers = config.headers || {};
         (config.headers as any)["X-Timestamp"] = timestamp;
@@ -48,37 +37,23 @@ export class VestExchange implements ExchangeConnector {
     this.testConnection();
   }
 
-  private generateSignature(
-    method: string,
-    path: string,
-    body: string,
-    timestamp: string
-  ): string {
+  private generateSignature(method: string, path: string, body: string, timestamp: string): string {
     const message = `${timestamp}${method.toUpperCase()}${path}${body}`;
-    return crypto
-      .createHmac("sha256", this.config.secretKey!)
-      .update(message)
-      .digest("hex");
+    return crypto.createHmac("sha256", this.config.get("secretKey")).update(message).digest("hex");
   }
 
   private async testConnection(): Promise<void> {
     try {
       const response = await this.client.get("/exchangeInfo");
       this.isConnected = true;
-      console.log(
-        `✅ Vest Exchange connected: ${
-          response.data.symbols?.length || 0
-        } pairs available`
-      );
+      console.log(`✅ Vest Exchange connected: ${response.data.symbols?.length || 0} pairs available`);
     } catch (error) {
       console.error("❌ Failed to connect to Vest Exchange:", error);
       this.isConnected = false;
     }
   }
 
-  public async getFundingRates(
-    tokens?: TokenSymbol[]
-  ): Promise<FundingRateData[]> {
+  public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
 
@@ -87,24 +62,19 @@ export class VestExchange implements ExchangeConnector {
       const tickerData = response.data.tickers;
 
       // If no tokens specified, extract all available tokens from tickers
-      const tokensToProcess =
-        tokens || this.extractTokensFromTickers(tickerData);
+      const tokensToProcess = tokens || this.extractTokensFromTickers(tickerData);
 
       for (const token of tokensToProcess) {
         const symbol = `${token}-PERP`;
 
         try {
           // Find the ticker for this token
-          const tokenTicker = tickerData.find(
-            (ticker: any) => ticker.symbol === symbol
-          );
+          const tokenTicker = tickerData.find((ticker: any) => ticker.symbol === symbol);
 
           if (tokenTicker) {
             // Calculate next funding time (hourly funding)
             const now = new Date();
-            const nextFunding = new Date(
-              now.getTime() + (60 - now.getMinutes()) * 60 * 1000
-            );
+            const nextFunding = new Date(now.getTime() + (60 - now.getMinutes()) * 60 * 1000);
             nextFunding.setSeconds(0);
             nextFunding.setMilliseconds(0);
 
@@ -113,21 +83,14 @@ export class VestExchange implements ExchangeConnector {
               token,
               fundingRate: parseFloat(tokenTicker.oneHrFundingRate), // 1h funding rate
               nextFunding,
-              fundingFrequency: exchangeConfigs["vest"].fundingFrequency, // in hours
+              fundingFrequency: this.config.get("fundingFrequency"), // in hours
               timestamp: new Date(),
-              markPrice: tokenTicker.markPrice
-                ? parseFloat(tokenTicker.markPrice)
-                : undefined,
-              indexPrice: tokenTicker.indexPrice
-                ? parseFloat(tokenTicker.indexPrice)
-                : undefined,
+              markPrice: tokenTicker.markPrice ? parseFloat(tokenTicker.markPrice) : undefined,
+              indexPrice: tokenTicker.indexPrice ? parseFloat(tokenTicker.indexPrice) : undefined,
             });
           }
         } catch (error) {
-          console.warn(
-            `Failed to get funding rate for ${token} on Vest:`,
-            error
-          );
+          console.warn(`Failed to get funding rate for ${token} on Vest:`, error);
         }
       }
 
@@ -157,11 +120,7 @@ export class VestExchange implements ExchangeConnector {
     }
   }
 
-  public async openPosition(
-    token: TokenSymbol,
-    side: "long" | "short",
-    size: number
-  ): Promise<string> {
+  public async openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string> {
     try {
       const symbol = `${token}-PERP`;
       const isBuy = side === "long";
@@ -182,9 +141,7 @@ export class VestExchange implements ExchangeConnector {
         return orderId.toString();
       }
 
-      throw new Error(
-        `Failed to open position: ${response.data.error || "Unknown error"}`
-      );
+      throw new Error(`Failed to open position: ${response.data.error || "Unknown error"}`);
     } catch (error) {
       console.error(`Error opening Vest ${side} position for ${token}:`, error);
       throw new Error(`Failed to open ${side} position on Vest`);
@@ -223,9 +180,7 @@ export class VestExchange implements ExchangeConnector {
       const response = await this.client.get("/account");
 
       if (response.data.positions) {
-        const position = response.data.positions.find(
-          (pos: any) => pos.id === positionId
-        );
+        const position = response.data.positions.find((pos: any) => pos.id === positionId);
         if (position && position.unrealizedPnl) {
           return parseFloat(position.unrealizedPnl);
         }
@@ -233,10 +188,7 @@ export class VestExchange implements ExchangeConnector {
 
       return 0;
     } catch (error) {
-      console.error(
-        `Error fetching Vest position PnL for ${positionId}:`,
-        error
-      );
+      console.error(`Error fetching Vest position PnL for ${positionId}:`, error);
       throw new Error("Failed to fetch position PnL from Vest");
     }
   }
@@ -251,10 +203,7 @@ export class VestExchange implements ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(
-    symbol?: string,
-    limit: number = 100
-  ): Promise<any[]> {
+  public async getOrderHistory(symbol?: string, limit: number = 100): Promise<any[]> {
     try {
       const params: any = {};
       if (symbol) params.symbol = symbol;
@@ -318,3 +267,4 @@ export class VestExchange implements ExchangeConnector {
 }
 
 export const vestExchange = new VestExchange();
+export default vestExchange;

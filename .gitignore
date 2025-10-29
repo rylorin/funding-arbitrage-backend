@@ -114,3 +114,4 @@ migrations/
 seeders/
 
 dummy.json
+local.json

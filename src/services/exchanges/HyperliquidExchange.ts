@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import WebSocket from "ws";
-import { exchangeConfigs, exchangeEndpoints } from "../../config/exchanges";
+import { exchangeEndpoints } from "../../config/exchanges";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 interface HyperliquidFundingHistory {
@@ -18,16 +18,15 @@ type HyperliquidPredictedFundingElement = {
 type HyperliquidPredictedFundingItem = [VenueName, HyperliquidPredictedFundingElement];
 type HyperliquidPredictedFunding = [TokenSymbol, HyperliquidPredictedFundingItem[]];
 
-export class HyperliquidExchange implements ExchangeConnector {
-  public name = "hyperliquid" as const;
-  public isConnected = false;
-
+export class HyperliquidExchange extends ExchangeConnector {
   private client: AxiosInstance;
   private baseUrl = exchangeEndpoints.hyperliquid.baseUrl;
   private wsUrl = exchangeEndpoints.hyperliquid.websocket;
   private ws: WebSocket | null = null;
 
   constructor() {
+    super("hyperliquid");
+
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,
@@ -121,7 +120,7 @@ export class HyperliquidExchange implements ExchangeConnector {
               exchange: "hyperliquid",
               token,
               fundingRate: parseFloat(nextFundingItem![1].fundingRate), // 1h funding rate
-              fundingFrequency: exchangeConfigs["hyperliquid"].fundingFrequency, // in hours
+              fundingFrequency: parseInt(this.config.get("fundingFrequency")), // in hours
               nextFunding,
               timestamp: new Date(),
               markPrice: prices[token],
@@ -148,7 +147,7 @@ export class HyperliquidExchange implements ExchangeConnector {
                 exchange: "hyperliquid",
                 token,
                 fundingRate: parseFloat(latestFunding.fundingRate),
-                fundingFrequency: exchangeConfigs["hyperliquid"].fundingFrequency, // in hours
+                fundingFrequency: this.config.get("fundingFrequency"), // in hours
                 nextFunding,
                 timestamp: new Date(),
                 markPrice: prices[token],
@@ -286,3 +285,4 @@ export class HyperliquidExchange implements ExchangeConnector {
 }
 
 export const hyperliquidExchange = new HyperliquidExchange();
+export default hyperliquidExchange;

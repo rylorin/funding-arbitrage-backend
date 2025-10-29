@@ -152,7 +152,7 @@ export class HealthService {
     for (const [exchangeName, exchange] of Object.entries(this.exchanges)) {
       try {
         // For each exchange, check if it's connected and can fetch basic data
-        const isConnected = exchange.isConnected;
+        const isConnected = exchange?.isConnected;
 
         if (isConnected) {
           // Try to fetch funding rates for a basic token to verify API connectivity

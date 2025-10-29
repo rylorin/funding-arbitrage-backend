@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import crypto from "crypto";
 import WebSocket from "ws";
-import { exchangeConfigs, exchangeEndpoints } from "../../config/exchanges";
+import { exchangeEndpoints } from "../../config/exchanges";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 interface WoofiFundingRate {
@@ -12,17 +12,15 @@ interface WoofiFundingRate {
   next_funding_time: number;
 }
 
-export class WoofiExchange implements ExchangeConnector {
-  public name = "orderly" as const; // Using 'orderly' as it's the underlying network
-  public isConnected = false;
-
+export class WoofiExchange extends ExchangeConnector {
   private client: AxiosInstance;
-  private config = exchangeConfigs.orderly;
   private baseUrl = exchangeEndpoints.orderly.baseUrl;
   private wsUrl = exchangeEndpoints.orderly.websocket;
   private ws: WebSocket | null = null;
 
   constructor() {
+    super("woofi");
+
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,
@@ -32,29 +30,30 @@ export class WoofiExchange implements ExchangeConnector {
     });
 
     // Add authentication headers if available
-    if (this.config.apiKey) {
-      this.client.defaults.headers["orderly-key"] = this.config.apiKey;
+    if (this.config.has("apiKey")) {
+      this.client.defaults.headers["orderly-key"] = this.config.get("apiKey");
     }
 
     // Add request interceptor for signing private requests
     this.client.interceptors.request.use((config) => {
-      if (this.config.secretKey && config.url?.includes("private")) {
+      if (this.config.get("secretKey") && config.url?.includes("private")) {
         const timestamp = Date.now().toString();
         const method = config.method?.toUpperCase() || "GET";
         const requestPath = config.url || "";
         const body = config.data ? JSON.stringify(config.data) : "";
 
         const message = `${timestamp}${method}${requestPath}${body}`;
-        const signature = crypto.createHmac("sha256", this.config.secretKey).update(message).digest("base64");
+        const signature = crypto.createHmac("sha256", this.config.get("secretKey")).update(message).digest("base64");
 
         config.headers = config.headers || {};
         (config.headers as any)["orderly-timestamp"] = timestamp;
         (config.headers as any)["orderly-signature"] = signature;
+        (config.headers as any)["orderly-account-id"] = this.config.get("accountId");
       }
       return config;
     });
 
-    this.testConnection();
+    if (this.isEnabled) this.testConnection();
   }
 
   private async testConnection(): Promise<void> {
@@ -331,3 +330,4 @@ export class WoofiExchange implements ExchangeConnector {
 }
 
 export const woofiExchange = new WoofiExchange();
+export default woofiExchange;

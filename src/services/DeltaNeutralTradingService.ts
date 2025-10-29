@@ -32,7 +32,7 @@ export class DeltaNeutralTradingService {
     maxPositionSize: 1_000, // $1000 max par position
     maxSimultaneousPositions: 3,
     riskTolerance: RiskLevel.MEDIUM,
-    preferredExchanges: ["orderly", "hyperliquid", "extended", "vest"],
+    preferredExchanges: ["woofi", "hyperliquid", "extended", "vest"],
     autoCloseEnabled: true,
     autoCloseAPRThreshold: 5, // Fermer si APR < 5%
     autoClosePnLThreshold: 100, // Fermer si perte > $100

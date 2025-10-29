@@ -1,5 +1,5 @@
 import cors from "cors";
-import { config } from "dotenv";
+import { config as dotenv } from "dotenv";
 import express from "express";
 import helmet from "helmet";
 import { createServer } from "http";
@@ -12,13 +12,14 @@ import { jobManager } from "./jobs/index";
 import healthService from "./services/HealthService";
 
 // Routes
+import { default as config, IConfig } from "config";
 import authRoutes from "./routes/auth";
 import dashboardRoutes from "./routes/dashboard";
 import exchangeRoutes from "./routes/exchanges";
 import positionRoutes from "./routes/positions";
 
 // Initialize environment variables
-config();
+dotenv();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,17 +36,14 @@ app.use(
         imgSrc: ["'self'", "data:", "https:"],
       },
     },
-  })
+  }),
 );
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGINS?.split(",") || [
-      "http://localhost:3000",
-      "http://localhost:3001",
-    ],
+    origin: process.env.CORS_ORIGINS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json({ limit: "10mb" }));
@@ -95,42 +93,29 @@ app.use("*", (req, res) => {
   res.status(404).json({
     error: "Route not found",
     message: `The requested route ${req.method} ${req.originalUrl} was not found`,
-    availableRoutes: [
-      "/api/auth",
-      "/api/positions",
-      "/api/exchanges",
-      "/api/dashboard",
-      "/health",
-    ],
+    availableRoutes: ["/api/auth", "/api/positions", "/api/exchanges", "/api/dashboard", "/health"],
   });
 });
 
 // Global error handler
-app.use(
-  (
-    error: any,
-    _req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ) => {
-    console.error("Global error handler:", error);
+app.use((error: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("Global error handler:", error);
 
-    if (res.headersSent) {
-      return next(error);
-    }
-
-    const status = error.statusCode || error.status || 500;
-    const message = error.message || "Internal server error";
-
-    res.status(status).json({
-      error: "Server error",
-      message,
-      ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
-    });
+  if (res.headersSent) {
+    return next(error);
   }
-);
 
-async function startServer(): Promise<void> {
+  const status = error.statusCode || error.status || 500;
+  const message = error.message || "Internal server error";
+
+  res.status(status).json({
+    error: "Server error",
+    message,
+    ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
+  });
+});
+
+async function startServer(_config: IConfig): Promise<void> {
   try {
     console.log("🚀 Starting Funding Arbitrage Backend...");
 
@@ -207,7 +192,7 @@ async function startServer(): Promise<void> {
 }
 
 // Start the server
-startServer().catch((error) => {
+startServer(config).catch((error) => {
   console.error("❌ Failed to start application:", error);
   process.exit(1);
 });

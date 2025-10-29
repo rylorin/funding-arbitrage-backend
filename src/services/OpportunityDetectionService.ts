@@ -147,28 +147,28 @@ export class OpportunityDetectionService {
     return opportunities.filter((opp) => {
       // Filtre APR minimum
       if (userSettings.minAPR && opp.spreadAPR < userSettings.minAPR) {
-        console.log(
-          `Filtering out opportunity for ${opp.token} due to min APR: ${opp.spreadAPR} < ${userSettings.minAPR}`,
-          opp,
-        );
+        // console.log(
+        //   `Filtering out opportunity for ${opp.token} due to min APR: ${opp.spreadAPR} < ${userSettings.minAPR}`,
+        //   opp,
+        // );
         return false;
       }
 
       // Filtre taille maximum
       if (userSettings.maxPositionSize && opp.maxSize < userSettings.maxPositionSize) {
-        console.log(
-          `Filtering out opportunity for ${opp.token} due to max position size: ${opp.maxSize} > ${userSettings.maxPositionSize}`,
-          opp,
-        );
+        // console.log(
+        //   `Filtering out opportunity for ${opp.token} due to max position size: ${opp.maxSize} > ${userSettings.maxPositionSize}`,
+        //   opp,
+        // );
         return false;
       }
 
       // Filtre tolérance au risque
       if (userSettings.riskTolerance && !this.matchesRiskTolerance(opp, userSettings.riskTolerance)) {
-        console.log(
-          `Filtering out opportunity for ${opp.token} due to risk tolerance: opportunity risk ${opp.riskLevel}, user tolerance ${userSettings.riskTolerance}`,
-          opp,
-        );
+        // console.log(
+        //   `Filtering out opportunity for ${opp.token} due to risk tolerance: opportunity risk ${opp.riskLevel}, user tolerance ${userSettings.riskTolerance}`,
+        //   opp,
+        // );
         return false;
       }
 
@@ -178,10 +178,10 @@ export class OpportunityDetectionService {
         (!userSettings.allowedExchanges.includes(opp.longExchange as ExchangeName) ||
           !userSettings.allowedExchanges.includes(opp.shortExchange as ExchangeName))
       ) {
-        console.log(
-          `Filtering out opportunity for ${opp.token} due to allowed exchanges: long ${opp.longExchange}, short ${opp.shortExchange}`,
-          opp,
-        );
+        // console.log(
+        //   `Filtering out opportunity for ${opp.token} due to allowed exchanges: long ${opp.longExchange}, short ${opp.shortExchange}`,
+        //   opp,
+        // );
         return false;
       }
 

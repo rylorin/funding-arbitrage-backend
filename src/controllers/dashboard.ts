@@ -1,9 +1,8 @@
 import { opportunityDetectionService } from "@/services/OpportunityDetectionService";
 import { Request, Response } from "express";
 import Joi from "joi";
-import { exchangeConfigs } from "../config/exchanges";
 import { FundingRate } from "../models/index";
-import { ArbitrageOpportunityData, DetailedArbitrageOpportunity, ExchangeName, RiskLevel } from "../types";
+import { ArbitrageOpportunityData, DetailedArbitrageOpportunity, RiskLevel } from "../types";
 
 // Interface pour les données formatées pour le tableau des taux
 interface FundingRateDisplay {
@@ -41,14 +40,14 @@ interface ArbitrageOpportunityDisplay {
 }
 
 // Helper functions
-function getFundingFrequency(exchange: ExchangeName): number {
-  return 8760 / exchangeConfigs[exchange].fundingFrequency;
-}
+// function getFundingFrequency(exchange: ExchangeName): number {
+//   return 8760 / exchangeConfigs[exchange].fundingFrequency;
+// }
 
-function getFundingFrequencyText(exchange: ExchangeName): string {
-  if (exchangeConfigs[exchange].fundingFrequency === 1) return "Hourly";
-  else return `${exchangeConfigs[exchange].fundingFrequency} Hours`;
-}
+// function getFundingFrequencyText(exchange: ExchangeName): string {
+//   if (exchangeConfigs[exchange].fundingFrequency === 1) return "Hourly";
+//   else return `${exchangeConfigs[exchange].fundingFrequency} Hours`;
+// }
 
 export const getDashboard = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -61,11 +60,8 @@ export const getDashboard = async (_req: Request, res: Response): Promise<void> 
       symbol: `${rate.token}-PERP`,
       fundingRate: rate.fundingRate,
       fundingRatePercent: (rate.fundingRate * 100).toFixed(6),
-      fundingAPR: (rate.fundingRate * getFundingFrequency(rate.exchange.toLowerCase() as ExchangeName) * 100).toFixed(
-        2,
-      ),
-      fundingFrequency:
-        rate.fundingFrequency || exchangeConfigs[rate.exchange.toLowerCase() as ExchangeName].fundingFrequency, // in hours
+      fundingAPR: (rate.fundingRate * rate.fundingFrequency * 100).toFixed(2),
+      fundingFrequency: rate.fundingFrequency, // in hours
       nextFunding: formatTimeToFunding(rate.nextFunding),
       timeToFunding: getTimeToFunding(rate.nextFunding),
       markPrice: rate.markPrice || 0,
@@ -162,12 +158,8 @@ export const getFundingRatesTable = async (req: Request, res: Response): Promise
         symbol: `${rateData.token}-PERP`,
         fundingRate: rateData.fundingRate,
         fundingRatePercent: (rateData.fundingRate * 100).toFixed(6),
-        fundingAPR: (
-          rateData.fundingRate *
-          getFundingFrequency(rateData.exchange.toLowerCase() as ExchangeName) *
-          100
-        ).toFixed(2),
-        fundingFrequency: getFundingFrequencyText(rateData.exchange),
+        fundingAPR: (rateData.fundingRate * rateData.fundingFrequency * 100).toFixed(2),
+        fundingFrequency: rateData.fundingFrequency,
         nextFunding: rateData.nextFunding ? rateData.nextFunding.toISOString() : new Date().toISOString(),
         nextFundingFormatted: rateData.nextFunding ? formatTimeToFunding(rateData.nextFunding) : "N/A",
         timeToFunding: rateData.nextFunding ? getTimeToFunding(rateData.nextFunding) : "N/A",
