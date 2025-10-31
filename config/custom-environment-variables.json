@@ -1,4 +1,7 @@
 {
+  "extended": {
+    "apiKey": "EXTENDED_API_KEY"
+  },
   "hyperliquid": {
     "apiKey": "HYPERLIQUID_API_KEY"
   },
@@ -6,8 +9,8 @@
     "apiKey": "VEST_API_KEY",
     "secretKey": "VEST_SECRET_KEY"
   },
-  "woofi": {
-    "apiKey": "ORDERLY_API_KEY",
+  "orderly": {
+    "orderly-account-id": "ORDERLY_API_KEY",
     "secretKey": "ORDERLY_SECRET_KEY"
   }
 }

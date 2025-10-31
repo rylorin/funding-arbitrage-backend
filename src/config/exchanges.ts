@@ -42,43 +42,43 @@ config();
 //   },
 // };
 
-export const exchangeEndpoints = {
-  vest: {
-    baseUrl:
-      process.env.NODE_ENV === "production"
-        ? "https://server-prod.hz.vestmarkets.com/v2"
-        : "https://server-dev.hz.vestmarkets.com/v2",
-    websocket: process.env.NODE_ENV === "production" ? "wss://ws.vest.exchange" : "wss://ws.vest.exchange",
-    // : 'wss://testnet-ws.vest.exchange',
-  },
-  hyperliquid: {
-    baseUrl: "https://api.hyperliquid.xyz",
-    websocket: "wss://api.hyperliquid.xyz/ws",
-  },
-  orderly: {
-    baseUrl: process.env.NODE_ENV === "production" ? "https://api.orderly.org" : "https://testnet-api.orderly.org",
-    websocket: process.env.NODE_ENV === "production" ? "wss://ws-evm.orderly.org" : "wss://ws-evm.orderly.org",
-    // : 'wss://testnet-ws-evm.orderly.org',
-  },
-  extended: {
-    baseUrl: "https://api.starknet.extended.exchange",
-    websocket: "wss://api.starknet.extended.exchange/ws",
-  },
-  paradex: {
-    baseUrl: process.env.NODE_ENV === "production" ? "https://api.paradex.trade" : "https://api.paradex.trade",
-    // : 'https://api.testnet.paradex.trade',
-    websocket: process.env.NODE_ENV === "production" ? "wss://ws.paradex.trade" : "wss://ws.paradex.trade",
-    // : 'wss://ws.testnet.paradex.trade',
-  },
-  backpack: {
-    baseUrl: "https://api.backpack.exchange",
-    websocket: "wss://ws.backpack.exchange",
-  },
-  hibachi: {
-    baseUrl: "https://api.hibachi.finance",
-    websocket: "wss://ws.hibachi.finance",
-  },
-};
+// export const exchangeEndpoints = {
+//   vest: {
+//     baseUrl:
+//       process.env.NODE_ENV === "production"
+//         ? "https://server-prod.hz.vestmarkets.com/v2"
+//         : "https://server-dev.hz.vestmarkets.com/v2",
+//     websocket: process.env.NODE_ENV === "production" ? "wss://ws.vest.exchange" : "wss://ws.vest.exchange",
+//     // : 'wss://testnet-ws.vest.exchange',
+//   },
+//   hyperliquid: {
+//     baseUrl: "https://api.hyperliquid.xyz",
+//     websocket: "wss://api.hyperliquid.xyz/ws",
+//   },
+//   orderly: {
+//     baseUrl: process.env.NODE_ENV === "production" ? "https://api.orderly.org" : "https://testnet-api.orderly.org",
+//     websocket: process.env.NODE_ENV === "production" ? "wss://ws-evm.orderly.org" : "wss://ws-evm.orderly.org",
+//     // : 'wss://testnet-ws-evm.orderly.org',
+//   },
+//   extended: {
+//     baseUrl: "https://api.starknet.extended.exchange",
+//     websocket: "wss://api.starknet.extended.exchange/ws",
+//   },
+//   paradex: {
+//     baseUrl: process.env.NODE_ENV === "production" ? "https://api.paradex.trade" : "https://api.paradex.trade",
+//     // : 'https://api.testnet.paradex.trade',
+//     websocket: process.env.NODE_ENV === "production" ? "wss://ws.paradex.trade" : "wss://ws.paradex.trade",
+//     // : 'wss://ws.testnet.paradex.trade',
+//   },
+//   backpack: {
+//     baseUrl: "https://api.backpack.exchange",
+//     websocket: "wss://ws.backpack.exchange",
+//   },
+//   hibachi: {
+//     baseUrl: "https://api.hibachi.finance",
+//     websocket: "wss://ws.hibachi.finance",
+//   },
+// };
 
 // export const validateExchangeConfig = (exchangeName: ExchangeName): void => {
 //   const config = exchangeConfigs[exchangeName];

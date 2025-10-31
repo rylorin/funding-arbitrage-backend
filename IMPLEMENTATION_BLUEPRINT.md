@@ -59,7 +59,7 @@ However, several critical components need completion for **production readiness*
 
 - ✅ Vest Exchange (partially implemented)
 - ✅ Hyperliquid Exchange (partially implemented)
-- ✅ Woofi/Orderly Exchange (partially implemented)
+- ✅ Orderly/Orderly Exchange (partially implemented)
 - ✅ Extended Exchange (partially implemented)
 - ❌ Aster Exchange (not implemented)
 - ❌ Paradex Exchange (not implemented)

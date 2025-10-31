@@ -1,10 +1,14 @@
 import { Position, TradeHistory, User } from "../models/index";
-import { JobResult, RiskLevel, TokenSymbol, UserSettings } from "../types/index";
+import {
+  ArbitrageOpportunityData,
+  // DetailedArbitrageOpportunity,
+  JobResult,
+  RiskLevel,
+  TokenSymbol,
+  UserSettings,
+} from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
-import { extendedExchange } from "./exchanges/ExtendedExchange";
-import { hyperliquidExchange } from "./exchanges/HyperliquidExchange";
-import { vestExchange } from "./exchanges/VestExchange";
-import { woofiExchange } from "./exchanges/WoofiExchange";
+import { exchangesRegistry } from "./exchanges";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
 
@@ -19,12 +23,6 @@ interface TradingResult {
 
 export class DeltaNeutralTradingService {
   private isRunning = false;
-  private exchanges = {
-    vest: vestExchange,
-    hyperliquid: hyperliquidExchange,
-    orderly: woofiExchange,
-    extended: extendedExchange,
-  };
 
   private defaultSettings: UserSettings = {
     enabled: false, // Désactivé par défaut pour la sécurité
@@ -32,7 +30,7 @@ export class DeltaNeutralTradingService {
     maxPositionSize: 1_000, // $1000 max par position
     maxSimultaneousPositions: 3,
     riskTolerance: RiskLevel.MEDIUM,
-    preferredExchanges: ["woofi", "hyperliquid", "extended", "vest"],
+    preferredExchanges: ["orderly", "hyperliquid", "extended", "vest"],
     autoCloseEnabled: true,
     autoCloseAPRThreshold: 5, // Fermer si APR < 5%
     autoClosePnLThreshold: 100, // Fermer si perte > $100
@@ -164,7 +162,7 @@ export class DeltaNeutralTradingService {
   /**
    * Ouvre une position delta-neutral
    */
-  public async openPosition(userId: string, opportunity: any, size?: number): Promise<TradingResult> {
+  public async _openPosition(userId: string, opportunity: any, size?: number): Promise<TradingResult> {
     try {
       const user = await User.findByPk(userId);
       if (!user) {
@@ -199,8 +197,8 @@ export class DeltaNeutralTradingService {
         throw new Error("Position not found");
       }
 
-      const longExchange = this.exchanges[position.longExchange as keyof typeof this.exchanges];
-      const shortExchange = this.exchanges[position.shortExchange as keyof typeof this.exchanges];
+      const longExchange = exchangesRegistry[position.longExchange];
+      const shortExchange = exchangesRegistry[position.shortExchange];
 
       let longClosed = false;
       let shortClosed = false;
@@ -407,7 +405,11 @@ export class DeltaNeutralTradingService {
   /**
    * Exécute le trading pour un utilisateur spécifique
    */
-  private async executeUserTrading(user: any, opportunities: any[], settings: UserSettings): Promise<TradingResult[]> {
+  private async executeUserTrading(
+    user: any,
+    opportunities: ArbitrageOpportunityData[],
+    settings: UserSettings,
+  ): Promise<TradingResult[]> {
     const results: TradingResult[] = [];
 
     try {
@@ -445,7 +447,7 @@ export class DeltaNeutralTradingService {
       for (const opportunity of filteredOpportunities) {
         try {
           console.log(
-            `Attempting to open position for user ${user.id} on opportunity: ${opportunity.token} ${opportunity.spreadAPR.toFixed(2)}% APR`,
+            `Attempting to open position for user ${user.id} on opportunity: ${opportunity.token} ${opportunity.spread.apr.toFixed(2)}% APR`,
             opportunity,
           );
           const tradingResult = await this.executeTrade(user, opportunity, settings);
@@ -453,7 +455,7 @@ export class DeltaNeutralTradingService {
 
           if (tradingResult.success) {
             console.log(
-              `✅ Successfully opened position for user ${user.id}: ${opportunity.token} ${opportunity.spreadAPR.toFixed(2)}% APR`,
+              `✅ Successfully opened position for user ${user.id}: ${opportunity.token} ${opportunity.spread.apr.toFixed(2)}% APR`,
             );
           } else {
             console.log(`❌ Failed to open position for user ${user.id}: ${tradingResult.error}`);
@@ -476,17 +478,31 @@ export class DeltaNeutralTradingService {
   /**
    * Exécute un trade delta-neutral
    */
-  private async executeTrade(user: any, opportunity: any, settings: UserSettings): Promise<TradingResult> {
+  private async executeTrade(
+    user: any,
+    opportunity: ArbitrageOpportunityData,
+    settings: UserSettings,
+  ): Promise<TradingResult> {
     try {
-      const longExchange = this.exchanges[opportunity.longExchange as keyof typeof this.exchanges];
-      const shortExchange = this.exchanges[opportunity.shortExchange as keyof typeof this.exchanges];
+      const longExchange = exchangesRegistry[opportunity.longExchange.name];
+      const shortExchange = exchangesRegistry[opportunity.shortExchange.name];
 
       if (!longExchange || !shortExchange) {
-        throw new Error(`Exchange not available: ${opportunity.longExchange} or ${opportunity.shortExchange}`);
+        console.log(
+          "Exchange not found in registry:",
+          opportunity.longExchange.name,
+          longExchange,
+          opportunity.shortExchange.name,
+          shortExchange,
+        );
+        throw new Error(
+          `Exchange not available: ${opportunity.longExchange.name} or ${opportunity.shortExchange.name}`,
+        );
       }
 
       // Calculer la taille de la position
-      const positionSize = Math.min(settings.maxPositionSize, opportunity.maxSize);
+      // const positionSize = Math.min(settings.maxPositionSize, opportunity.maxSize);
+      const positionSize = settings.maxPositionSize;
 
       console.log(
         `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange}) Short(${opportunity.shortExchange}) Size: $${positionSize}`,
@@ -504,22 +520,22 @@ export class DeltaNeutralTradingService {
         token: opportunity.token,
         longToken: opportunity.token,
         shortToken: opportunity.token,
-        longExchange: opportunity.longExchange,
-        shortExchange: opportunity.shortExchange,
+        longExchange: opportunity.longExchange.name,
+        shortExchange: opportunity.shortExchange.name,
         longPositionId: longOrderId,
         shortPositionId: shortOrderId,
         size: positionSize,
         entryTimestamp: new Date(),
         entryFundingRates: {
-          longRate: opportunity.longFundingRate,
-          shortRate: opportunity.shortFundingRate,
-          spreadAPR: opportunity.spreadAPR,
+          longRate: opportunity.longExchange.fundingRate,
+          shortRate: opportunity.shortExchange.fundingRate,
+          spreadAPR: opportunity.spread.apr,
         },
-        entrySpreadAPR: opportunity.spreadAPR,
-        longFundingRate: opportunity.longFundingRate,
-        shortFundingRate: opportunity.shortFundingRate,
-        longMarkPrice: opportunity.longMarkPrice,
-        shortMarkPrice: opportunity.shortMarkPrice,
+        entrySpreadAPR: opportunity.spread.apr,
+        longFundingRate: opportunity.longExchange.fundingRate,
+        shortFundingRate: opportunity.shortExchange.fundingRate,
+        longMarkPrice: opportunity.longExchange.price,
+        shortMarkPrice: opportunity.shortExchange.price,
         currentPnl: 0,
         status: "OPEN",
         autoCloseEnabled: settings.autoCloseEnabled,
@@ -533,11 +549,11 @@ export class DeltaNeutralTradingService {
         userId: user.id,
         positionId: position.id,
         action: "OPEN",
-        exchange: opportunity.longExchange, // Utiliser l'exchange principal
+        exchange: opportunity.longExchange.name, // Utiliser l'exchange principal
         token: opportunity.token,
         side: "DELTA_NEUTRAL",
         size: positionSize,
-        price: (opportunity.longMarkPrice + opportunity.shortMarkPrice) / 2,
+        price: (opportunity.longExchange.price + opportunity.longExchange.price) / 2,
         fee: 0, // À mettre à jour avec les frais réels
         timestamp: new Date(),
         metadata: {
@@ -545,7 +561,7 @@ export class DeltaNeutralTradingService {
           shortExchange: opportunity.shortExchange,
           longOrderId,
           shortOrderId,
-          expectedAPR: opportunity.spreadAPR,
+          expectedAPR: opportunity.spread.apr,
         },
       });
 

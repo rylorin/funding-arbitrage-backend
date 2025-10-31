@@ -57,12 +57,10 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
       result = await FundingRate.findAll({
         where: whereClause,
         order: [["timestamp", "DESC"]],
-        limit: 2000, // Increase limit to get more data for arbitrage calculations
+        // limit: 2000, // Increase limit to get more data for arbitrage calculations
       });
     }
-    console.log(
-      `✅ FundingRate - getLatestRates: fetched ${result.length} records from DB for token=${token} exchange=${exchange}`,
-    );
+    console.log(`✅ getLatestRates: fetched ${result.length} records from DB for token=${token} exchange=${exchange}`);
     return result;
   }
 

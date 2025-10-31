@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import Joi from "joi";
-import { FundingRate } from "../models/index";
-import { vestExchange } from "../services/exchanges/VestExchange";
-import { hyperliquidExchange } from "../services/exchanges/HyperliquidExchange";
-import { woofiExchange } from "../services/exchanges/WoofiExchange";
-import { extendedExchange } from "../services/exchanges/ExtendedExchange";
-import { TokenSymbol, ArbitrageOpportunity } from "../types/index";
 import { AuthenticatedRequest } from "../middleware/auth";
+import { FundingRate } from "../models/index";
+import { extendedExchange } from "../services/exchanges/ExtendedExchange";
+import { hyperliquidExchange } from "../services/exchanges/HyperliquidExchange";
+import { woofiExchange } from "../services/exchanges/OrderlyExchange";
+import { vestExchange } from "../services/exchanges/VestExchange";
+import { TokenSymbol } from "../types/index";
 
 export const getFundingRates = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -65,86 +65,86 @@ export const getFundingRates = async (req: Request, res: Response): Promise<void
   }
 };
 
-export const getArbitrageOpportunities = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const querySchema = Joi.object({
-      token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").optional(),
-      minAPR: Joi.number().min(0).default(5), // minimum 5% APR
-      limit: Joi.number().integer().min(1).max(50).default(10),
-    });
+// export const getArbitrageOpportunities = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const querySchema = Joi.object({
+//       token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").optional(),
+//       minAPR: Joi.number().min(0).default(5), // minimum 5% APR
+//       limit: Joi.number().integer().min(1).max(50).default(10),
+//     });
 
-    const { error, value } = querySchema.validate(req.query);
-    if (error) {
-      res.status(400).json({
-        error: "Query validation error",
-        details: error.details,
-      });
-      return;
-    }
+//     const { error, value } = querySchema.validate(req.query);
+//     if (error) {
+//       res.status(400).json({
+//         error: "Query validation error",
+//         details: error.details,
+//       });
+//       return;
+//     }
 
-    const { token, minAPR, limit } = value;
+//     const { token, minAPR, limit } = value;
 
-    // Get latest funding rates
-    const rates = await FundingRate.getLatestRates(token);
+//     // Get latest funding rates
+//     const rates = await FundingRate.getLatestRates(token);
 
-    // Group rates by token
-    const ratesByToken: Record<string, any[]> = {};
-    rates.forEach((rate) => {
-      if (!ratesByToken[rate.token]) {
-        ratesByToken[rate.token] = [];
-      }
-      ratesByToken[rate.token].push(rate);
-    });
+//     // Group rates by token
+//     const ratesByToken: Record<string, any[]> = {};
+//     rates.forEach((rate) => {
+//       if (!ratesByToken[rate.token]) {
+//         ratesByToken[rate.token] = [];
+//       }
+//       ratesByToken[rate.token].push(rate);
+//     });
 
-    const opportunities: ArbitrageOpportunity[] = [];
+//     const opportunities: ArbitrageOpportunity[] = [];
 
-    // Calculate arbitrage opportunities for each token
-    Object.keys(ratesByToken).forEach((tokenSymbol) => {
-      const tokenRates = ratesByToken[tokenSymbol];
+//     // Calculate arbitrage opportunities for each token
+//     Object.keys(ratesByToken).forEach((tokenSymbol) => {
+//       const tokenRates = ratesByToken[tokenSymbol];
 
-      // Find best long and short opportunities
-      tokenRates.sort((a, b) => a.fundingRate - b.fundingRate);
+//       // Find best long and short opportunities
+//       tokenRates.sort((a, b) => a.fundingRate - b.fundingRate);
 
-      for (let i = 0; i < tokenRates.length - 1; i++) {
-        for (let j = i + 1; j < tokenRates.length; j++) {
-          const longRate = tokenRates[i]; // Lower funding rate (pay less)
-          const shortRate = tokenRates[j]; // Higher funding rate (receive more)
+//       for (let i = 0; i < tokenRates.length - 1; i++) {
+//         for (let j = i + 1; j < tokenRates.length; j++) {
+//           const longRate = tokenRates[i]; // Lower funding rate (pay less)
+//           const shortRate = tokenRates[j]; // Higher funding rate (receive more)
 
-          if (longRate.exchange === shortRate.exchange) continue;
+//           if (longRate.exchange === shortRate.exchange) continue;
 
-          const spreadAPR = (shortRate.fundingRate - longRate.fundingRate) * 8760 * 100; // Convert to annual %
+//           const spreadAPR = (shortRate.fundingRate - longRate.fundingRate) * 8760 * 100; // Convert to annual %
 
-          if (spreadAPR >= minAPR) {
-            opportunities.push({
-              token: tokenSymbol as TokenSymbol,
-              longExchange: longRate.exchange,
-              shortExchange: shortRate.exchange,
-              longFundingRate: longRate.fundingRate,
-              shortFundingRate: shortRate.fundingRate,
-              spreadAPR,
-              confidence: Math.min(95, 50 + spreadAPR * 2), // Simple confidence calculation
-              minSize: 100, // TODO: Get from exchange config
-              maxSize: 10000, // TODO: Get from exchange config
-            });
-          }
-        }
-      }
-    });
+//           if (spreadAPR >= minAPR) {
+//             opportunities.push({
+//               token: tokenSymbol as TokenSymbol,
+//               longExchange: longRate.exchange,
+//               shortExchange: shortRate.exchange,
+//               longFundingRate: longRate.fundingRate,
+//               shortFundingRate: shortRate.fundingRate,
+//               spreadAPR,
+//               confidence: Math.min(95, 50 + spreadAPR * 2), // Simple confidence calculation
+//               minSize: 100, // TODO: Get from exchange config
+//               maxSize: 10000, // TODO: Get from exchange config
+//             });
+//           }
+//         }
+//       }
+//     });
 
-    // Sort by APR and limit results
-    opportunities.sort((a, b) => b.spreadAPR - a.spreadAPR);
-    const limitedOpportunities = opportunities.slice(0, limit);
+//     // Sort by APR and limit results
+//     opportunities.sort((a, b) => b.spreadAPR - a.spreadAPR);
+//     const limitedOpportunities = opportunities.slice(0, limit);
 
-    res.json({
-      opportunities: limitedOpportunities,
-      count: limitedOpportunities.length,
-      timestamp: new Date(),
-    });
-  } catch (error) {
-    console.error("Arbitrage opportunities calculation error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
+//     res.json({
+//       opportunities: limitedOpportunities,
+//       count: limitedOpportunities.length,
+//       timestamp: new Date(),
+//     });
+//   } catch (error) {
+//     console.error("Arbitrage opportunities calculation error:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 
 export const getExchangePairs = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -302,7 +302,7 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
       }
     }
 
-    // Update Woofi rates
+    // Update Orderly rates
     if (woofiExchange.isConnected) {
       try {
         const woofiRates = await woofiExchange.getFundingRates(tokensToUpdate);
@@ -327,7 +327,7 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
           updatedRates.push(rate);
         }
       } catch (error) {
-        console.error("Error updating Woofi rates:", error);
+        console.error("Error updating Orderly rates:", error);
       }
     }
 

@@ -12,6 +12,8 @@ export abstract class ExchangeConnector {
   public abstract getPositionPnL(positionId: string): Promise<number>;
 
   protected config: IConfig;
+  protected baseUrl: string;
+  protected wsUrl: string;
 
   constructor(name: ExchangeName) {
     this.name = name;
@@ -19,6 +21,11 @@ export abstract class ExchangeConnector {
     this.isEnabled = this.config.has("enabled") ? this.config.get("enabled") : false;
     if (!this.isEnabled) {
       console.warn(`⚠️ ${this.name} Exchange is disabled in configuration`);
+    } else {
+      console.log(`ℹ️ ${this.name} Exchange is enabled`);
+      // console.log(JSON.stringify(config.util.toObject()));
     }
+    this.baseUrl = this.config.get("baseUrl");
+    this.wsUrl = this.config.get("webSocketURL");
   }
 }

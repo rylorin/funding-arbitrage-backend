@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from "axios";
 import WebSocket from "ws";
-import { exchangeEndpoints } from "../../config/exchanges";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 interface HyperliquidFundingHistory {
@@ -20,8 +19,6 @@ type HyperliquidPredictedFunding = [TokenSymbol, HyperliquidPredictedFundingItem
 
 export class HyperliquidExchange extends ExchangeConnector {
   private client: AxiosInstance;
-  private baseUrl = exchangeEndpoints.hyperliquid.baseUrl;
-  private wsUrl = exchangeEndpoints.hyperliquid.websocket;
   private ws: WebSocket | null = null;
 
   constructor() {

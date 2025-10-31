@@ -1,15 +1,13 @@
-import { WebSocketBroadcaster } from '../broadcaster';
-import { FundingRateData, PositionPnL, ArbitrageOpportunity } from '../../types/index';
+import { ArbitrageOpportunityData, FundingRateData, PositionPnL } from "../../types/index";
+import { WebSocketBroadcaster } from "../broadcaster";
 
 export class WebSocketHandlers {
   constructor(private broadcaster: WebSocketBroadcaster) {}
 
   public handleFundingRateUpdate(rates: FundingRateData[]): void {
     // Filter out invalid rates
-    const validRates = rates.filter(rate => 
-      rate.fundingRate !== undefined && 
-      rate.fundingRate !== null && 
-      !isNaN(rate.fundingRate)
+    const validRates = rates.filter(
+      (rate) => rate.fundingRate !== undefined && rate.fundingRate !== null && !isNaN(rate.fundingRate),
     );
 
     if (validRates.length > 0) {
@@ -19,28 +17,23 @@ export class WebSocketHandlers {
 
   public handlePositionPnLUpdate(userId: string, positionPnL: PositionPnL): void {
     if (!userId || !positionPnL.positionId) {
-      console.warn('Invalid position PnL update data');
+      console.warn("Invalid position PnL update data");
       return;
     }
 
     this.broadcaster.broadcastPositionPnLUpdate(userId, positionPnL);
   }
 
-  public handleOpportunityAlert(opportunity: ArbitrageOpportunity): void {
+  public handleOpportunityAlert(opportunity: ArbitrageOpportunityData): void {
     // Only alert for high-value opportunities
-    if (opportunity.spreadAPR >= 15 && opportunity.confidence >= 70) {
+    if (opportunity.spread.apr >= 15 && opportunity.risk.score >= 70) {
       this.broadcaster.broadcastOpportunityAlert(opportunity);
     }
   }
 
-  public handlePositionClosed(
-    userId: string, 
-    positionId: string, 
-    reason: string, 
-    pnl: number
-  ): void {
+  public handlePositionClosed(userId: string, positionId: string, reason: string, pnl: number): void {
     if (!userId || !positionId) {
-      console.warn('Invalid position closure data');
+      console.warn("Invalid position closure data");
       return;
     }
 
@@ -48,23 +41,26 @@ export class WebSocketHandlers {
   }
 
   public handleExchangeConnectionChange(exchangeName: string, isConnected: boolean): void {
-    const message = `${exchangeName} exchange ${isConnected ? 'connected' : 'disconnected'}`;
-    const level = isConnected ? 'info' : 'warning';
-    
+    const message = `${exchangeName} exchange ${isConnected ? "connected" : "disconnected"}`;
+    const level = isConnected ? "info" : "warning";
+
     this.broadcaster.broadcastSystemAlert(message, level);
   }
 
   public handleSystemError(error: string): void {
-    this.broadcaster.broadcastSystemAlert(error, 'error');
+    this.broadcaster.broadcastSystemAlert(error, "error");
   }
 
-  public notifyUser(userId: string, notification: {
-    type: string;
-    title: string;
-    message: string;
-    data?: any;
-  }): void {
-    this.broadcaster.sendToUser(userId, 'notification', {
+  public notifyUser(
+    userId: string,
+    notification: {
+      type: string;
+      title: string;
+      message: string;
+      data?: any;
+    },
+  ): void {
+    this.broadcaster.sendToUser(userId, "notification", {
       ...notification,
       timestamp: new Date(),
     });
@@ -75,7 +71,7 @@ export class WebSocketHandlers {
     volumes: { [token: string]: number };
   }): void {
     this.broadcaster.broadcastFundingRatesUpdate([]);
-    
+
     // Send market data to all connected clients
     // This would typically be sent to a 'market-data' room
     // For now, we'll use the funding rates room as it's already established
@@ -98,7 +94,7 @@ export const createWebSocketHandlers = (broadcaster: WebSocketBroadcaster): WebS
   if (handlersInstance) {
     return handlersInstance;
   }
-  
+
   handlersInstance = new WebSocketHandlers(broadcaster);
   return handlersInstance;
 };

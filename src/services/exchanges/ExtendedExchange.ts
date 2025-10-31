@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from "axios";
 import WebSocket from "ws";
-import { exchangeEndpoints } from "../../config/exchanges";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 interface ExtendedMarketStats {
@@ -41,8 +40,6 @@ interface ExtendedMarketsResponse {
 
 export class ExtendedExchange extends ExchangeConnector {
   private client: AxiosInstance;
-  private baseUrl = exchangeEndpoints.extended.baseUrl;
-  private wsUrl = exchangeEndpoints.extended.websocket;
   private ws: WebSocket | null = null;
 
   constructor() {
@@ -151,14 +148,46 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(token: TokenSymbol, side: "long" | "short", _size: number): Promise<string> {
+  public async openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string> {
     try {
-      // Note: Extended requires Stark signature for trading operations
-      // For now, throw an error indicating authentication is needed
-      throw new Error("Extended position opening requires Stark signature authentication");
+      if (!this.isConnected) {
+        throw new Error("Extended exchange is not connected");
+      }
+
+      const apiKey = this.config.get("apiKey");
+      if (!apiKey) {
+        throw new Error("Extended API key not configured");
+      }
+
+      // Extended uses format like BTC-USD, ETH-USD, SOL-USD
+      const symbol = `${token}-USD`;
+
+      // Convert side to Extended format (BUY/SELL)
+      const orderSide = side === "long" ? "BUY" : "SELL";
+
+      // Prepare order data
+      const orderData = {
+        symbol,
+        side: orderSide,
+        type: "MARKET", // Market order for immediate execution
+        quantity: size.toString(),
+        timestamp: Date.now(),
+      };
+
+      // Make API request to place order with API key in headers
+      const response = await this.client.post("/api/v1/user/order", orderData, {});
+
+      if (response.data && response.data.orderId) {
+        console.log(`✅ Opened ${side} position for ${token} on Extended: ${response.data.orderId}`);
+        return response.data.orderId.toString();
+      } else {
+        throw new Error("Invalid response from Extended API");
+      }
     } catch (error) {
       console.error(`Error opening Extended ${side} position for ${token}:`, error);
-      throw new Error(`Failed to open ${side} position on Extended`);
+      throw new Error(
+        `Failed to open ${side} position on Extended: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 

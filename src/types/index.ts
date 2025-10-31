@@ -51,33 +51,33 @@ export interface FundingRateData {
   indexPrice?: number | undefined;
 }
 
-export interface ArbitrageOpportunity {
-  token: string;
-  longExchange: ExchangeName;
-  shortExchange: ExchangeName;
-  longFundingRate: number;
-  shortFundingRate: number;
-  spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
-  confidence: number;
-  minSize: number;
-  maxSize: number;
-  estimatedGas?: number;
-}
+// export interface ArbitrageOpportunity {
+//   token: string;
+//   longExchange: ExchangeName;
+//   shortExchange: ExchangeName;
+//   longFundingRate: number;
+//   shortFundingRate: number;
+//   spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
+//   confidence: number;
+//   minSize: number;
+//   maxSize: number;
+//   estimatedGas?: number;
+// }
 
-export interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
-  longMarkPrice: number;
-  shortMarkPrice: number;
-  riskLevel: RiskLevel;
-  fundingFrequency: {
-    longExchange: string;
-    shortExchange: string;
-  };
-  nextFundingTimes: {
-    longExchange: Date;
-    shortExchange: Date;
-  };
-  priceDeviation: number; // Écart de prix entre les exchanges
-}
+// export interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
+//   longMarkPrice: number;
+//   shortMarkPrice: number;
+//   riskLevel: RiskLevel;
+//   fundingFrequency: {
+//     longExchange: string;
+//     shortExchange: string;
+//   };
+//   nextFundingTimes: {
+//     longExchange: Date;
+//     shortExchange: Date;
+//   };
+//   priceDeviation: number; // Écart de prix entre les exchanges
+// }
 
 export interface PositionPnL {
   positionId: string;
@@ -117,48 +117,46 @@ export interface JobResult {
 }
 
 export type PositionStatus = "OPEN" | "CLOSED" | "ERROR" | "CLOSING";
-export type ExchangeName = "vest" | "hyperliquid" | "woofi" | "extended" | "paradex" | "backpack" | "hibachi";
+export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended";
 export type TokenSymbol = string; // e.g., 'BTC', 'ETH', 'SOL', etc.
+
+export interface ExchangeData {
+  name: ExchangeName;
+  fundingRate: number;
+  fundingFrequency: number;
+  price: number;
+}
+
+export interface RiskAssessment {
+  level: RiskLevel;
+  score: number; // 0-100 composite score
+  factors: {
+    priceDeviation: number; // % price difference between exchanges
+    spreadQuality: number; // Quality of funding rate spread
+    exchangeReliability: number; // 0.5 for new exchanges, 1.0 for established
+  };
+}
+
+export interface OpportunitySpread {
+  absolute: number;
+  apr: number;
+}
+
+export interface OpportunityTiming {
+  nextFunding: string;
+  longFrequency: string;
+  shortFrequency: string;
+}
 
 export interface ArbitrageOpportunityData {
   id: string;
-  rank: number;
-  token: string;
+  token: TokenSymbol;
   tokenIcon: string;
-  longExchange: {
-    name: string;
-    color: string;
-    fundingRate: number;
-    fundingRateFormatted: string;
-    price: number;
-  };
-  shortExchange: {
-    name: string;
-    color: string;
-    fundingRate: number;
-    fundingRateFormatted: string;
-    price: number;
-  };
-  spread: {
-    absolute: number;
-    percent: string;
-    apr: number;
-  };
-  metrics: {
-    confidence: number;
-    riskLevel: RiskLevel;
-    riskColor: string;
-    expectedDailyReturn: string;
-    maxSize: number;
-    maxSizeFormatted: string;
-    priceDeviation: number;
-    priceDeviationFormatted: string;
-  };
-  timing: {
-    nextFunding: string;
-    longFrequency: string;
-    shortFrequency: string;
-  };
+  longExchange: ExchangeData;
+  shortExchange: ExchangeData;
+  spread: OpportunitySpread;
+  risk: RiskAssessment;
+  timing: OpportunityTiming;
 }
 
 export { ExchangeConnector } from "@/services/exchanges/ExchangeConnector";

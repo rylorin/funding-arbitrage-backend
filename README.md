@@ -105,8 +105,7 @@ interface DashboardResponse {
         "shortExchange": "HYPERLIQUID",
         "spreadAPR": "23.45%",
         "confidence": 85,
-        "riskLevel": "low",
-        "expectedDailyReturn": "$12.34"
+        "riskLevel": "low"
       }
     ],
     "stats": {
@@ -268,47 +267,55 @@ interface ArbitrageOpportunitiesResponse {
   timestamp: string;
 }
 
-interface ArbitrageOpportunityData {
+type ExchangeName = string;
+type TokenSymbol = string;
+type RiskLevel = "low" | "medium" | "high";
+
+export interface OpportunitySpread {
+  absolute: number;
+  apr: number;
+}
+
+export interface OpportunityMetrics {
+  confidence: number;
+  riskLevel: RiskLevel;
+  maxSize: number;
+  maxSizeFormatted: string;
+  priceDeviation: number;
+}
+
+export interface OpportunityTiming {
+  nextFunding: string;
+  longFrequency: string;
+  shortFrequency: string;
+}
+
+export interface ExchangeData {
+  name: ExchangeName;
+  fundingRate: number;
+  fundingFrequency: number;
+  price: number;
+}
+
+export interface RiskAssessment {
+  level: RiskLevel;
+  score: number; // 0-100 composite score
+  factors: {
+    priceDeviation: number; // % price difference between exchanges
+    spreadQuality: number; // Quality of funding rate spread
+    exchangeReliability: number; // 0.5 for new exchanges, 1.0 for established
+  };
+}
+
+export interface ArbitrageOpportunityData {
   id: string;
-  rank: number;
-  token: string;
+  token: TokenSymbol;
   tokenIcon: string;
-  longExchange: {
-    name: string;
-    color: string;
-    fundingRate: number;
-    fundingRateFormatted: string;
-    price: number;
-    // priceFormatted: string;
-  };
-  shortExchange: {
-    name: string;
-    color: string;
-    fundingRate: number;
-    fundingRateFormatted: string;
-    price: number;
-    // priceFormatted: string;
-  };
-  spread: {
-    absolute: number;
-    percent: string;
-    apr: number;
-  };
-  metrics: {
-    confidence: number;
-    riskLevel: string;
-    riskColor: string;
-    expectedDailyReturn: string;
-    maxSize: number;
-    maxSizeFormatted: string;
-    priceDeviation: number;
-    priceDeviationFormatted: string;
-  };
-  timing: {
-    nextFunding: string;
-    longFrequency: string;
-    shortFrequency: string;
-  };
+  longExchange: ExchangeData;
+  shortExchange: ExchangeData;
+  spread: OpportunitySpread;
+  risk: RiskAssessment;
+  timing: OpportunityTiming;
 }
 ```
 
@@ -321,39 +328,32 @@ interface ArbitrageOpportunityData {
     "opportunities": [
       {
         "id": "BTC-vest-hyperliquid",
-        "rank": 1,
         "token": "BTC",
         "tokenIcon": "/icons/btc.png",
         "longExchange": {
-          "name": "VEST",
-          "color": "#8B5CF6",
+          "name": "vest",
           "fundingRate": 0.000045,
-          "fundingRateFormatted": "0.004500%",
+          "fundingFrequency": 1,
           "price": 45123.45
-          // "priceFormatted": "$45,123.45"
         },
         "shortExchange": {
-          "name": "HYPERLIQUID",
-          "color": "#3B82F6",
+          "name": "hyperliquid",
           "fundingRate": 0.000198,
-          "fundingRateFormatted": "0.019800%",
+          "fundingFrequencey": 8,
           "price": 45145.23
-          // "priceFormatted": "$45,145.23"
         },
         "spread": {
           "absolute": 0.000153,
-          "percent": "0.015300%",
-          "apr": "11.34%"
+          "apr": 11.34
         },
-        "metrics": {
-          "confidence": 87,
-          "riskLevel": "low",
-          "riskColor": "#10B981",
-          "expectedDailyReturn": "3.11",
-          "maxSize": 10000,
-          "maxSizeFormatted": "$10,000",
-          "priceDeviation": 0.048,
-          "priceDeviationFormatted": "0.048%"
+        "risk": {
+          "level": "low",
+          "score": 89.90677382637384,
+          "factors": {
+            "priceDeviation": 0.0046613086813083095,
+            "spreadQuality": 0.0000058054,
+            "exchangeReliability": 1
+          }
         },
         "timing": {
           "nextFunding": "Jan 1, 01:00 PM UTC",
@@ -421,10 +421,6 @@ interface EnrichedPosition {
   hoursOpen: number;
   riskLevel: "low" | "medium" | "high" | "critical";
   shouldClose: boolean;
-  exchangeColors: {
-    long: string;
-    short: string;
-  };
 }
 ```
 
@@ -600,7 +596,7 @@ interface PositionUpdate {
 
 interface OpportunityAlert {
   type: "opportunity-alert";
-  opportunity: ArbitrageOpportunity;
+  opportunity: ArbitrageOpportunityData;
   reason: "new" | "apr_increase" | "risk_decreased";
 }
 ```
@@ -632,28 +628,28 @@ export interface FundingRateData {
 }
 
 // Arbitrage Opportunity
-export interface ArbitrageOpportunity {
-  token: TokenSymbol;
-  longExchange: ExchangeName;
-  shortExchange: ExchangeName;
-  longFundingRate: number;
-  shortFundingRate: number;
-  spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
-  confidence: number;
-  minSize: number;
-  riskLevel: RiskLevel;
-  longMarkPrice: number;
-  shortMarkPrice: number;
-  priceDeviation: number;
-  fundingFrequency: {
-    longExchange: string;
-    shortExchange: string;
-  };
-  nextFundingTimes: {
-    longExchange: Date;
-    shortExchange: Date;
-  };
-}
+// export interface ArbitrageOpportunity {
+//   token: TokenSymbol;
+//   longExchange: ExchangeName;
+//   shortExchange: ExchangeName;
+//   longFundingRate: number;
+//   shortFundingRate: number;
+//   spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
+//   confidence: number;
+//   minSize: number;
+//   riskLevel: RiskLevel;
+//   longMarkPrice: number;
+//   shortMarkPrice: number;
+//   priceDeviation: number;
+//   fundingFrequency: {
+//     longExchange: string;
+//     shortExchange: string;
+//   };
+//   nextFundingTimes: {
+//     longExchange: Date;
+//     shortExchange: Date;
+//   };
+// }
 
 // Position Model
 export interface Position {

@@ -3,8 +3,8 @@ import { JobResult, PositionPnL } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { extendedExchange } from "./exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "./exchanges/HyperliquidExchange";
+import { woofiExchange } from "./exchanges/OrderlyExchange";
 import { vestExchange } from "./exchanges/VestExchange";
-import { woofiExchange } from "./exchanges/WoofiExchange";
 
 interface PositionMetrics {
   currentPnL: number;

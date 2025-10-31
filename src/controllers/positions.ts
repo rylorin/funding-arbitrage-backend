@@ -380,10 +380,6 @@ export const getPositionsDashboard = async (req: AuthenticatedRequest, res: Resp
             autoCloseAPRThreshold: position.autoCloseAPRThreshold,
             autoClosePnLThreshold: position.autoClosePnLThreshold,
             createdAt: position.createdAt,
-            exchangeColors: {
-              long: getExchangeColor(position.longExchange),
-              short: getExchangeColor(position.shortExchange),
-            },
             metrics: {
               fundingFeesReceived: estimateFundingFeesReceived(position, hoursOpen),
               tradingFeesEstimate: estimateTradingFees(position),

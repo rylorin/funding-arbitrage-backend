@@ -2,7 +2,7 @@ import { opportunityDetectionService } from "@/services/OpportunityDetectionServ
 import { Request, Response } from "express";
 import Joi from "joi";
 import { FundingRate } from "../models/index";
-import { ArbitrageOpportunityData, DetailedArbitrageOpportunity, RiskLevel } from "../types";
+import { RiskLevel } from "../types";
 
 // Interface pour les données formatées pour le tableau des taux
 interface FundingRateDisplay {
@@ -20,24 +20,23 @@ interface FundingRateDisplay {
   category: string;
 }
 
-interface ArbitrageOpportunityDisplay {
-  rank: number;
-  token: string;
-  longExchange: string;
-  shortExchange: string;
-  longFundingRate: string;
-  shortFundingRate: string;
-  spreadPercent: string;
-  spreadAPR: string;
-  confidence: number;
-  riskLevel: string;
-  expectedDailyReturn: string;
-  nextFunding: string;
-  priceDeviation: string;
-  maxSize: string;
-  longPrice: number;
-  shortPrice: number;
-}
+// interface _ArbitrageOpportunityDisplay {
+//   rank: number;
+//   token: string;
+//   longExchange: string;
+//   shortExchange: string;
+//   longFundingRate: string;
+//   shortFundingRate: string;
+//   spreadPercent: string;
+//   spreadAPR: string;
+//   confidence: number;
+//   riskLevel: string;
+//   nextFunding: string;
+//   priceDeviation: string;
+//   maxSize: string;
+//   longPrice: number;
+//   shortPrice: number;
+// }
 
 // Helper functions
 // function getFundingFrequency(exchange: ExchangeName): number {
@@ -48,6 +47,16 @@ interface ArbitrageOpportunityDisplay {
 //   if (exchangeConfigs[exchange].fundingFrequency === 1) return "Hourly";
 //   else return `${exchangeConfigs[exchange].fundingFrequency} Hours`;
 // }
+
+function formatTimeToFunding(nextFunding: Date): string {
+  return nextFunding.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
 
 export const getDashboard = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -78,36 +87,35 @@ export const getDashboard = async (_req: Request, res: Response): Promise<void> 
 
     // Get best arbitrage opportunities
     const opportunities = await opportunityDetectionService.findOpportunities();
-    const opportunitiesDisplay: ArbitrageOpportunityDisplay[] = opportunities.map((opp, index) => ({
-      rank: index + 1,
-      token: opp.token,
-      longExchange: opp.longExchange.toUpperCase(),
-      shortExchange: opp.shortExchange.toUpperCase(),
-      longFundingRate: (opp.longFundingRate * 100).toFixed(6) + "%",
-      shortFundingRate: (opp.shortFundingRate * 100).toFixed(6) + "%",
-      spreadPercent: ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) + "%",
-      spreadAPR: opp.spreadAPR.toFixed(2) + "%",
-      confidence: opp.confidence,
-      riskLevel: opp.riskLevel,
-      expectedDailyReturn: ((opp.spreadAPR / 365) * (opp.maxSize / 100)).toFixed(2) + "$",
-      nextFunding: getNextFundingTime(opp),
-      priceDeviation: opp.priceDeviation ? opp.priceDeviation.toFixed(3) + "%" : "0.000%",
-      maxSize: "$" + opp.maxSize.toLocaleString(),
-      longPrice: opp.longMarkPrice,
-      shortPrice: opp.shortMarkPrice,
-    }));
+    // const opportunitiesDisplay: ArbitrageOpportunityDisplay[] = opportunities.map((opp, index) => ({
+    //   rank: index + 1,
+    //   token: opp.token,
+    //   longExchange: opp.longExchange.toUpperCase(),
+    //   shortExchange: opp.shortExchange.toUpperCase(),
+    //   longFundingRate: (opp.longFundingRate * 100).toFixed(6) + "%",
+    //   shortFundingRate: (opp.shortFundingRate * 100).toFixed(6) + "%",
+    //   spreadPercent: ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) + "%",
+    //   spreadAPR: opp.spreadAPR.toFixed(2) + "%",
+    //   confidence: opp.confidence,
+    //   riskLevel: opp.riskLevel,
+    //   nextFunding: getNextFundingTime(opp),
+    //   priceDeviation: opp.priceDeviation ? opp.priceDeviation.toFixed(3) + "%" : "0.000%",
+    //   maxSize: "$" + opp.maxSize.toLocaleString(),
+    //   longPrice: opp.longMarkPrice,
+    //   shortPrice: opp.shortMarkPrice,
+    // }));
 
     res.json({
       success: true,
       data: {
         fundingRates: ratesByToken,
         allRates: fundingRatesDisplay,
-        opportunities: opportunitiesDisplay,
+        opportunities: opportunities,
         stats: {
           totalExchanges: exchangeStats.totalExchanges,
           activeMarkets: exchangeStats.activeMarkets,
           totalOpportunities: opportunities.length,
-          bestAPR: opportunities.length > 0 ? opportunities[0].spreadAPR : 0,
+          bestAPR: opportunities.length > 0 ? opportunities[0].spread.apr : 0,
           avgFundingRate: exchangeStats.avgFundingRate,
           lastUpdated: new Date().toISOString(),
         },
@@ -153,7 +161,6 @@ export const getFundingRatesTable = async (req: Request, res: Response): Promise
       const rateData = rate.dataValues || rate;
       return {
         exchange: rateData.exchange,
-        exchangeColor: getExchangeColor(rateData.exchange),
         token: rateData.token,
         symbol: `${rateData.token}-PERP`,
         fundingRate: rateData.fundingRate,
@@ -223,11 +230,12 @@ export const getFundingRatesTable = async (req: Request, res: Response): Promise
 
 export const getArbitrageOpportunities = async (req: Request, res: Response): Promise<void> => {
   try {
+    // console.log("Arbitrage opportunities query params:", req.query);
     const querySchema = Joi.object({
       minAPR: Joi.number().min(0).default(0),
       riskLevel: Joi.string().valid(RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH).optional(),
       token: Joi.string().optional(),
-      limit: Joi.number().integer().min(1).max(10_000).default(10_000),
+      limit: Joi.number().integer().min(1).max(10_000).default(1_000),
     });
 
     const { error, value } = querySchema.validate(req.query);
@@ -240,18 +248,20 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
       return;
     }
 
-    const { minAPR, maxSize, riskLevel, token, limit } = value;
+    // console.log("Arbitrage opportunities validated params:", value);
+    const { minAPR, riskLevel, token, limit } = value;
 
     // Get opportunities
     let opportunities = await opportunityDetectionService.findOpportunities({
       minAPRThreshold: minAPR,
-      maxPositionSize: maxSize,
       maxPriceDeviation: 0.5,
+      riskTolerance: riskLevel,
+      limit,
     });
 
     // Apply filters
     if (riskLevel) {
-      opportunities = opportunities.filter((opp) => opp.riskLevel === riskLevel);
+      opportunities = opportunities.filter((opp) => opp.risk.level === riskLevel);
     }
 
     if (token) {
@@ -261,75 +271,29 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
     // Limit results
     opportunities = opportunities.slice(0, limit);
 
-    // Format for display
-    const formattedOpportunities: ArbitrageOpportunityData[] = opportunities.map(
-      (opp: DetailedArbitrageOpportunity, index) => ({
-        id: `${opp.token}-${opp.longExchange}-${opp.shortExchange}`,
-        rank: index + 1,
-        token: opp.token,
-        tokenIcon: getTokenIcon(opp.token),
-        longExchange: {
-          name: opp.longExchange?.toUpperCase(),
-          color: getExchangeColor(opp.longExchange),
-          fundingRate: opp.longFundingRate,
-          fundingRateFormatted: (opp.longFundingRate * 100).toFixed(6) + "%",
-          price: opp.longMarkPrice,
-        },
-        shortExchange: {
-          name: opp.shortExchange?.toUpperCase(),
-          color: getExchangeColor(opp.shortExchange),
-          fundingRate: opp.shortFundingRate,
-          fundingRateFormatted: (opp.shortFundingRate * 100).toFixed(6) + "%",
-          price: opp.shortMarkPrice,
-        },
-        spread: {
-          absolute: opp.shortFundingRate - opp.longFundingRate,
-          percent: ((opp.shortFundingRate - opp.longFundingRate) * 100).toFixed(6) + "%",
-          apr: opp.spreadAPR,
-        },
-        metrics: {
-          confidence: opp.confidence,
-          riskLevel: opp.riskLevel,
-          riskColor: getRiskColor(opp.riskLevel),
-          expectedDailyReturn: ((opp.spreadAPR / 365) * (maxSize / 100)).toFixed(2),
-          maxSize: opp.maxSize,
-          maxSizeFormatted: "$" + opp.maxSize.toLocaleString(),
-          priceDeviation: opp.priceDeviation,
-          priceDeviationFormatted: opp.priceDeviation ? opp.priceDeviation.toFixed(3) + "%" : "0.000%",
-        },
-        timing: {
-          nextFunding: getNextFundingTime(opp),
-          longFrequency: opp.fundingFrequency.longExchange,
-          shortFrequency: opp.fundingFrequency.shortExchange,
-        },
-      }),
-    );
-
     const result = {
       success: true,
       data: {
-        opportunities: formattedOpportunities,
+        opportunities,
         summary: {
-          totalOpportunities: formattedOpportunities.length,
-          bestAPR: formattedOpportunities.length > 0 ? formattedOpportunities[0].spread.apr : 0,
+          totalOpportunities: opportunities.length,
+          bestAPR: opportunities.length > 0 ? opportunities[0].spread.apr : 0,
           avgAPR:
-            formattedOpportunities.length > 0
-              ? formattedOpportunities.reduce((sum, opp) => sum + opp.spread.apr, 0) / formattedOpportunities.length
+            opportunities.length > 0
+              ? opportunities.reduce((sum, opp) => sum + opp.spread.apr, 0) / opportunities.length
               : 0,
-          avgConfidence:
-            formattedOpportunities.length > 0
-              ? formattedOpportunities.reduce((sum, opp) => sum + opp.metrics.confidence, 0) /
-                formattedOpportunities.length
+          avgRiskScore:
+            opportunities.length > 0
+              ? opportunities.reduce((sum, opp) => sum + opp.risk.score, 0) / opportunities.length
               : 0,
           riskDistribution: {
-            [RiskLevel.LOW]: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === RiskLevel.LOW).length,
-            [RiskLevel.MEDIUM]: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === RiskLevel.MEDIUM)
-              .length,
-            [RiskLevel.HIGH]: formattedOpportunities.filter((opp) => opp.metrics.riskLevel === RiskLevel.HIGH).length,
+            [RiskLevel.LOW]: opportunities.filter((opp) => opp.risk.level === RiskLevel.LOW).length,
+            [RiskLevel.MEDIUM]: opportunities.filter((opp) => opp.risk.level === RiskLevel.MEDIUM).length,
+            [RiskLevel.HIGH]: opportunities.filter((opp) => opp.risk.level === RiskLevel.HIGH).length,
           },
         },
       },
-      filters: { minAPR, maxSize, riskLevel, token, limit },
+      filters: { minAPR, riskLevel, token, limit },
       timestamp: new Date().toISOString(),
     };
     if (process.env.NODE_ENV === "production") res.json(result);
@@ -342,16 +306,6 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
     });
   }
 };
-
-function formatTimeToFunding(nextFunding: Date): string {
-  return nextFunding.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
-}
 
 function getTimeToFunding(nextFunding: Date): string {
   const now = new Date();
@@ -392,20 +346,6 @@ function getExchangeColor(exchange: string): string {
   return colors[exchange] || "#6B7280";
 }
 
-function getRiskColor(riskLevel: string): string {
-  const colors: Record<string, string> = {
-    LOW: "#10B981",
-    MEDIUM: "#F59E0B",
-    HIGH: "#EF4444",
-  };
-  return colors[riskLevel] || "#6B7280";
-}
-
-function getTokenIcon(token: string): string {
-  // Return token icon URL or path
-  return `/icons/${token.toLowerCase()}.png`;
-}
-
 function groupByToken(rates: FundingRateDisplay[]): Record<string, FundingRateDisplay[]> {
   return rates.reduce(
     (acc, rate) => {
@@ -428,14 +368,6 @@ function calculateExchangeStats(rates: any[]) {
     activeMarkets: rates.length,
     avgFundingRate: avgFundingRate,
   };
-}
-
-function getNextFundingTime(opportunity: any): string {
-  const longTime = new Date(opportunity.nextFundingTimes.longExchange);
-  const shortTime = new Date(opportunity.nextFundingTimes.shortExchange);
-  const nextTime = longTime < shortTime ? longTime : shortTime;
-
-  return formatTimeToFunding(nextTime);
 }
 
 export const getMarketOverview = async (_req: Request, res: Response): Promise<void> => {
@@ -517,7 +449,7 @@ export const getMarketOverview = async (_req: Request, res: Response): Promise<v
         totalOpportunities: opportunities.length,
         totalVolume24h: totalVolume,
         totalVolumeFormatted: "$" + totalVolume.toLocaleString(),
-        bestOpportunityAPR: opportunities[0]?.spreadAPR || 0,
+        bestOpportunityAPR: opportunities[0]?.spread.apr || 0,
         averageFundingRate: latestRates.reduce((sum, r) => sum + Math.abs(r.fundingRate), 0) / latestRates.length,
         marketSentiment: positiveRates.length > negativeRates.length ? "BULLISH" : "BEARISH",
         lastUpdated: new Date().toISOString(),
@@ -542,20 +474,20 @@ export const getMarketOverview = async (_req: Request, res: Response): Promise<v
         (a: any, b: any) => (b.bestOpportunity?.spreadAPR || 0) - (a.bestOpportunity?.spreadAPR || 0),
       ),
       riskMetrics: {
-        lowRisk: opportunities.filter((opp) => opp.riskLevel === RiskLevel.LOW).length,
-        mediumRisk: opportunities.filter((opp) => opp.riskLevel === RiskLevel.MEDIUM).length,
-        highRisk: opportunities.filter((opp) => opp.riskLevel === RiskLevel.HIGH).length,
-        avgConfidence: opportunities.reduce((sum, opp) => sum + opp.confidence, 0) / opportunities.length || 0,
-        maxPriceDeviation: Math.max(...opportunities.map((opp) => opp.priceDeviation || 0)),
+        lowRisk: opportunities.filter((opp) => opp.risk.level === RiskLevel.LOW).length,
+        mediumRisk: opportunities.filter((opp) => opp.risk.level === RiskLevel.MEDIUM).length,
+        highRisk: opportunities.filter((opp) => opp.risk.level === RiskLevel.HIGH).length,
+        avgRiskScore: opportunities.reduce((sum, opp) => sum + opp.risk.score, 0) / opportunities.length || 0,
+        maxPriceDeviation: Math.max(...opportunities.map((opp) => opp.risk.factors.priceDeviation || 0)),
       },
-      trends: {
-        hourlyOpportunities: opportunities.filter(
-          (opp) => opp.fundingFrequency.longExchange === "Hourly" || opp.fundingFrequency.shortExchange === "Hourly",
-        ).length,
-        eightHourOpportunities: opportunities.filter(
-          (opp) => opp.fundingFrequency.longExchange === "8 Hours" && opp.fundingFrequency.shortExchange === "8 Hours",
-        ).length,
-      },
+      // trends: {
+      //   hourlyOpportunities: opportunities.filter(
+      //     (opp) => opp.longExchange.fundingFrequency === "Hourly" || opp.shortExchange.fundingFrequency === "Hourly",
+      //   ).length,
+      //   eightHourOpportunities: opportunities.filter(
+      //     (opp) => opp.longExchange.fundingFrequency === "8 Hours" && opp.shortExchange.fundingFrequency === "8 Hours",
+      //   ).length,
+      // },
     };
 
     res.json({

@@ -1,13 +1,10 @@
 import axios, { AxiosInstance } from "axios";
 import crypto from "crypto";
 import WebSocket from "ws";
-import { exchangeEndpoints } from "../../config/exchanges";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
 
 export class VestExchange extends ExchangeConnector {
   private client: AxiosInstance;
-  private baseUrl = exchangeEndpoints.vest.baseUrl;
-  private wsUrl = exchangeEndpoints.vest.websocket;
   private ws: WebSocket | null = null;
 
   constructor() {
@@ -18,7 +15,7 @@ export class VestExchange extends ExchangeConnector {
       timeout: 10000,
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": this.config.get("apiKey"),
+        // "X-API-Key": this.config.get("apiKey"),
       },
     });
 
