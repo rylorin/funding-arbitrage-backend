@@ -1,6 +1,6 @@
-import axios, { AxiosInstance } from "axios";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
+import { OrderData } from "./ExchangeConnector";
 
 interface HyperliquidFundingHistory {
   coin: string;
@@ -18,19 +18,10 @@ type HyperliquidPredictedFundingItem = [VenueName, HyperliquidPredictedFundingEl
 type HyperliquidPredictedFunding = [TokenSymbol, HyperliquidPredictedFundingItem[]];
 
 export class HyperliquidExchange extends ExchangeConnector {
-  private client: AxiosInstance;
   private ws: WebSocket | null = null;
 
   constructor() {
     super("hyperliquid");
-
-    this.client = axios.create({
-      baseURL: this.baseUrl,
-      timeout: 10000,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
 
     this.testConnection();
   }
@@ -141,7 +132,7 @@ export class HyperliquidExchange extends ExchangeConnector {
               const nextFunding = new Date(lastFundingTime.getTime() + 8 * 60 * 60 * 1000);
 
               fundingRates.push({
-                exchange: "hyperliquid",
+                exchange: this.name,
                 token,
                 fundingRate: parseFloat(latestFunding.fundingRate),
                 fundingFrequency: this.config.get("fundingFrequency"), // in hours
@@ -175,7 +166,8 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(token: TokenSymbol, side: "long" | "short", _size: number): Promise<string> {
+  public async openPosition(order: OrderData): Promise<string> {
+    const { token, side } = order;
     try {
       // Note: This requires proper authentication with user's wallet and signing
       // For now, throw an error indicating authentication is needed

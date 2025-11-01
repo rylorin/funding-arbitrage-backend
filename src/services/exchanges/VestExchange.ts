@@ -1,23 +1,13 @@
-import axios, { AxiosInstance } from "axios";
 import crypto from "crypto";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
+import { OrderData } from "./ExchangeConnector";
 
 export class VestExchange extends ExchangeConnector {
-  private client: AxiosInstance;
   private ws: WebSocket | null = null;
 
   constructor() {
     super("vest");
-
-    this.client = axios.create({
-      baseURL: this.baseUrl,
-      timeout: 10000,
-      headers: {
-        "Content-Type": "application/json",
-        // "X-API-Key": this.config.get("apiKey"),
-      },
-    });
 
     this.client.interceptors.request.use((config) => {
       if (config.data || config.method === "get") {
@@ -76,7 +66,7 @@ export class VestExchange extends ExchangeConnector {
             nextFunding.setMilliseconds(0);
 
             fundingRates.push({
-              exchange: "vest",
+              exchange: this.name,
               token,
               fundingRate: parseFloat(tokenTicker.oneHrFundingRate), // 1h funding rate
               nextFunding,
@@ -117,7 +107,8 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string> {
+  public async openPosition(order: OrderData): Promise<string> {
+    const { token, side, size } = order;
     try {
       const symbol = `${token}-PERP`;
       const isBuy = side === "long";

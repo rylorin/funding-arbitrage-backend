@@ -183,10 +183,10 @@ export class OpportunityDetectionService {
     return opportunities.filter((opp) => {
       // Filtre APR minimum
       if (userSettings.minAPR && opp.spread.apr < userSettings.minAPR) {
-        console.log(
-          `Filtering out opportunity for ${opp.token} due to min APR: ${opp.spread.apr} < ${userSettings.minAPR}`,
-          opp,
-        );
+        // console.log(
+        //   `Filtering out opportunity for ${opp.token} due to min APR: ${opp.spread.apr} < ${userSettings.minAPR}`,
+        //   opp,
+        // );
         return false;
       }
 
@@ -197,10 +197,10 @@ export class OpportunityDetectionService {
 
       // Filtre tolérance au risque
       if (userSettings.riskTolerance && !this.matchesRiskTolerance(opp, userSettings.riskTolerance)) {
-        console.log(
-          `Filtering out opportunity for ${opp.token} due to risk tolerance: opportunity risk ${opp.risk.level}, user tolerance ${userSettings.riskTolerance}`,
-          opp,
-        );
+        // console.log(
+        //   `Filtering out opportunity for ${opp.token} due to risk tolerance: opportunity risk ${opp.risk.level}, user tolerance ${userSettings.riskTolerance}`,
+        //   opp,
+        // );
         return false;
       }
 
@@ -210,10 +210,10 @@ export class OpportunityDetectionService {
         (!userSettings.allowedExchanges.includes(opp.longExchange.name) ||
           !userSettings.allowedExchanges.includes(opp.shortExchange.name))
       ) {
-        console.log(
-          `Filtering out opportunity for ${opp.token} due to allowed exchanges: long ${opp.longExchange.name}, short ${opp.shortExchange.name}`,
-          opp,
-        );
+        // console.log(
+        //   `Filtering out opportunity for ${opp.token} due to allowed exchanges: long ${opp.longExchange.name}, short ${opp.shortExchange.name}`,
+        //   opp,
+        // );
         return false;
       }
 

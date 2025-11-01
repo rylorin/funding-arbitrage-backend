@@ -1,9 +1,9 @@
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
-import axios, { AxiosInstance } from "axios";
 import bs58 from "bs58";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
+import { OrderData, OrderSide } from "./ExchangeConnector";
 
 interface WoofiFundingRate {
   symbol: string;
@@ -13,22 +13,16 @@ interface WoofiFundingRate {
   next_funding_time: number;
 }
 
+type TokenInfo = { base_min: number; base_max: number; base_tick: number };
+type TokenPrice = { mark_price: number; index_price: number };
+
 export class WoofiExchange extends ExchangeConnector {
-  private client: AxiosInstance;
   private ws: WebSocket | null = null;
 
   constructor() {
     super("orderly");
 
     ed.hashes.sha512 = sha512;
-
-    this.client = axios.create({
-      baseURL: this.baseUrl,
-      timeout: 10000,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
 
     // Add request interceptor for signing private requests
     this.client.interceptors.request.use((config) => {
@@ -44,9 +38,15 @@ export class WoofiExchange extends ExchangeConnector {
         const body = config.data ? JSON.stringify(config.data) : "";
 
         const secretKey = bs58.decode(this.config.get("secretKey") as string);
-        const message = `${timestamp}${method}${requestPath}${body}`;
+        // Ensure key is 32 bytes (ed25519 private key length)
+        if (secretKey.length !== 32) {
+          throw new Error(
+            `Invalid secret key length: ${secretKey.length} bytes. Ed25519 private key must be 32 bytes.`,
+          );
+        }
 
         // Generate signature using ed25519 algorithm
+        const message = `${timestamp}${method}${requestPath}${body}`;
         const signatureBuffer = Buffer.from(ed.sign(new TextEncoder().encode(message), secretKey));
 
         // Encode signature in base64 url-safe format
@@ -90,11 +90,9 @@ export class WoofiExchange extends ExchangeConnector {
       .filter((t): t is TokenSymbol => t !== null);
   }
 
-  public async getPrice(
-    tokens?: TokenSymbol[],
-  ): Promise<{ [token: string]: { mark_price: number; index_price: number } }> {
+  public async getTokenPrice(tokens?: TokenSymbol[]): Promise<Record<TokenSymbol, TokenPrice>> {
     try {
-      const prices: { [token: string]: { mark_price: number; index_price: number } } = {};
+      const result: Record<TokenSymbol, TokenPrice> = {};
 
       // Get all tickers
       const response = await this.client.get("/v1/public/futures");
@@ -113,7 +111,7 @@ export class WoofiExchange extends ExchangeConnector {
           const tokenTicker = tickersData.rows.find((ticker) => ticker.symbol === symbol);
 
           if (tokenTicker) {
-            prices[token] = {
+            result[token] = {
               mark_price: parseFloat(tokenTicker.mark_price),
               index_price: parseFloat(tokenTicker.index_price),
             };
@@ -123,10 +121,49 @@ export class WoofiExchange extends ExchangeConnector {
         }
       }
 
-      return prices;
+      return result;
     } catch (error) {
       console.error("Error fetching Orderly prices:", error);
       throw new Error("Failed to fetch prices from Orderly");
+    }
+  }
+
+  public async getTokenInfo(tokens?: [TokenSymbol]): Promise<Record<TokenSymbol, TokenInfo>> {
+    try {
+      const result: Record<TokenSymbol, TokenInfo> = {};
+
+      const symbol = tokens && tokens.length > 1 ? `PERP_${tokens[0]}_USDC` : "";
+      const response = await this.client.get(`/v1/public/info/${symbol}`);
+      const tickersData = response.data.data as { rows: any[] };
+
+      // If no tokens specified, extract all available tokens from tickers
+      const tokensToProcess = tokens || this.extractTokensFromTickers(tickersData.rows);
+
+      // For each requested token, find its price
+      for (const token of tokensToProcess) {
+        try {
+          // Orderly/Orderly uses format like PERP_BTC_USDC
+          const symbol = `PERP_${token}_USDC`;
+
+          // Find ticker for this token
+          const tokenTicker = tickersData.rows.find((ticker) => ticker.symbol === symbol);
+
+          if (tokenTicker) {
+            result[token] = {
+              base_min: parseFloat(tokenTicker.base_min),
+              base_max: parseFloat(tokenTicker.base_max),
+              base_tick: parseFloat(tokenTicker.base_tick),
+            };
+          }
+        } catch (error) {
+          console.warn(`Failed to get info for ${token} on Orderly:`, error);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error fetching Orderly infos:", error);
+      throw new Error("Failed to fetch infos from Orderly");
     }
   }
 
@@ -134,7 +171,7 @@ export class WoofiExchange extends ExchangeConnector {
     try {
       const fundingRates: FundingRateData[] = [];
 
-      const prices = await this.getPrice(tokens);
+      const prices = await this.getTokenPrice(tokens);
 
       // Get all predicted funding rates
       const response = await this.client.get("/v1/public/funding_rates");
@@ -164,7 +201,7 @@ export class WoofiExchange extends ExchangeConnector {
               (tokenFunding.next_funding_time - tokenFunding.last_funding_rate_timestamp) / 3600_000; // in hours
 
             fundingRates.push({
-              exchange: "orderly",
+              exchange: this.name,
               token,
               fundingRate,
               nextFunding,
@@ -205,19 +242,32 @@ export class WoofiExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string> {
+  public async openPosition(order: OrderData): Promise<string> {
+    const { token, side, size } = order;
     try {
-      const symbol = `PERP_${token}_USDC`;
-      const orderSide = side === "long" ? "BUY" : "SELL";
+      const infos = await this.getTokenInfo([token]);
+      if (size < infos[token].base_min || size > infos[token].base_max)
+        throw new Error(
+          `Order size ${size} out of bounds for ${token} on Orderly: min ${infos[token].base_min}, max ${infos[token].base_max}`,
+        );
+      // (side - infos[token].base_min) % infos[token].base_tick should equal to zero
+      const min = infos[token].base_min;
+      const tick = infos[token].base_tick;
+      const diff = size - min;
+      const rounded_diff = Math.round(diff / tick) * tick;
+      const order_quantity = min + rounded_diff;
 
       const orderData = {
-        symbol,
+        symbol: `PERP_${token}_USDC`,
         order_type: "MARKET",
-        side: orderSide,
-        order_amount: size,
+        side: side === OrderSide.LONG ? "BUY" : "SELL",
+        order_quantity,
       };
       console.log("Orderly openPosition orderData:", orderData);
-      const response = await this.client.post("/v1/order", orderData);
+      const response = await this.client.post("/v1/order", orderData).catch((reason: any) => {
+        console.error(JSON.stringify(reason));
+        throw reason;
+      });
 
       if (response.data.success && response.data.data?.order_id) {
         const orderId = response.data.data.order_id;

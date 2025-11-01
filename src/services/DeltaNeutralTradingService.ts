@@ -4,11 +4,11 @@ import {
   // DetailedArbitrageOpportunity,
   JobResult,
   RiskLevel,
-  TokenSymbol,
   UserSettings,
 } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { exchangesRegistry } from "./exchanges";
+import { OrderSide } from "./exchanges/ExchangeConnector";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
 
@@ -162,28 +162,28 @@ export class DeltaNeutralTradingService {
   /**
    * Ouvre une position delta-neutral
    */
-  public async _openPosition(userId: string, opportunity: any, size?: number): Promise<TradingResult> {
-    try {
-      const user = await User.findByPk(userId);
-      if (!user) {
-        throw new Error("User not found");
-      }
+  // public async _openPosition(userId: string, opportunity: any, size?: number): Promise<TradingResult> {
+  //   try {
+  //     const user = await User.findByPk(userId);
+  //     if (!user) {
+  //       throw new Error("User not found");
+  //     }
 
-      const settings = this.getUserTradingSettings(user);
-      const positionSize = size || Math.min(settings.maxPositionSize, opportunity.maxSize);
+  //     const settings = this.getUserTradingSettings(user);
+  //     const positionSize = size || Math.min(settings.maxPositionSize, opportunity.maxSize);
 
-      return await this.executeTrade(user, opportunity, {
-        ...settings,
-        maxPositionSize: positionSize,
-      });
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        opportunity,
-      };
-    }
-  }
+  //     return await this.executeTrade(user, opportunity, {
+  //       ...settings,
+  //       maxPositionSize: positionSize,
+  //     });
+  //   } catch (error) {
+  //     return {
+  //       success: false,
+  //       error: error instanceof Error ? error.message : "Unknown error",
+  //       opportunity,
+  //     };
+  //   }
+  // }
 
   /**
    * Ferme une position delta-neutral
@@ -500,19 +500,30 @@ export class DeltaNeutralTradingService {
         );
       }
 
-      // Calculer la taille de la position
-      // const positionSize = Math.min(settings.maxPositionSize, opportunity.maxSize);
-      const positionSize = settings.maxPositionSize;
+      const price = (opportunity.longExchange.price + opportunity.shortExchange.price) / 2;
+      // make things simple for now, assume no leverage and equal split
+      const size = settings.maxPositionSize / (2 * price);
 
       console.log(
-        `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange}) Short(${opportunity.shortExchange}) Size: $${positionSize}`,
+        `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange.name}) Short(${opportunity.shortExchange.name}) Size: ${size} $${price}`,
       );
 
-      // Ouvrir la position long
-      const longOrderId = await longExchange.openPosition(opportunity.token as TokenSymbol, "long", positionSize);
-
-      // Ouvrir la position short
-      const shortOrderId = await shortExchange.openPosition(opportunity.token as TokenSymbol, "short", positionSize);
+      const longOrder = {
+        token: opportunity.token,
+        side: OrderSide.LONG,
+        price: opportunity.longExchange.price,
+        size,
+      };
+      const shortOrder = {
+        token: opportunity.token,
+        side: OrderSide.SHORT,
+        price: opportunity.shortExchange.price,
+        size,
+      };
+      const [longOrderId, shortOrderId] = await Promise.all([
+        longExchange.openPosition(longOrder),
+        shortExchange.openPosition(shortOrder),
+      ]);
 
       // Créer l'enregistrement de position
       const position = await Position.create({
@@ -524,7 +535,7 @@ export class DeltaNeutralTradingService {
         shortExchange: opportunity.shortExchange.name,
         longPositionId: longOrderId,
         shortPositionId: shortOrderId,
-        size: positionSize,
+        size,
         entryTimestamp: new Date(),
         entryFundingRates: {
           longRate: opportunity.longExchange.fundingRate,
@@ -552,7 +563,7 @@ export class DeltaNeutralTradingService {
         exchange: opportunity.longExchange.name, // Utiliser l'exchange principal
         token: opportunity.token,
         side: "DELTA_NEUTRAL",
-        size: positionSize,
+        size,
         price: (opportunity.longExchange.price + opportunity.longExchange.price) / 2,
         fee: 0, // À mettre à jour avec les frais réels
         timestamp: new Date(),

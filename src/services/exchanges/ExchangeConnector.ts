@@ -1,19 +1,44 @@
 import { ExchangeName, FundingRateData, TokenSymbol } from "@/types";
+import axios, { AxiosInstance } from "axios";
 import { default as config, IConfig } from "config";
 
-export abstract class ExchangeConnector {
-  public name!: ExchangeName;
-  public isEnabled: boolean = false;
-  public isConnected: boolean = false;
-  public abstract getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]>;
-  public abstract getAccountBalance(): Promise<Record<string, number>>;
-  public abstract openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string>;
-  public abstract closePosition(positionId: string): Promise<boolean>;
-  public abstract getPositionPnL(positionId: string): Promise<number>;
+export enum OrderSide {
+  LONG = "long",
+  SHORT = "short",
+}
 
-  protected config: IConfig;
-  protected baseUrl: string;
-  protected wsUrl: string;
+export type OrderData = {
+  token: TokenSymbol;
+  side: OrderSide;
+  size: number;
+  price: number;
+};
+
+export abstract class ExchangeConnector {
+  public readonly name: ExchangeName;
+  public readonly isEnabled: boolean = false;
+  public isConnected: boolean = false;
+
+  public getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
+    throw `${this.name} ExchangeConnector.getFundingRates not implemented`;
+  }
+  public getAccountBalance(): Promise<Record<string, number>> {
+    throw `${this.name} ExchangeConnector.getAccountBalance not implemented`;
+  }
+  public openPosition(_order: OrderData): Promise<string> {
+    throw `${this.name} ExchangeConnector.openPosition not implemented`;
+  }
+  public closePosition(_positionId: string): Promise<boolean> {
+    throw `${this.name} ExchangeConnector.closePosition not implemented`;
+  }
+  public getPositionPnL(_positionId: string): Promise<number> {
+    throw `${this.name} ExchangeConnector.getPositionPnL not implemented`;
+  }
+
+  protected readonly config: IConfig;
+  protected readonly baseUrl: string;
+  protected readonly wsUrl: string;
+  protected readonly client: AxiosInstance;
 
   constructor(name: ExchangeName) {
     this.name = name;
@@ -25,7 +50,14 @@ export abstract class ExchangeConnector {
       console.log(`ℹ️ ${this.name} Exchange is enabled`);
       // console.log(JSON.stringify(config.util.toObject()));
     }
-    this.baseUrl = this.config.get("baseUrl");
-    this.wsUrl = this.config.get("webSocketURL");
+    this.baseUrl = this.config.has("baseUrl") ? this.config.get("baseUrl") : "";
+    this.wsUrl = this.config.has("webSocketURL") ? this.config.get("webSocketURL") : "";
+    this.client = axios.create({
+      baseURL: this.baseUrl,
+      timeout: 10_000,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   }
 }

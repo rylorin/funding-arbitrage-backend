@@ -51,34 +51,6 @@ export interface FundingRateData {
   indexPrice?: number | undefined;
 }
 
-// export interface ArbitrageOpportunity {
-//   token: string;
-//   longExchange: ExchangeName;
-//   shortExchange: ExchangeName;
-//   longFundingRate: number;
-//   shortFundingRate: number;
-//   spreadAPR: number; // Annualized Percentage Rate of the spread (10 for 10%)
-//   confidence: number;
-//   minSize: number;
-//   maxSize: number;
-//   estimatedGas?: number;
-// }
-
-// export interface DetailedArbitrageOpportunity extends ArbitrageOpportunity {
-//   longMarkPrice: number;
-//   shortMarkPrice: number;
-//   riskLevel: RiskLevel;
-//   fundingFrequency: {
-//     longExchange: string;
-//     shortExchange: string;
-//   };
-//   nextFundingTimes: {
-//     longExchange: Date;
-//     shortExchange: Date;
-//   };
-//   priceDeviation: number; // Écart de prix entre les exchanges
-// }
-
 export interface PositionPnL {
   positionId: string;
   currentPnL: number;
@@ -117,7 +89,7 @@ export interface JobResult {
 }
 
 export type PositionStatus = "OPEN" | "CLOSED" | "ERROR" | "CLOSING";
-export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended";
+export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "mock";
 export type TokenSymbol = string; // e.g., 'BTC', 'ETH', 'SOL', etc.
 
 export interface ExchangeData {

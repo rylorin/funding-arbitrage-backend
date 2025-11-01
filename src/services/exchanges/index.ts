@@ -1,9 +1,9 @@
 import { ExchangeName } from "../../types/index";
 import { ExchangeConnector } from "./ExchangeConnector";
-import extendedExchange from "./ExtendedExchange";
-import hyperliquidExchange from "./HyperliquidExchange";
-import woofiExchange from "./OrderlyExchange";
-import vestExchange from "./VestExchange";
+import { extendedExchange } from "./ExtendedExchange";
+import { hyperliquidExchange } from "./HyperliquidExchange";
+import { woofiExchange as orderlyExchange } from "./OrderlyExchange";
+import { vestExchange } from "./VestExchange";
 
 // Export all exchange connectors
 export { ExtendedExchange, extendedExchange } from "./ExtendedExchange";
@@ -14,7 +14,7 @@ export { VestExchange, vestExchange } from "./VestExchange";
 // Export types
 export type { ExchangeConnector } from "../../types/index";
 
-export const exchanges: ExchangeConnector[] = [extendedExchange, hyperliquidExchange, vestExchange, woofiExchange];
+export const exchanges: ExchangeConnector[] = [extendedExchange, hyperliquidExchange, vestExchange, orderlyExchange];
 // export const exchangesRegistry: Record<string, ExchangeConnector> = {
 //   extended: extendedExchange,
 //   hyperliquid: hyperliquidExchange,

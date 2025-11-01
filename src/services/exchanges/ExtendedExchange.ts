@@ -1,6 +1,7 @@
-import axios, { AxiosInstance } from "axios";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
+import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types";
+import { generateNonce, generateOrderSignature, OrderMessage, StarknetSignatureError } from "../../utils/starknet";
+import { OrderData, OrderSide } from "./ExchangeConnector";
 
 interface ExtendedMarketStats {
   dailyVolume: string;
@@ -39,24 +40,21 @@ interface ExtendedMarketsResponse {
 }
 
 export class ExtendedExchange extends ExchangeConnector {
-  private client: AxiosInstance;
   private ws: WebSocket | null = null;
 
   constructor() {
     super("extended");
 
-    this.client = axios.create({
-      baseURL: this.baseUrl,
-      timeout: 10000,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
     // Add API key if available
     if (this.config.has("apiKey")) {
       this.client.defaults.headers["X-Api-Key"] = this.config.get("apiKey");
     }
+
+    // Initialize Starknet signing capability
+    this.initializeStarknetSigning();
+
+    // Add request interceptor for authenticated endpoints
+    this.client.interceptors.request.use(this.signRequest.bind(this));
 
     this.testConnection();
   }
@@ -114,7 +112,7 @@ export class ExtendedExchange extends ExchangeConnector {
             const nextFunding = new Date(market.marketStats.nextFundingRate);
 
             fundingRates.push({
-              exchange: "extended",
+              exchange: this.name,
               token,
               fundingRate,
               fundingFrequency: this.config.get("fundingFrequency"), // in hours
@@ -136,10 +134,45 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
+  /**
+   * Initialize Starknet signing capability
+   */
+  private initializeStarknetSigning(): void {
+    try {
+      // Validate required configuration parameters
+      if (!this.config.has("stark-key-private")) {
+        throw new Error("Missing Starknet private key configuration");
+      }
+      if (!this.config.has("stark-key-public")) {
+        throw new Error("Missing Starknet public key configuration");
+      }
+      if (!this.config.has("vault")) {
+        throw new Error("Missing vault configuration");
+      }
+      if (!this.config.has("client-id")) {
+        throw new Error("Missing client ID configuration");
+      }
+
+      console.log("✅ Extended Starknet signing initialized");
+    } catch (error) {
+      console.error("❌ Failed to initialize Starknet signing:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign requests to authenticated endpoints
+   */
+  private signRequest(config: any): any {
+    // For now, only sign order-related requests
+    // Additional authentication logic can be added here for other endpoints
+    return config;
+  }
+
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
       // Extended requires Stark signature for private endpoints
-      // For now, return empty object as we don't have user wallet integration
+      // TODO: Implement authenticated balance retrieval
       console.warn("Extended account balance requires Stark signature authentication");
       return {};
     } catch (error) {
@@ -148,7 +181,8 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(token: TokenSymbol, side: "long" | "short", size: number): Promise<string> {
+  public async openPosition(order: OrderData): Promise<string> {
+    const { token, side, size, price } = order;
     try {
       if (!this.isConnected) {
         throw new Error("Extended exchange is not connected");
@@ -163,15 +197,40 @@ export class ExtendedExchange extends ExchangeConnector {
       const symbol = `${token}-USD`;
 
       // Convert side to Extended format (BUY/SELL)
-      const orderSide = side === "long" ? "BUY" : "SELL";
+      const orderSide = side === OrderSide.LONG ? "buy" : "sell";
 
-      // Prepare order data
-      const orderData = {
-        symbol,
+      // Generate unique nonce for this order
+      const nonce = generateNonce();
+
+      // Prepare order message for signing
+      const orderMessage: OrderMessage = {
+        id: `${token}-${this.name}-${nonce}`, // Unique client order ID
+        market: symbol,
+        type: "market", // Market order for immediate execution
         side: orderSide,
-        type: "MARKET", // Market order for immediate execution
-        quantity: size.toString(),
-        timestamp: Date.now(),
+        qty: size,
+        price: price * (side === OrderSide.LONG ? 1.001 : 0.999), // Slightly adjust price to ensure execution
+        timeInForce: "GTT",
+        expiryEpochMillis: Date.now() + 60 * 1_000, // Order valid for 60 seconds
+        fee: "0.0002",
+        selfTradeProtectionLevel: "ACCOUNT",
+        nonce,
+        vault: this.config.get("vault"),
+        clientId: this.config.get("client-id"),
+      };
+
+      // Generate Starknet signature
+      const settlement = generateOrderSignature(
+        orderMessage,
+        this.config.get("stark-key-private"),
+        this.config.get("stark-key-public"),
+        this.config.get("vault"),
+      );
+
+      // Prepare order data with signature
+      const orderData = {
+        ...orderMessage,
+        settlement,
       };
 
       // Make API request to place order with API key in headers
@@ -184,6 +243,12 @@ export class ExtendedExchange extends ExchangeConnector {
         throw new Error("Invalid response from Extended API");
       }
     } catch (error) {
+      if (error instanceof StarknetSignatureError) {
+        console.error(`Starknet signature error for ${token}:`, (error as StarknetSignatureError).message);
+        throw new Error(
+          `Failed to generate signature for ${side} position: ${(error as StarknetSignatureError).message}`,
+        );
+      }
       console.error(`Error opening Extended ${side} position for ${token}:`, error);
       throw new Error(
         `Failed to open ${side} position on Extended: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -283,4 +348,3 @@ export class ExtendedExchange extends ExchangeConnector {
 }
 
 export const extendedExchange = new ExtendedExchange();
-export default extendedExchange;

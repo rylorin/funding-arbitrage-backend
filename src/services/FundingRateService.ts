@@ -3,47 +3,7 @@ import { FundingRateData, JobResult } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { exchanges } from "./exchanges";
 
-// interface ExchangeConnector {
-//   name: string;
-//   connector: any;
-//   // isConnected: boolean;
-//   getFundingRates(): Promise<FundingRateData[]>;
-// }
-
 export class FundingRateService {
-  // private exchanges: ExchangeConnector[] = [
-  //   {
-  //     name: "vest",
-  //     connector: vestExchange,
-  //     // isConnected: vestExchange?.isConnected || false,
-  //     getFundingRates: vestExchange?.isConnected
-  //       ? async () => vestExchange!.getFundingRates()
-  //       : () => Promise.resolve([]),
-  //   },
-  //   {
-  //     name: "hyperliquid",
-  //     connector: hyperliquidExchange,
-  //     // isConnected: hyperliquidExchange?.isConnected || false,
-  //     getFundingRates: hyperliquidExchange?.isConnected
-  //       ? async () => hyperliquidExchange!.getFundingRates()
-  //       : () => Promise.resolve([]),
-  //   },
-  //   {
-  //     name: "orderly",
-  //     connector: woofiExchange,
-  //     // isConnected: woofiExchange?.isConnected || false,
-  //     getFundingRates: woofiExchange?.isConnected
-  //       ? async () => woofiExchange!.getFundingRates()
-  //       : () => Promise.resolve([]),
-  //   },
-  //   {
-  //     name: "extended",
-  //     connector: extendedExchange,
-  //     // isConnected: extendedExchange.isConnected,
-  //     getFundingRates: async () => extendedExchange.getFundingRates(),
-  //   },
-  // ];
-
   /**
    * Met à jour les funding rates de tous les exchanges connectés
    */
