@@ -1,7 +1,7 @@
 import { jobManager } from "@/jobs";
 import { connectDatabase } from "../config/database";
 import { JobResult } from "../types/index";
-import { extendedExchange, hyperliquidExchange, vestExchange, woofiExchange } from "./exchanges/index";
+import { exchangesRegistry } from "./exchanges";
 
 interface HealthStatus {
   status: "healthy" | "warning" | "unhealthy";
@@ -37,13 +37,6 @@ interface HealthStatus {
 export class HealthService {
   private isRunning = false;
   private lastHealthStatus: HealthStatus | null = null;
-
-  private exchanges = {
-    vest: vestExchange,
-    hyperliquid: hyperliquidExchange,
-    orderly: woofiExchange,
-    extended: extendedExchange,
-  };
 
   public async executeHealthCheck(): Promise<JobResult> {
     const startTime = Date.now();
@@ -149,11 +142,10 @@ export class HealthService {
   > {
     const results: any = {};
 
-    for (const [exchangeName, exchange] of Object.entries(this.exchanges)) {
+    for (const exchange of exchangesRegistry.getAllExchanges()) {
+      const exchangeName = exchange.name;
       try {
-        // For each exchange, check if it's connected and can fetch basic data
-        const isConnected = exchange?.isConnected;
-
+        const isConnected = await exchange.testConnection();
         if (isConnected) {
           // Try to fetch funding rates for a basic token to verify API connectivity
           await exchange.getFundingRates(["BTC"]);

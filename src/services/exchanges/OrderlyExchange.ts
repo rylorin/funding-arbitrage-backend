@@ -16,7 +16,7 @@ interface WoofiFundingRate {
 type TokenInfo = { base_min: number; base_max: number; base_tick: number };
 type TokenPrice = { mark_price: number; index_price: number };
 
-export class WoofiExchange extends ExchangeConnector {
+export class OrderlyExchange extends ExchangeConnector {
   private ws: WebSocket | null = null;
 
   constructor() {
@@ -61,21 +61,19 @@ export class WoofiExchange extends ExchangeConnector {
       }
       return config;
     });
-
-    if (this.isEnabled) this.testConnection();
   }
 
-  private async testConnection(): Promise<void> {
+  public async testConnection(): Promise<number> {
     try {
       // Test connection with public endpoint - get exchange info
       const response = await this.client.get("/v1/public/info");
-      this.isConnected = true;
-      console.log(
-        `✅ Orderly (Orderly) Exchange connected: ${response.data.data?.rows?.length || 0} markets available`,
-      );
+      const count = response.data.data?.rows?.length || 0;
+
+      console.log(`✅ Orderly Exchange connected: ${count} markets available`);
+      return count;
     } catch (error) {
-      console.error("❌ Failed to connect to Orderly (Orderly) Exchange:", error);
-      this.isConnected = false;
+      console.error("❌ Failed to connect to Orderly Exchange:", error);
+      return 0;
     }
   }
 
@@ -390,5 +388,5 @@ export class WoofiExchange extends ExchangeConnector {
   }
 }
 
-export const woofiExchange = new WoofiExchange();
-export default woofiExchange;
+export const orderlyExchange = new OrderlyExchange();
+export default orderlyExchange;

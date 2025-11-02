@@ -22,22 +22,21 @@ export class HyperliquidExchange extends ExchangeConnector {
 
   constructor() {
     super("hyperliquid");
-
-    this.testConnection();
   }
 
-  private async testConnection(): Promise<void> {
+  public async testConnection(): Promise<number> {
     try {
       // Test connection with a simple info request (get all mid prices)
       const response = await this.client.post("/info", {
         type: "allMids",
       });
+      const count = Object.keys(response.data || {}).length;
 
-      this.isConnected = true;
-      console.log(`✅ Hyperliquid Exchange connected: ${Object.keys(response.data || {}).length} markets available`);
+      console.log(`✅ Hyperliquid Exchange connected: ${count} markets available`);
+      return count;
     } catch (error) {
       console.error("❌ Failed to connect to Hyperliquid Exchange:", error);
-      this.isConnected = false;
+      return 0;
     }
   }
 

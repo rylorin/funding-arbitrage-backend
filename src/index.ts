@@ -17,6 +17,8 @@ import authRoutes from "./routes/auth";
 import dashboardRoutes from "./routes/dashboard";
 import exchangeRoutes from "./routes/exchanges";
 import positionRoutes from "./routes/positions";
+import { ExchangesRegistry, extendedExchange, hyperliquidExchange, vestExchange } from "./services/exchanges";
+import orderlyExchange from "./services/exchanges/OrderlyExchange";
 
 // Initialize environment variables
 dotenv();
@@ -128,7 +130,23 @@ async function startServer(_config: IConfig): Promise<void> {
     await connectDatabase();
 
     // Create HTTP server
+    console.log("🔌 Setting up REST server...");
     const httpServer = createServer(app);
+
+    // Setting up exchanges connections
+    console.log("🔌 Setting up exchanges connections...");
+    await [extendedExchange, hyperliquidExchange, vestExchange, orderlyExchange].reduce(async (p, exchange) => {
+      p.then(async () => {
+        if (exchange.isEnabled) {
+          console.log(`🔗 Connecting to ${exchange.name} exchange...`);
+          ExchangesRegistry.registerExchange(exchange);
+          return exchange.testConnection();
+        } else {
+          console.log(`⚠️ ${exchange.name} exchange is disabled, skipping connection`);
+          return Promise.resolve();
+        }
+      });
+    }, Promise.resolve());
 
     // Initialize WebSocket server
     console.log("🔌 Setting up WebSocket server...");

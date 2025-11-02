@@ -53,23 +53,27 @@ export class ExtendedExchange extends ExchangeConnector {
     // Initialize Starknet signing capability
     this.initializeStarknetSigning();
 
-    // Add request interceptor for authenticated endpoints
-    this.client.interceptors.request.use(this.signRequest.bind(this));
-
-    this.testConnection();
+    // Add request interceptor for signing private requests
+    this.client.interceptors.request.use((config) => {
+      if (!config.url?.includes("/info/")) {
+        config = this.signRequest(config);
+      }
+      return config;
+    });
   }
 
-  private async testConnection(): Promise<void> {
+  public async testConnection(): Promise<number> {
     try {
       // Test connection with public endpoint - get markets
       const response = await this.client.get("/api/v1/info/markets");
       const marketsResponse = response.data as ExtendedMarketsResponse;
+      const count = marketsResponse.data?.length || 0;
 
-      this.isConnected = true;
-      console.log(`✅ Extended Exchange connected: ${marketsResponse.data?.length || 0} markets available`);
+      console.log(`✅ Extended Exchange connected: ${count} markets available`);
+      return count;
     } catch (error) {
       console.error("❌ Failed to connect to Extended Exchange:", error);
-      this.isConnected = false;
+      return 0;
     }
   }
 
@@ -184,10 +188,6 @@ export class ExtendedExchange extends ExchangeConnector {
   public async openPosition(order: OrderData): Promise<string> {
     const { token, side, size, price } = order;
     try {
-      if (!this.isConnected) {
-        throw new Error("Extended exchange is not connected");
-      }
-
       const apiKey = this.config.get("apiKey");
       if (!apiKey) {
         throw new Error("Extended API key not configured");
@@ -343,7 +343,6 @@ export class ExtendedExchange extends ExchangeConnector {
       this.ws.close();
       this.ws = null;
     }
-    this.isConnected = false;
   }
 }
 

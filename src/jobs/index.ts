@@ -23,11 +23,11 @@ export class JobManager {
       job.start();
     });
 
-    Object.values(this.jobs).forEach(async (job) => {
-      console.log(`▶️ Initial run: ${job.constructor.name}`);
-      await job.execute();
-    });
-    Object.values(this.jobs).reduce(async (p, job) => p.then(async () => job.execute().then()), Promise.resolve());
+    // Object.values(this.jobs).forEach(async (job) => {
+    //   console.log(`▶️ Initial run: ${job.constructor.name}`);
+    //   await job.execute();
+    // });
+    // Object.values(this.jobs).reduce(async (p, job) => p.then(async () => job.execute().then()), Promise.resolve());
 
     console.log("✅ All background jobs started");
   }

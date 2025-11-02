@@ -6,26 +6,6 @@ class MockExchange extends ExchangeConnector {
   constructor() {
     super("mock");
   }
-
-  // async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
-  //   return [];
-  // }
-
-  // async getAccountBalance(): Promise<{ [token: string]: number }> {
-  //   return {};
-  // }
-
-  // async openPosition(_order: any): Promise<string> {
-  //   return "12345";
-  // }
-
-  // async closePosition(_positionId: string): Promise<boolean> {
-  //   return true;
-  // }
-
-  // async getPositionPnL(_positionId: string): Promise<number> {
-  //   return 0;
-  // }
 }
 
 describe("ExchangeConnector", () => {

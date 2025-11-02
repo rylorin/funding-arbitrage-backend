@@ -11,7 +11,7 @@
     "webSocketURL": "wss://api.hyperliquid.xyz/ws"
   },
   "vest": {
-    "baseUrl": "https://server-dev.hz.vestmarkets.com/v2",
+    "disable-baseUrl": "https://server-dev.hz.vestmarkets.com/v2",
     "webSocketURL": "wss://ws.vest.exchange"
   },
   "orderly": {

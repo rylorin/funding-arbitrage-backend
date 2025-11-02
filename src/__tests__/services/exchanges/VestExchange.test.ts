@@ -1,31 +1,31 @@
-import { VestExchange, vestExchange } from "../../../services/exchanges/VestExchange";
+import { OrderData, OrderSide } from "../../../services/exchanges/ExchangeConnector";
+import { VestExchange as Exchange, vestExchange as exchange } from "../../../services/exchanges/VestExchange";
 
-describe("ExtendedExchange", () => {
-  beforeEach(() => {
+describe("VestExchange", () => {
+  beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
+
+    await exchange.testConnection();
   });
 
   it("should initialize correctly", () => {
-    expect(vestExchange).toBeDefined();
-    expect(vestExchange.name).toBe("vest");
+    expect(exchange).toBeDefined();
+    expect(exchange.name).toBe("vest");
   });
 
   it("should have proper base class structure", () => {
-    expect(vestExchange).toBeInstanceOf(VestExchange);
+    expect(exchange).toBeInstanceOf(Exchange);
   });
 
-  describe("Starknet Signature Integration", () => {
-    // const _mockOrder: OrderData = {
-    //   token: "BTC",
-    //   side: OrderSide.LONG,
-    //   size: 1,
-    //   price: 50000,
-    // };
-
-    it("should generate nonce correctly", () => {
-      // This test is more for the utility function, but we can verify it's accessible
-      expect(typeof vestExchange).toBe("object");
-    });
+  test("Place Order", async () => {
+    const sampleOrder: OrderData = {
+      token: "BTC",
+      side: OrderSide.LONG,
+      size: 1,
+      price: 50_000,
+    };
+    const orderId = await exchange.openPosition(sampleOrder);
+    expect(orderId).toBe("extended-order-123");
   });
 });

@@ -1,7 +1,7 @@
 import { FundingRate } from "../models/index";
-import { FundingRateData, JobResult } from "../types/index";
+import { ExchangeName, FundingRateData, JobResult } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
-import { exchanges } from "./exchanges";
+import { exchangesRegistry } from "./exchanges";
 
 export class FundingRateService {
   /**
@@ -16,13 +16,8 @@ export class FundingRateService {
       console.log("🔄 Starting funding rate update...");
 
       // Mettre à jour chaque exchange
-      for (const exchange of exchanges) {
+      for (const exchange of exchangesRegistry.getAllExchanges()) {
         try {
-          if (!exchange.isConnected) {
-            errors.push(`${exchange.name} exchange not connected`);
-            continue;
-          }
-
           const exchangeRates = await exchange.getFundingRates();
           await this.saveRatesToDatabase(exchangeRates, updatedRates, errors);
 
@@ -80,9 +75,9 @@ export class FundingRateService {
   /**
    * Met à jour les funding rates d'un exchange spécifique
    */
-  public async updateExchangeFundingRates(exchangeName: string): Promise<JobResult> {
+  public async updateExchangeFundingRates(exchangeName: ExchangeName): Promise<JobResult> {
     const startTime = Date.now();
-    const exchange = exchanges.find((e) => e.name === exchangeName);
+    const exchange = exchangesRegistry.getExchange(exchangeName);
 
     if (!exchange) {
       return {

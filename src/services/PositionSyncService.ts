@@ -3,7 +3,7 @@ import { JobResult, PositionPnL } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { extendedExchange } from "./exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "./exchanges/HyperliquidExchange";
-import { woofiExchange } from "./exchanges/OrderlyExchange";
+import { orderlyExchange } from "./exchanges/OrderlyExchange";
 import { vestExchange } from "./exchanges/VestExchange";
 
 interface PositionMetrics {
@@ -25,7 +25,7 @@ export class PositionSyncService {
   private exchanges = {
     vest: vestExchange,
     hyperliquid: hyperliquidExchange,
-    orderly: woofiExchange,
+    orderly: orderlyExchange,
     extended: extendedExchange,
   };
 

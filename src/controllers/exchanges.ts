@@ -4,7 +4,7 @@ import { AuthenticatedRequest } from "../middleware/auth";
 import { FundingRate } from "../models/index";
 import { extendedExchange } from "../services/exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "../services/exchanges/HyperliquidExchange";
-import { woofiExchange } from "../services/exchanges/OrderlyExchange";
+import { orderlyExchange } from "../services/exchanges/OrderlyExchange";
 import { vestExchange } from "../services/exchanges/VestExchange";
 import { TokenSymbol } from "../types/index";
 
@@ -206,7 +206,7 @@ export const getExchangeStatus = async (_req: Request, res: Response): Promise<v
       },
       {
         name: "orderly",
-        isConnected: woofiExchange.isConnected,
+        isConnected: orderlyExchange.isConnected,
         lastUpdate: new Date(),
         // supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC'],
       },
@@ -303,9 +303,9 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
     }
 
     // Update Orderly rates
-    if (woofiExchange.isConnected) {
+    if (orderlyExchange.isConnected) {
       try {
-        const woofiRates = await woofiExchange.getFundingRates(tokensToUpdate);
+        const woofiRates = await orderlyExchange.getFundingRates(tokensToUpdate);
         for (const rate of woofiRates) {
           const upsertData: any = {
             exchange: rate.exchange as any,

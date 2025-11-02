@@ -1,7 +1,20 @@
-import crypto from "crypto";
+import { generateOrderSignature } from "@/utils/vest";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
-import { OrderData } from "./ExchangeConnector";
+import { OrderData, OrderSide } from "./ExchangeConnector";
+
+type TokenInfo = {
+  symbol: string;
+  displayName: string;
+  base: TokenSymbol;
+  quote: TokenSymbol;
+  sizeDecimals: number;
+  priceDecimals: number;
+  initMarginRatio: number;
+  maintMarginRatio: number;
+  takerFee: number;
+  isolated: boolean;
+};
 
 export class VestExchange extends ExchangeConnector {
   private ws: WebSocket | null = null;
@@ -11,32 +24,34 @@ export class VestExchange extends ExchangeConnector {
 
     this.client.interceptors.request.use((config) => {
       if (config.data || config.method === "get") {
-        const timestamp = Date.now().toString();
-        const signature = this.generateSignature(config.method!, config.url!, config.data || "", timestamp);
-
         config.headers = config.headers || {};
-        (config.headers as any)["X-Timestamp"] = timestamp;
-        (config.headers as any)["X-Signature"] = signature;
+        (config.headers as any)["X-API-KEY"] = this.config.get("apiKey");
       }
       return config;
     });
-
-    this.testConnection();
   }
 
-  private generateSignature(method: string, path: string, body: string, timestamp: string): string {
-    const message = `${timestamp}${method.toUpperCase()}${path}${body}`;
-    return crypto.createHmac("sha256", this.config.get("secretKey")).update(message).digest("hex");
-  }
-
-  private async testConnection(): Promise<void> {
+  public async testConnection(): Promise<number> {
     try {
       const response = await this.client.get("/exchangeInfo");
-      this.isConnected = true;
-      console.log(`✅ Vest Exchange connected: ${response.data.symbols?.length || 0} pairs available`);
+      const count = response.data.symbols?.length || 0;
+
+      console.log(`✅ Vest Exchange connected: ${count} pairs available`);
+      return count;
     } catch (error) {
       console.error("❌ Failed to connect to Vest Exchange:", error);
-      this.isConnected = false;
+      return 0;
+    }
+  }
+
+  public async getTokenInfo(token: TokenSymbol): Promise<TokenInfo> {
+    try {
+      const response = await this.client.get(`/exchangeInfo?symbols=${token}-PERP`);
+      const info: TokenInfo = response.data.symbols[0];
+      return info;
+    } catch (error) {
+      console.error("❌ Failed to retrive token info:", error);
+      throw new Error("Failed to fetch token info from Vest");
     }
   }
 
@@ -108,20 +123,30 @@ export class VestExchange extends ExchangeConnector {
   }
 
   public async openPosition(order: OrderData): Promise<string> {
-    const { token, side, size } = order;
+    const { token, side, size, price } = order;
     try {
       const symbol = `${token}-PERP`;
-      const isBuy = side === "long";
+      const isBuy = side === OrderSide.LONG;
+      const time = Date.now();
 
-      const orderData = {
+      const info = await this.getTokenInfo(token);
+
+      const order = {
+        time,
+        nonce: time,
         symbol,
-        size: size.toString(),
         isBuy,
-        orderType: "market",
-        timeInForce: "ioc", // Immediate or Cancel
+        size: size.toFixed(info.sizeDecimals),
+        orderType: "MARKET",
+        limitPrice: price.toFixed(info.priceDecimals),
+        reduceOnly: false,
+        timeInForce: "GTC",
       };
 
-      const response = await this.client.post("/orders", orderData);
+      const privateKey: string = this.config.get<string>("secretKey");
+      const signature = generateOrderSignature(order, privateKey);
+
+      const response = await this.client.post("/orders", { order, recvWindow: 60000, signature });
 
       if (response.data.orderId || response.data.id) {
         const orderId = response.data.orderId || response.data.id;
@@ -131,7 +156,12 @@ export class VestExchange extends ExchangeConnector {
 
       throw new Error(`Failed to open position: ${response.data.error || "Unknown error"}`);
     } catch (error) {
-      console.error(`Error opening Vest ${side} position for ${token}:`, error);
+      console.error(
+        `Error opening Vest ${side} position for ${token}:`,
+        error,
+        JSON.stringify((error as any).response?.data),
+        (error as any).response?.data.detail.msg,
+      );
       throw new Error(`Failed to open ${side} position on Vest`);
     }
   }

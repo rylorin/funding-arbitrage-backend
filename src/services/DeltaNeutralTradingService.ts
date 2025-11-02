@@ -197,8 +197,8 @@ export class DeltaNeutralTradingService {
         throw new Error("Position not found");
       }
 
-      const longExchange = exchangesRegistry[position.longExchange];
-      const shortExchange = exchangesRegistry[position.shortExchange];
+      const longExchange = exchangesRegistry.getExchange(position.longExchange);
+      const shortExchange = exchangesRegistry.getExchange(position.shortExchange);
 
       let longClosed = false;
       let shortClosed = false;
@@ -484,8 +484,8 @@ export class DeltaNeutralTradingService {
     settings: UserSettings,
   ): Promise<TradingResult> {
     try {
-      const longExchange = exchangesRegistry[opportunity.longExchange.name];
-      const shortExchange = exchangesRegistry[opportunity.shortExchange.name];
+      const longExchange = exchangesRegistry.getExchange(opportunity.longExchange.name);
+      const shortExchange = exchangesRegistry.getExchange(opportunity.shortExchange.name);
 
       if (!longExchange || !shortExchange) {
         console.log(
