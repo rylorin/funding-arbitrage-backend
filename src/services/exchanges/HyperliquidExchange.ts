@@ -27,7 +27,7 @@ export class HyperliquidExchange extends ExchangeConnector {
   public async testConnection(): Promise<number> {
     try {
       // Test connection with a simple info request (get all mid prices)
-      const response = await this.client.post("/info", {
+      const response = await this.axiosClient.post("/info", {
         type: "allMids",
       });
       const count = Object.keys(response.data || {}).length;
@@ -53,7 +53,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     try {
       const prices: { [token: string]: number } = {};
 
-      const response = await this.client.post("/info", {
+      const response = await this.axiosClient.post("/info", {
         type: "allMids",
       });
 
@@ -81,7 +81,7 @@ export class HyperliquidExchange extends ExchangeConnector {
       const prices = await this.getPrice(tokens);
 
       // Get predicted funding rates for current period
-      const predictedResponse = await this.client.post("/info", {
+      const predictedResponse = await this.axiosClient.post("/info", {
         type: "predictedFundings",
       });
 
@@ -114,7 +114,7 @@ export class HyperliquidExchange extends ExchangeConnector {
             });
           } else {
             // If no predicted funding, try to get the latest historical funding
-            const historyResponse = await this.client.post("/info", {
+            const historyResponse = await this.axiosClient.post("/info", {
               type: "fundingHistory",
               coin: token,
               startTime: Date.now() - 24 * 60 * 60 * 1000, // Last 24 hours

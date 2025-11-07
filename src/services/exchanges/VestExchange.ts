@@ -22,7 +22,7 @@ export class VestExchange extends ExchangeConnector {
   constructor() {
     super("vest");
 
-    this.client.interceptors.request.use((config) => {
+    this.axiosClient.interceptors.request.use((config) => {
       if (config.data || config.method === "get") {
         config.headers = config.headers || {};
         (config.headers as any)["X-API-KEY"] = this.config.get("apiKey");
@@ -33,7 +33,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async testConnection(): Promise<number> {
     try {
-      const response = await this.client.get("/exchangeInfo");
+      const response = await this.axiosClient.get("/exchangeInfo");
       const count = response.data.symbols?.length || 0;
 
       console.log(`✅ Vest Exchange connected: ${count} pairs available`);
@@ -46,7 +46,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async getTokenInfo(token: TokenSymbol): Promise<TokenInfo> {
     try {
-      const response = await this.client.get(`/exchangeInfo?symbols=${token}-PERP`);
+      const response = await this.axiosClient.get(`/exchangeInfo?symbols=${token}-PERP`);
       const info: TokenInfo = response.data.symbols[0];
       return info;
     } catch (error) {
@@ -60,7 +60,7 @@ export class VestExchange extends ExchangeConnector {
       const fundingRates: FundingRateData[] = [];
 
       // Get all tickers which contain funding rates
-      const response = await this.client.get("/ticker/latest");
+      const response = await this.axiosClient.get("/ticker/latest");
       const tickerData = response.data.tickers;
 
       // If no tokens specified, extract all available tokens from tickers
@@ -105,7 +105,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
-      const response = await this.client.get("/account");
+      const response = await this.axiosClient.get("/account");
       const balances: { [token: string]: number } = {};
 
       if (response.data.balances) {
@@ -143,10 +143,10 @@ export class VestExchange extends ExchangeConnector {
         timeInForce: "GTC",
       };
 
-      const privateKey: string = this.config.get<string>("secretKey");
+      const privateKey: string = this.config.get<string>("privateKey");
       const signature = generateOrderSignature(order, privateKey);
 
-      const response = await this.client.post("/orders", { order, recvWindow: 60000, signature });
+      const response = await this.axiosClient.post("/orders", { order, signature });
 
       if (response.data.orderId || response.data.id) {
         const orderId = response.data.orderId || response.data.id;
@@ -168,7 +168,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async closePosition(positionId: string): Promise<boolean> {
     try {
-      const response = await this.client.post("/orders/cancel", {
+      const response = await this.axiosClient.post("/orders/cancel", {
         orderId: positionId,
       });
 
@@ -195,7 +195,7 @@ export class VestExchange extends ExchangeConnector {
   public async getPositionPnL(positionId: string): Promise<number> {
     try {
       // Get account info which includes positions
-      const response = await this.client.get("/account");
+      const response = await this.axiosClient.get("/account");
 
       if (response.data.positions) {
         const position = response.data.positions.find((pos: any) => pos.id === positionId);
@@ -213,7 +213,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async getAllPositions(): Promise<any[]> {
     try {
-      const response = await this.client.get("/account");
+      const response = await this.axiosClient.get("/account");
       return response.data.positions || [];
     } catch (error) {
       console.error("Error fetching Vest positions:", error);
@@ -227,7 +227,7 @@ export class VestExchange extends ExchangeConnector {
       if (symbol) params.symbol = symbol;
       if (limit) params.limit = limit;
 
-      const response = await this.client.get("/orders", { params });
+      const response = await this.axiosClient.get("/orders", { params });
       return response.data || [];
     } catch (error) {
       console.error("Error fetching Vest order history:", error);

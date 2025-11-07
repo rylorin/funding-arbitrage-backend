@@ -3,7 +3,7 @@
     "enabled": true
   },
   "extended": {
-    "baseUrl": "https://api.starknet.sepolia.extended.exchange/",
+    "disabled-baseUrl": "https://api.starknet.sepolia.extended.exchange/",
     "webSocketURL": "wss://api.starknet.extended.exchange/ws"
   },
   "hyperliquid": {
@@ -11,7 +11,7 @@
     "webSocketURL": "wss://api.hyperliquid.xyz/ws"
   },
   "vest": {
-    "disable-baseUrl": "https://server-dev.hz.vestmarkets.com/v2",
+    "disabled-baseUrl": "https://server-dev.hz.vestmarkets.com/v2",
     "webSocketURL": "wss://ws.vest.exchange"
   },
   "orderly": {

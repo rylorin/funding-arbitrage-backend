@@ -2,7 +2,7 @@
   "extended": {
     "enabled": true,
     "fundingFrequency": 1,
-    "baseUrl": "https://api.starknet.extended.exchange",
+    "baseUrl": "https://api.starknet.extended.exchange/",
     "webSocketURL": "wss://api.starknet.extended.exchange/ws"
   },
   "hyperliquid": {

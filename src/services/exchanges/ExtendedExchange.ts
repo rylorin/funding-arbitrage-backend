@@ -1,6 +1,14 @@
+import { FeesResponseSchema } from "@/extended/api/fees.schema";
+import { MarketsResponseSchema } from "@/extended/api/markets.schema";
+import { PlacedOrderResponseSchema } from "@/extended/api/orders.schema";
+import { StarknetDomainResponseSchema } from "@/extended/api/starknet.schema";
+import { Order } from "@/extended/models/order";
+import { createOrderContext } from "@/extended/utils/create-order-context";
+import { HexString } from "@/extended/utils/hex";
+import { Decimal, Long } from "@/extended/utils/number";
+import { roundToMinChange } from "@/extended/utils/round-to-min-change";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types";
-import { generateNonce, generateOrderSignature, OrderMessage, StarknetSignatureError } from "../../utils/starknet";
 import { OrderData, OrderSide } from "./ExchangeConnector";
 
 interface ExtendedMarketStats {
@@ -39,33 +47,24 @@ interface ExtendedMarketsResponse {
   data: ExtendedMarket[];
 }
 
+const SLIPPAGE = 0.0075;
+
 export class ExtendedExchange extends ExchangeConnector {
   private ws: WebSocket | null = null;
+  private starkPrivateKey: HexString;
+  private vaultId: string;
 
   constructor() {
     super("extended");
 
-    // Add API key if available
-    if (this.config.has("apiKey")) {
-      this.client.defaults.headers["X-Api-Key"] = this.config.get("apiKey");
-    }
-
-    // Initialize Starknet signing capability
-    this.initializeStarknetSigning();
-
-    // Add request interceptor for signing private requests
-    this.client.interceptors.request.use((config) => {
-      if (!config.url?.includes("/info/")) {
-        config = this.signRequest(config);
-      }
-      return config;
-    });
+    this.starkPrivateKey = this.config.get<HexString>("starkPrivateKey");
+    this.vaultId = this.config.get("vaultId");
   }
 
   public async testConnection(): Promise<number> {
     try {
       // Test connection with public endpoint - get markets
-      const response = await this.client.get("/api/v1/info/markets");
+      const response = await this.axiosClient.get("/api/v1/info/markets");
       const marketsResponse = response.data as ExtendedMarketsResponse;
       const count = marketsResponse.data?.length || 0;
 
@@ -92,7 +91,7 @@ export class ExtendedExchange extends ExchangeConnector {
       const fundingRates: FundingRateData[] = [];
 
       // Get all markets to find funding rates
-      const response = await this.client.get("/api/v1/info/markets");
+      const response = await this.axiosClient.get("/api/v1/info/markets");
       const marketsResponse = response.data as ExtendedMarketsResponse;
 
       // If no tokens specified, extract all available tokens from tickers
@@ -138,41 +137,6 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  /**
-   * Initialize Starknet signing capability
-   */
-  private initializeStarknetSigning(): void {
-    try {
-      // Validate required configuration parameters
-      if (!this.config.has("stark-key-private")) {
-        throw new Error("Missing Starknet private key configuration");
-      }
-      if (!this.config.has("stark-key-public")) {
-        throw new Error("Missing Starknet public key configuration");
-      }
-      if (!this.config.has("vault")) {
-        throw new Error("Missing vault configuration");
-      }
-      if (!this.config.has("client-id")) {
-        throw new Error("Missing client ID configuration");
-      }
-
-      console.log("✅ Extended Starknet signing initialized");
-    } catch (error) {
-      console.error("❌ Failed to initialize Starknet signing:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Sign requests to authenticated endpoints
-   */
-  private signRequest(config: any): any {
-    // For now, only sign order-related requests
-    // Additional authentication logic can be added here for other endpoints
-    return config;
-  }
-
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
       // Extended requires Stark signature for private endpoints
@@ -186,74 +150,120 @@ export class ExtendedExchange extends ExchangeConnector {
   }
 
   public async openPosition(order: OrderData): Promise<string> {
-    const { token, side, size, price } = order;
+    const { token, side, size } = order;
     try {
-      const apiKey = this.config.get("apiKey");
-      if (!apiKey) {
-        throw new Error("Extended API key not configured");
-      }
-
       // Extended uses format like BTC-USD, ETH-USD, SOL-USD
-      const symbol = `${token}-USD`;
+      const marketName = `${token}-USD`;
 
       // Convert side to Extended format (BUY/SELL)
-      const orderSide = side === OrderSide.LONG ? "buy" : "sell";
+      const orderSide = side === OrderSide.LONG ? "BUY" : "SELL";
 
-      // Generate unique nonce for this order
-      const nonce = generateNonce();
+      const market = await this.getMarket(marketName);
+      const fees = await this.getFees({ marketName });
+      const starknetDomain = await this.getStarknetDomain();
 
-      // Prepare order message for signing
-      const orderMessage: OrderMessage = {
-        id: `${token}-${this.name}-${nonce}`, // Unique client order ID
-        market: symbol,
-        type: "market", // Market order for immediate execution
+      // const orderSize = market.tradingConfig.minOrderSize;
+      const orderSize = Decimal(size);
+      const orderPrice = market.marketStats.askPrice.times(1 + SLIPPAGE);
+
+      const ctx = createOrderContext({
+        market,
+        fees,
+        starknetDomain,
+        vaultId: this.vaultId,
+        starkPrivateKey: this.starkPrivateKey,
+      });
+
+      const order = Order.create({
+        marketName: marketName,
+        orderType: "MARKET",
         side: orderSide,
-        qty: size,
-        price: price * (side === OrderSide.LONG ? 1.001 : 0.999), // Slightly adjust price to ensure execution
-        timeInForce: "GTT",
-        expiryEpochMillis: Date.now() + 60 * 1_000, // Order valid for 60 seconds
-        fee: "0.0002",
-        selfTradeProtectionLevel: "ACCOUNT",
-        nonce,
-        vault: this.config.get("vault"),
-        clientId: this.config.get("client-id"),
-      };
+        amountOfSynthetic: roundToMinChange(orderSize, market.tradingConfig.minOrderSizeChange, Decimal.ROUND_DOWN),
+        price: roundToMinChange(orderPrice, market.tradingConfig.minPriceChange, Decimal.ROUND_DOWN),
+        timeInForce: "IOC",
+        reduceOnly: false,
+        postOnly: false,
+        ctx,
+      });
 
-      // Generate Starknet signature
-      const settlement = generateOrderSignature(
-        orderMessage,
-        this.config.get("stark-key-private"),
-        this.config.get("stark-key-public"),
-        this.config.get("vault"),
-      );
+      // // Generate unique nonce for this order
+      // const nonce = generateNonce();
 
-      // Prepare order data with signature
-      const orderData = {
-        ...orderMessage,
-        settlement,
-      };
+      // // Prepare order message for signing
+      // const orderMessage: OrderMessage = {
+      //   id: `${token}-${this.name}-${nonce}`, // Unique client order ID
+      //   market: marketName,
+      //   type: "market", // Market order for immediate execution
+      //   side: orderSide,
+      //   qty: size.toString(),
+      //   price: (price * (side === OrderSide.LONG ? 1.001 : 0.999)).toString(), // Slightly adjust price to ensure execution
+      //   timeInForce: "GTT",
+      //   expiryEpochMillis: Date.now() + 60 * 1_000, // Order valid for 60 seconds
+      //   fee: "0.0002",
+      //   selfTradeProtectionLevel: "ACCOUNT",
+      //   nonce,
+      //   // vault: this.config.get("vault"),
+      //   // clientId: this.config.get("client-id"),
+      // };
 
-      // Make API request to place order with API key in headers
-      const response = await this.client.post("/api/v1/user/order", orderData, {});
+      // // Generate Starknet signature
+      // const settlement = generateOrderSignature(
+      //   orderMessage,
+      //   this.config.get("stark-key-private"),
+      //   this.config.get("stark-key-public"),
+      //   this.config.get("vault"),
+      // );
 
-      if (response.data && response.data.orderId) {
-        console.log(`✅ Opened ${side} position for ${token} on Extended: ${response.data.orderId}`);
-        return response.data.orderId.toString();
-      } else {
-        throw new Error("Invalid response from Extended API");
-      }
+      // // Prepare order data with signature
+      // const orderData = {
+      //   ...orderMessage,
+      //   settlement,
+      // };
+
+      const result = await this.placeOrder({ order });
+
+      console.log("Order placed: %o", result);
+
+      return result.externalId;
     } catch (error) {
-      if (error instanceof StarknetSignatureError) {
-        console.error(`Starknet signature error for ${token}:`, (error as StarknetSignatureError).message);
-        throw new Error(
-          `Failed to generate signature for ${side} position: ${(error as StarknetSignatureError).message}`,
-        );
-      }
       console.error(`Error opening Extended ${side} position for ${token}:`, error);
       throw new Error(
         `Failed to open ${side} position on Extended: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
+  }
+
+  async placeOrder(args: { order: Order }) {
+    const { data } = await this.axiosClient.post<unknown>("/api/v1/user/order", args.order);
+
+    return PlacedOrderResponseSchema.parse(data).data;
+  }
+
+  private async getStarknetDomain() {
+    const { data } = await this.axiosClient.get<unknown>("/api/v1/info/starknet");
+
+    return StarknetDomainResponseSchema.parse(data).data;
+  }
+
+  private async getFees({ marketName, builderId }: { marketName: string; builderId?: Long }) {
+    const { data } = await this.axiosClient.get<unknown>("/api/v1/user/fees", {
+      params: {
+        market: [marketName],
+        builderId: builderId?.toString(),
+      },
+    });
+
+    return FeesResponseSchema.parse(data).data[0];
+  }
+
+  private async getMarket(marketName: string) {
+    const { data } = await this.axiosClient.get<unknown>("/api/v1/info/markets", {
+      params: {
+        market: [marketName],
+      },
+    });
+
+    return MarketsResponseSchema.parse(data).data[0];
   }
 
   public async closePosition(positionId: string): Promise<boolean> {

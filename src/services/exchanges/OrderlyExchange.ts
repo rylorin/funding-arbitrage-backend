@@ -25,7 +25,7 @@ export class OrderlyExchange extends ExchangeConnector {
     ed.hashes.sha512 = sha512;
 
     // Add request interceptor for signing private requests
-    this.client.interceptors.request.use((config) => {
+    this.axiosClient.interceptors.request.use((config) => {
       if (
         this.config.has("orderly-key") &&
         this.config.has("secretKey") &&
@@ -66,7 +66,7 @@ export class OrderlyExchange extends ExchangeConnector {
   public async testConnection(): Promise<number> {
     try {
       // Test connection with public endpoint - get exchange info
-      const response = await this.client.get("/v1/public/info");
+      const response = await this.axiosClient.get("/v1/public/info");
       const count = response.data.data?.rows?.length || 0;
 
       console.log(`✅ Orderly Exchange connected: ${count} markets available`);
@@ -93,7 +93,7 @@ export class OrderlyExchange extends ExchangeConnector {
       const result: Record<TokenSymbol, TokenPrice> = {};
 
       // Get all tickers
-      const response = await this.client.get("/v1/public/futures");
+      const response = await this.axiosClient.get("/v1/public/futures");
       const tickersData = response.data.data as { rows: any[] };
 
       // If no tokens specified, extract all available tokens from tickers
@@ -131,7 +131,7 @@ export class OrderlyExchange extends ExchangeConnector {
       const result: Record<TokenSymbol, TokenInfo> = {};
 
       const symbol = tokens && tokens.length > 1 ? `PERP_${tokens[0]}_USDC` : "";
-      const response = await this.client.get(`/v1/public/info/${symbol}`);
+      const response = await this.axiosClient.get(`/v1/public/info/${symbol}`);
       const tickersData = response.data.data as { rows: any[] };
 
       // If no tokens specified, extract all available tokens from tickers
@@ -172,7 +172,7 @@ export class OrderlyExchange extends ExchangeConnector {
       const prices = await this.getTokenPrice(tokens);
 
       // Get all predicted funding rates
-      const response = await this.client.get("/v1/public/funding_rates");
+      const response = await this.axiosClient.get("/v1/public/funding_rates");
       const fundingData = response.data.data as { rows: WoofiFundingRate[] };
 
       // If no tokens specified, extract all available tokens from tickers
@@ -224,7 +224,7 @@ export class OrderlyExchange extends ExchangeConnector {
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
       // This requires authentication with Orderly key
-      const response = await this.client.get("/v1/client/holding");
+      const response = await this.axiosClient.get("/v1/client/holding");
       const balances: { [token: string]: number } = {};
 
       if (response.data && response.data.holding) {
@@ -262,7 +262,7 @@ export class OrderlyExchange extends ExchangeConnector {
         order_quantity,
       };
       console.log("Orderly openPosition orderData:", orderData);
-      const response = await this.client.post("/v1/order", orderData).catch((reason: any) => {
+      const response = await this.axiosClient.post("/v1/order", orderData).catch((reason: any) => {
         console.error(JSON.stringify(reason));
         throw reason;
       });
@@ -282,7 +282,7 @@ export class OrderlyExchange extends ExchangeConnector {
 
   public async closePosition(positionId: string): Promise<boolean> {
     try {
-      const response = await this.client.delete(`/v1/order/${positionId}`);
+      const response = await this.axiosClient.delete(`/v1/order/${positionId}`);
 
       if (response.data.success || response.status === 200) {
         console.log(`✅ Orderly position closed: ${positionId}`);
@@ -299,7 +299,7 @@ export class OrderlyExchange extends ExchangeConnector {
   public async getPositionPnL(positionId: string): Promise<number> {
     try {
       // Get all positions and find the specific one
-      const response = await this.client.get("/v1/positions");
+      const response = await this.axiosClient.get("/v1/positions");
 
       if (response.data.data?.rows) {
         const position = response.data.data.rows.find((pos: any) => pos.position_id === positionId);
@@ -317,7 +317,7 @@ export class OrderlyExchange extends ExchangeConnector {
 
   public async getAllPositions(): Promise<any[]> {
     try {
-      const response = await this.client.get("/v1/positions");
+      const response = await this.axiosClient.get("/v1/positions");
       return response.data.data?.rows || [];
     } catch (error) {
       console.error("Error fetching Orderly positions:", error);
@@ -331,7 +331,7 @@ export class OrderlyExchange extends ExchangeConnector {
       if (symbol) params.symbol = symbol;
       if (limit) params.size = limit;
 
-      const response = await this.client.get("/v1/orders", { params });
+      const response = await this.axiosClient.get("/v1/orders", { params });
       return response.data.data?.rows || [];
     } catch (error) {
       console.error("Error fetching Orderly order history:", error);

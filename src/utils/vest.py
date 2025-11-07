@@ -49,5 +49,6 @@ cmd = s.format(**d)
 print(cmd)
 os.system(cmd)
 
-print("\n\nSigning Private Key (keep this secret!):", f"{signing_private_key}")
+print("\n\n")
 print("Signing Address:", signing_public_key)
+print("Signing Private Key (keep this secret!):", f"{signing_private_key}")

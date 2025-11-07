@@ -20,10 +20,10 @@ describe("VestExchange", () => {
 
   test("Place Order", async () => {
     const sampleOrder: OrderData = {
-      token: "BTC",
+      token: "DOGE",
       side: OrderSide.LONG,
-      size: 1,
-      price: 50_000,
+      size: 10,
+      price: 0.1,
     };
     const orderId = await exchange.openPosition(sampleOrder);
     expect(orderId).toBe("extended-order-123");

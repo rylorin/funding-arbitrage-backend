@@ -19,11 +19,12 @@
     "noImplicitThis": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": true,
+    "exactOptionalPropertyTypes": false,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "allowImportingTsExtensions": false,
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "baseUrl": "./src",
     "paths": {
@@ -37,7 +38,8 @@
       "@utils/*": ["utils/*"],
       "@jobs/*": ["jobs/*"],
       "@websocket/*": ["websocket/*"],
-      "@types/*": ["types/*"]
+      "@types/*": ["types/*"],
+      "@extended/*": ["extended/*"]
     }
   },
   "include": ["src/**/*"],

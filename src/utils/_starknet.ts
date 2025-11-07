@@ -21,15 +21,15 @@ export interface OrderMessage {
   market: string;
   type: string;
   side: string;
-  qty: number;
-  price: number;
+  qty: string;
+  price: string;
   timeInForce: string;
   expiryEpochMillis: number;
   fee: string;
   selfTradeProtectionLevel: string;
   nonce: string;
-  vault: string;
-  clientId: string;
+  vault?: string;
+  clientId?: string;
 }
 
 export interface StarknetSignature {
