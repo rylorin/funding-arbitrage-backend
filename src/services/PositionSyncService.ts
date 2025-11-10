@@ -183,14 +183,11 @@ export class PositionSyncService {
   /**
    * Calcule le PnL actuel d'une position
    */
-  public async calculatePositionPnL(position: any): Promise<number> {
+  public async calculatePositionPnL(position: Position): Promise<number> {
     try {
       // Récupérer les funding rates actuels
-      const longRate = await FundingRate.getLatestForTokenAndExchange(position.longToken, position.longExchange);
-      const shortRate = await FundingRate.getLatestForTokenAndExchange(
-        position.shortToken || position.longToken,
-        position.shortExchange,
-      );
+      const longRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.longExchange);
+      const shortRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.shortExchange);
 
       if (!longRate || !shortRate) return 0;
 
@@ -224,13 +221,10 @@ export class PositionSyncService {
   /**
    * Calcule l'APR actuel d'une position
    */
-  public async calculateCurrentAPR(position: any): Promise<number> {
+  public async calculateCurrentAPR(position: Position): Promise<number> {
     try {
-      const longRate = await FundingRate.getLatestForTokenAndExchange(position.longToken, position.longExchange);
-      const shortRate = await FundingRate.getLatestForTokenAndExchange(
-        position.shortToken || position.longToken,
-        position.shortExchange,
-      );
+      const longRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.longExchange);
+      const shortRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.shortExchange);
 
       if (!longRate || !shortRate) return 0;
 

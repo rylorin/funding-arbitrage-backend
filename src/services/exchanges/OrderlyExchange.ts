@@ -261,10 +261,10 @@ export class OrderlyExchange extends ExchangeConnector {
         side: side === OrderSide.LONG ? "BUY" : "SELL",
         order_quantity,
       };
-      console.log("Orderly openPosition orderData:", orderData);
+      // console.log("Orderly openPosition orderData:", orderData);
       const response = await this.axiosClient.post("/v1/order", orderData).catch((reason: any) => {
-        console.error(JSON.stringify(reason));
-        throw reason;
+        // console.error(JSON.stringify(reason));
+        throw new Error(reason.data.message || "Unknown error");
       });
 
       if (response.data.success && response.data.data?.order_id) {
@@ -275,8 +275,8 @@ export class OrderlyExchange extends ExchangeConnector {
 
       throw new Error(`Failed to open position: ${response.data.message || "Unknown error"}`);
     } catch (error) {
-      console.error(`Error opening Orderly ${side} position for ${token}:`, error);
-      throw new Error(`Failed to open ${side} position on Orderly`);
+      // console.error(`Error opening Orderly ${side} position for ${token}:`, error);
+      throw error;
     }
   }
 

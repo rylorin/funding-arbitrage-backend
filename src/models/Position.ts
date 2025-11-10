@@ -1,17 +1,20 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
-import { PositionStatus, ExchangeName, TokenSymbol } from "../types/index";
+import { ExchangeName, PositionStatus, TokenSymbol } from "../types/index";
 import User from "./User";
 
 interface PositionAttributes {
   id: string;
   userId: string;
   token: TokenSymbol;
-  longToken?: TokenSymbol;
-  shortToken?: TokenSymbol;
   longExchange: ExchangeName;
   shortExchange: ExchangeName;
-  size: number;
+  longPositionId?: string;
+  shortPositionId?: string;
+  longOrderId?: string;
+  shortOrderId?: string;
+  longSize: number | null;
+  shortSize: number | null;
   entryTimestamp: Date;
   entryFundingRates: {
     longRate: number;
@@ -35,8 +38,6 @@ interface PositionAttributes {
   status: PositionStatus;
   closedAt?: Date;
   closedReason?: string;
-  longPositionId?: string;
-  shortPositionId?: string;
   lastUpdated?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -49,42 +50,45 @@ interface PositionCreationAttributes
   > {}
 
 class Position extends Model<PositionAttributes, PositionCreationAttributes> implements PositionAttributes {
-  public id!: string;
-  public userId!: string;
-  public token!: TokenSymbol;
-  public longToken?: TokenSymbol;
-  public shortToken?: TokenSymbol;
-  public longExchange!: ExchangeName;
-  public shortExchange!: ExchangeName;
-  public size!: number;
-  public entryTimestamp!: Date;
-  public entryFundingRates!: {
+  declare public id: string;
+  declare public userId: string;
+  declare public token: TokenSymbol;
+  declare public longToken?: TokenSymbol;
+  declare public shortToken?: TokenSymbol;
+  declare public longExchange: ExchangeName;
+  declare public shortExchange: ExchangeName;
+  declare public longPositionId?: string;
+  declare public shortPositionId?: string;
+  declare public longOrderId?: string;
+  declare public shortOrderId?: string;
+  declare public longSize: number;
+  declare public shortSize: number;
+  declare public entryTimestamp: Date;
+  declare public entryFundingRates: {
     longRate: number;
     shortRate: number;
     spreadAPR: number;
   };
-  public entrySpreadAPR?: number;
-  public longFundingRate?: number;
-  public shortFundingRate?: number;
-  public longMarkPrice?: number;
-  public shortMarkPrice?: number;
-  public currentPnl!: number;
-  public unrealizedPnL?: number;
-  public realizedPnL?: number;
-  public totalFees?: number;
-  public hoursOpen?: number;
-  public autoCloseEnabled!: boolean;
-  public autoCloseAPRThreshold!: number;
-  public autoClosePnLThreshold!: number;
-  public autoCloseTimeoutHours?: number;
-  public status!: PositionStatus;
-  public closedAt?: Date;
-  public closedReason?: string;
-  public longPositionId?: string;
-  public shortPositionId?: string;
-  public lastUpdated?: Date;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare public entrySpreadAPR?: number;
+  declare public longFundingRate?: number;
+  declare public shortFundingRate?: number;
+  declare public longMarkPrice?: number;
+  declare public shortMarkPrice?: number;
+  declare public currentPnl: number;
+  declare public unrealizedPnL?: number;
+  declare public realizedPnL?: number;
+  declare public totalFees?: number;
+  declare public hoursOpen?: number;
+  declare public autoCloseEnabled: boolean;
+  declare public autoCloseAPRThreshold: number;
+  declare public autoClosePnLThreshold: number;
+  declare public autoCloseTimeoutHours?: number;
+  declare public status: PositionStatus;
+  declare public closedAt?: Date;
+  declare public closedReason?: string;
+  declare public lastUpdated?: Date;
+  declare public readonly createdAt: Date;
+  declare public readonly updatedAt: Date;
 
   public static associate() {
     Position.belongsTo(User, { foreignKey: "userId", as: "user" });
@@ -104,6 +108,10 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
 
     return this.currentPnl <= this.autoClosePnLThreshold || hoursOpen >= timeoutHours;
   }
+
+  public size(): number {
+    return this.longSize + this.shortSize;
+  }
 }
 
 Position.init(
@@ -122,7 +130,7 @@ Position.init(
       },
     },
     token: {
-      type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
+      type: DataTypes.STRING,
       allowNull: false,
     },
     longExchange: {
@@ -133,9 +141,24 @@ Position.init(
       type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
       allowNull: false,
     },
-    size: {
+    longPositionId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    shortPositionId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    longSize: {
       type: DataTypes.DECIMAL(18, 8),
-      allowNull: false,
+      allowNull: true,
+      validate: {
+        min: 0.00000001,
+      },
+    },
+    shortSize: {
+      type: DataTypes.DECIMAL(18, 8),
+      allowNull: true,
       validate: {
         min: 0.00000001,
       },
@@ -194,22 +217,6 @@ Position.init(
     },
     closedReason: {
       type: DataTypes.STRING,
-      allowNull: true,
-    },
-    longPositionId: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    shortPositionId: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    longToken: {
-      type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
-      allowNull: true,
-    },
-    shortToken: {
-      type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
       allowNull: true,
     },
     entrySpreadAPR: {

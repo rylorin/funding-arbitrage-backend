@@ -1,5 +1,5 @@
 import { FeesResponseSchema } from "@/extended/api/fees.schema";
-import { MarketsResponseSchema } from "@/extended/api/markets.schema";
+import { Market, MarketsResponseSchema } from "@/extended/api/markets.schema";
 import { PlacedOrderResponseSchema } from "@/extended/api/orders.schema";
 import { StarknetDomainResponseSchema } from "@/extended/api/starknet.schema";
 import { Order } from "@/extended/models/order";
@@ -149,6 +149,22 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
+  private async checkOrderBounds(order: OrderData): Promise<Market> {
+    const { token, size } = order;
+    const marketName = `${token}-USD`;
+    const market = await this.getMarket(marketName);
+
+    const orderSize = Decimal(size);
+
+    if (orderSize.isLessThan(market.tradingConfig.minOrderSize)) {
+      throw new Error(
+        `Order size ${orderSize.toString()} is below minimum ${market.tradingConfig.minOrderSize.toString()} for ${marketName}`,
+      );
+    }
+
+    return market;
+  }
+
   public async openPosition(order: OrderData): Promise<string> {
     const { token, side, size } = order;
     try {
@@ -158,7 +174,7 @@ export class ExtendedExchange extends ExchangeConnector {
       // Convert side to Extended format (BUY/SELL)
       const orderSide = side === OrderSide.LONG ? "BUY" : "SELL";
 
-      const market = await this.getMarket(marketName);
+      const market = await this.checkOrderBounds(order);
       const fees = await this.getFees({ marketName });
       const starknetDomain = await this.getStarknetDomain();
 
@@ -174,7 +190,7 @@ export class ExtendedExchange extends ExchangeConnector {
         starkPrivateKey: this.starkPrivateKey,
       });
 
-      const order = Order.create({
+      const nativeOrder = Order.create({
         marketName: marketName,
         orderType: "MARKET",
         side: orderSide,
@@ -186,50 +202,15 @@ export class ExtendedExchange extends ExchangeConnector {
         ctx,
       });
 
-      // // Generate unique nonce for this order
-      // const nonce = generateNonce();
-
-      // // Prepare order message for signing
-      // const orderMessage: OrderMessage = {
-      //   id: `${token}-${this.name}-${nonce}`, // Unique client order ID
-      //   market: marketName,
-      //   type: "market", // Market order for immediate execution
-      //   side: orderSide,
-      //   qty: size.toString(),
-      //   price: (price * (side === OrderSide.LONG ? 1.001 : 0.999)).toString(), // Slightly adjust price to ensure execution
-      //   timeInForce: "GTT",
-      //   expiryEpochMillis: Date.now() + 60 * 1_000, // Order valid for 60 seconds
-      //   fee: "0.0002",
-      //   selfTradeProtectionLevel: "ACCOUNT",
-      //   nonce,
-      //   // vault: this.config.get("vault"),
-      //   // clientId: this.config.get("client-id"),
-      // };
-
-      // // Generate Starknet signature
-      // const settlement = generateOrderSignature(
-      //   orderMessage,
-      //   this.config.get("stark-key-private"),
-      //   this.config.get("stark-key-public"),
-      //   this.config.get("vault"),
-      // );
-
-      // // Prepare order data with signature
-      // const orderData = {
-      //   ...orderMessage,
-      //   settlement,
-      // };
-
-      const result = await this.placeOrder({ order });
+      const result = await this.placeOrder({ order: nativeOrder });
 
       console.log("Order placed: %o", result);
 
       return result.externalId;
     } catch (error) {
-      console.error(`Error opening Extended ${side} position for ${token}:`, error);
-      throw new Error(
-        `Failed to open ${side} position on Extended: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      // console.error(order);
+      // console.error(`Error opening Extended ${side} position for ${token}:`, error);
+      throw error;
     }
   }
 
@@ -256,7 +237,7 @@ export class ExtendedExchange extends ExchangeConnector {
     return FeesResponseSchema.parse(data).data[0];
   }
 
-  private async getMarket(marketName: string) {
+  private async getMarket(marketName: string): Promise<Market> {
     const { data } = await this.axiosClient.get<unknown>("/api/v1/info/markets", {
       params: {
         market: [marketName],

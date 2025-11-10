@@ -8,7 +8,7 @@ import {
 } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { exchangesRegistry } from "./exchanges";
-import { OrderSide } from "./exchanges/ExchangeConnector";
+import { OrderData, OrderSide } from "./exchanges/ExchangeConnector";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
 
@@ -240,7 +240,7 @@ export class DeltaNeutralTradingService {
         exchange: position.longExchange, // Utiliser l'exchange principal
         token: position.longToken || position.token,
         side: "AUTO_CLOSE",
-        size: position.size,
+        size: position.longSize + position.shortSize,
         price: 0,
         fee: 0,
         timestamp: new Date(),
@@ -366,7 +366,7 @@ export class DeltaNeutralTradingService {
   /**
    * Vérifie si une position doit être fermée automatiquement
    */
-  private async checkAutoCloseConditions(position: any): Promise<{ shouldClose: boolean; reason: string }> {
+  private async checkAutoCloseConditions(position: Position): Promise<{ shouldClose: boolean; reason: string }> {
     try {
       const metrics = await positionSyncService.syncPositionMetrics(position);
       const hoursOpen = metrics.hoursOpen;
@@ -448,7 +448,7 @@ export class DeltaNeutralTradingService {
         try {
           console.log(
             `Attempting to open position for user ${user.id} on opportunity: ${opportunity.token} ${opportunity.spread.apr.toFixed(2)}% APR`,
-            opportunity,
+            // opportunity,
           );
           const tradingResult = await this.executeTrade(user, opportunity, settings);
           results.push(tradingResult);
@@ -475,6 +475,48 @@ export class DeltaNeutralTradingService {
     return results;
   }
 
+  private async placeOrders(
+    orders: OrderData[],
+  ): Promise<{ success: boolean; count: number; orderIds: (string | undefined)[]; status: string[] }> {
+    return await Promise.allSettled(
+      orders.map((order) => {
+        const exchange = exchangesRegistry.getExchange(order.exchange);
+        if (!exchange) {
+          return Promise.reject(`Exchange ${order.exchange} not found`);
+        }
+        return exchange.openPosition(order);
+      }),
+    ).then((results) => {
+      // console.log(results);
+      return results.reduce(
+        (p, result, index) => {
+          if (result.status === "fulfilled") {
+            const order = orders[index];
+            const statusMsg = `✅ Opened ${order.side} position on ${order.exchange} for ${order.token} Size: ${order.size} at $${order.price} (Order ID: ${result.value})`;
+            // console.log(statusMsg);
+            p.count += 1;
+            p.orderIds.push(result.value);
+            p.status.push(statusMsg);
+          } else {
+            const order = orders[index];
+            const statusMsg = `❌ Error opening ${order.side} position on ${order.exchange}: ${result.reason.message || result.reason}`;
+            // console.error(statusMsg);
+            p.success = false;
+            p.orderIds.push(undefined);
+            p.status.push(statusMsg);
+          }
+          return p;
+        },
+        { success: true, count: 0, orderIds: [], status: [] } as {
+          success: boolean;
+          count: number;
+          orderIds: (string | undefined)[];
+          status: string[];
+        },
+      );
+    });
+  }
+
   /**
    * Exécute un trade delta-neutral
    */
@@ -484,22 +526,6 @@ export class DeltaNeutralTradingService {
     settings: UserSettings,
   ): Promise<TradingResult> {
     try {
-      const longExchange = exchangesRegistry.getExchange(opportunity.longExchange.name);
-      const shortExchange = exchangesRegistry.getExchange(opportunity.shortExchange.name);
-
-      if (!longExchange || !shortExchange) {
-        console.log(
-          "Exchange not found in registry:",
-          opportunity.longExchange.name,
-          longExchange,
-          opportunity.shortExchange.name,
-          shortExchange,
-        );
-        throw new Error(
-          `Exchange not available: ${opportunity.longExchange.name} or ${opportunity.shortExchange.name}`,
-        );
-      }
-
       const price = (opportunity.longExchange.price + opportunity.shortExchange.price) / 2;
       // make things simple for now, assume no leverage and equal split
       const size = settings.maxPositionSize / (2 * price);
@@ -507,80 +533,79 @@ export class DeltaNeutralTradingService {
       console.log(
         `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange.name}) Short(${opportunity.shortExchange.name}) Size: ${size} $${price}`,
       );
-
-      const longOrder = {
+      const longOrder: OrderData = {
+        exchange: opportunity.longExchange.name,
         token: opportunity.token,
         side: OrderSide.LONG,
         price: opportunity.longExchange.price,
         size,
       };
-      const shortOrder = {
+      const shortOrder: OrderData = {
+        exchange: opportunity.shortExchange.name,
         token: opportunity.token,
         side: OrderSide.SHORT,
         price: opportunity.shortExchange.price,
         size,
       };
-      const [longOrderId, shortOrderId] = await Promise.all([
-        longExchange.openPosition(longOrder),
-        shortExchange.openPosition(shortOrder),
-      ]);
+      const result = await this.placeOrders([longOrder, shortOrder]);
+      result.status.forEach((s) => console.log(s));
+      if (result.count > 0) {
+        // Créer l'enregistrement de position
+        const position = await Position.create({
+          userId: user.id,
+          token: opportunity.token,
 
-      // Créer l'enregistrement de position
-      const position = await Position.create({
-        userId: user.id,
-        token: opportunity.token,
-        longToken: opportunity.token,
-        shortToken: opportunity.token,
-        longExchange: opportunity.longExchange.name,
-        shortExchange: opportunity.shortExchange.name,
-        longPositionId: longOrderId,
-        shortPositionId: shortOrderId,
-        size,
-        entryTimestamp: new Date(),
-        entryFundingRates: {
-          longRate: opportunity.longExchange.fundingRate,
-          shortRate: opportunity.shortExchange.fundingRate,
-          spreadAPR: opportunity.spread.apr,
-        },
-        entrySpreadAPR: opportunity.spread.apr,
-        longFundingRate: opportunity.longExchange.fundingRate,
-        shortFundingRate: opportunity.shortExchange.fundingRate,
-        longMarkPrice: opportunity.longExchange.price,
-        shortMarkPrice: opportunity.shortExchange.price,
-        currentPnl: 0,
-        status: "OPEN",
-        autoCloseEnabled: settings.autoCloseEnabled,
-        autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
-        autoClosePnLThreshold: settings.autoClosePnLThreshold,
-        autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
-      });
+          longExchange: opportunity.longExchange.name,
+          shortExchange: opportunity.shortExchange.name,
+          longOrderId: result.orderIds[0],
+          shortOrderId: result.orderIds[1],
+          longSize: result.orderIds[0] ? size : null,
+          shortSize: result.orderIds[1] ? size : null,
 
-      // Enregistrer l'historique des trades
-      await TradeHistory.create({
-        userId: user.id,
-        positionId: position.id,
-        action: "OPEN",
-        exchange: opportunity.longExchange.name, // Utiliser l'exchange principal
-        token: opportunity.token,
-        side: "DELTA_NEUTRAL",
-        size,
-        price: (opportunity.longExchange.price + opportunity.longExchange.price) / 2,
-        fee: 0, // À mettre à jour avec les frais réels
-        timestamp: new Date(),
-        metadata: {
-          longExchange: opportunity.longExchange,
-          shortExchange: opportunity.shortExchange,
-          longOrderId,
-          shortOrderId,
-          expectedAPR: opportunity.spread.apr,
-        },
-      });
+          entryTimestamp: new Date(),
+          entryFundingRates: {
+            longRate: opportunity.longExchange.fundingRate,
+            shortRate: opportunity.shortExchange.fundingRate,
+            spreadAPR: opportunity.spread.apr,
+          },
+          entrySpreadAPR: opportunity.spread.apr,
+          longFundingRate: opportunity.longExchange.fundingRate,
+          shortFundingRate: opportunity.shortExchange.fundingRate,
+          longMarkPrice: opportunity.longExchange.price,
+          shortMarkPrice: opportunity.shortExchange.price,
+          currentPnl: 0,
+          status: "OPEN",
+          autoCloseEnabled: settings.autoCloseEnabled,
+          autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
+          autoClosePnLThreshold: settings.autoClosePnLThreshold,
+          autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
+        });
+
+        // Enregistrer l'historique des trades
+        await TradeHistory.create({
+          userId: user.id,
+          positionId: position.id,
+          action: "OPEN",
+          exchange: opportunity.longExchange.name, // Utiliser l'exchange principal
+          token: opportunity.token,
+          side: "DELTA_NEUTRAL",
+          size,
+          price,
+          fee: 0, // À mettre à jour avec les frais réels
+          timestamp: new Date(),
+          metadata: {
+            longExchange: opportunity.longExchange,
+            shortExchange: opportunity.shortExchange,
+            expectedAPR: opportunity.spread.apr,
+          },
+        });
+      } else {
+        // to be implemented: order cancellation logic here if one order succeeded and the other failed
+        console.error("❌ Error placing orders for delta-neutral trade");
+      }
 
       return {
-        success: true,
-        positionId: position.id,
-        longOrderId,
-        shortOrderId,
+        success: result.success,
         opportunity,
       };
     } catch (error) {

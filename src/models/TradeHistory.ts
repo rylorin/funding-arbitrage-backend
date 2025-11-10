@@ -1,8 +1,8 @@
-import { DataTypes, Model, Optional, Op } from "sequelize";
+import { DataTypes, Model, Op, Optional } from "sequelize";
 import { sequelize } from "../config/database";
 import { ExchangeName, TokenSymbol } from "../types/index";
-import User from "./User";
 import Position from "./Position";
+import User from "./User";
 
 interface TradeHistoryAttributes {
   id: string;
@@ -28,21 +28,21 @@ class TradeHistory
   extends Model<TradeHistoryAttributes, TradeHistoryCreationAttributes>
   implements TradeHistoryAttributes
 {
-  public id!: string;
-  public userId!: string;
-  public positionId!: string;
-  public action!: "OPEN" | "CLOSE" | "PARTIAL_CLOSE";
-  public exchange!: ExchangeName;
-  public token!: TokenSymbol;
-  public side!: "long" | "short" | "close_long" | "close_short" | "DELTA_NEUTRAL" | "AUTO_CLOSE";
-  public size!: number;
-  public price!: number;
-  public fee!: number;
-  public externalTradeId?: string;
-  public timestamp!: Date;
-  public metadata?: any;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare public id: string;
+  declare public userId: string;
+  declare public positionId: string;
+  declare public action: "OPEN" | "CLOSE" | "PARTIAL_CLOSE";
+  declare public exchange: ExchangeName;
+  declare public token: TokenSymbol;
+  declare public side: "long" | "short" | "close_long" | "close_short" | "DELTA_NEUTRAL" | "AUTO_CLOSE";
+  declare public size: number;
+  declare public price: number;
+  declare public fee: number;
+  declare public externalTradeId?: string;
+  declare public timestamp: Date;
+  declare public metadata?: any;
+  declare public readonly createdAt: Date;
+  declare public readonly updatedAt: Date;
 
   public static associate() {
     TradeHistory.belongsTo(User, { foreignKey: "userId", as: "user" });

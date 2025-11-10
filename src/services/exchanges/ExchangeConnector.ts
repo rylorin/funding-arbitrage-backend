@@ -8,10 +8,11 @@ export enum OrderSide {
 }
 
 export type OrderData = {
+  exchange: ExchangeName;
   token: TokenSymbol;
   side: OrderSide;
   size: number;
-  price?: number;
+  price: number;
 };
 
 export abstract class ExchangeConnector {

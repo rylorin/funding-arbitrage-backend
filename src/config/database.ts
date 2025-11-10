@@ -61,6 +61,7 @@ const databaseConfig: DatabaseConfig = {
 
 const environment = (process.env.NODE_ENV as keyof DatabaseConfig) || "development";
 const dbConfig = databaseConfig[environment];
+let warmupDone = false;
 
 export const sequelize = new Sequelize(dbConfig);
 
@@ -69,10 +70,11 @@ export const connectDatabase = async (): Promise<void> => {
     await sequelize.authenticate();
     console.log(`✅ Database connected successfully (${environment})`);
 
-    if (environment === "development") {
-      await sequelize.sync({ alter: true });
+    if (environment === "development" && !warmupDone) {
+      await sequelize.sync({ alter: true, force: false });
       console.log("✅ Database tables synchronized");
     }
+    warmupDone = true;
   } catch (error) {
     console.error("⚠️ Unable to connect to database:", error);
     throw error;

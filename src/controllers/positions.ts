@@ -71,7 +71,8 @@ export const createPosition = async (req: AuthenticatedRequest, res: Response): 
       token,
       longExchange,
       shortExchange,
-      size,
+      longSize: size / 2, // Split size equally for long and short
+      shortSize: size / 2,
       entryTimestamp: new Date(),
       entryFundingRates,
       autoCloseEnabled,
@@ -370,7 +371,7 @@ export const getPositionsDashboard = async (req: AuthenticatedRequest, res: Resp
             aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
             currentPnL,
             currentPnLFormatted: formatCurrency(currentPnL),
-            pnlPercentage: (currentPnL / position.size) * 100,
+            pnlPercentage: (currentPnL / position.size()) * 100,
             hoursOpen: Math.floor(hoursOpen),
             hoursOpenFormatted: formatHours(hoursOpen),
             status: position.status,
@@ -479,7 +480,7 @@ export const getPositionDetails = async (req: AuthenticatedRequest, res: Respons
       },
       size: {
         amount: position.size,
-        formatted: `$${position.size.toLocaleString()}`,
+        formatted: `$${(position.longSize + position.shortSize).toLocaleString()}`,
       },
       timing: {
         opened: position.createdAt,
@@ -493,7 +494,7 @@ export const getPositionDetails = async (req: AuthenticatedRequest, res: Respons
         aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
         currentPnL,
         pnlFormatted: formatCurrency(currentPnL),
-        pnlPercentage: (currentPnL / position.size) * 100,
+        pnlPercentage: (currentPnL / (position.longSize + position.shortSize)) * 100,
         totalFees: estimateTotalFees(position, hoursOpen),
         netPnL: currentPnL - estimateTotalFees(position, hoursOpen),
       },
