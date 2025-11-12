@@ -1,4 +1,6 @@
+// https://api.docs.extended.exchange/#extended-api-documentation
 import { FeesResponseSchema } from "@/extended/api/fees.schema";
+import { LeverageResponseSchema } from "@/extended/api/leverage.schema";
 import { Market, MarketsResponseSchema } from "@/extended/api/markets.schema";
 import { PlacedOrderResponseSchema } from "@/extended/api/orders.schema";
 import { StarknetDomainResponseSchema } from "@/extended/api/starknet.schema";
@@ -165,6 +167,15 @@ export class ExtendedExchange extends ExchangeConnector {
     return market;
   }
 
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ market: string; leverage: number }> {
+    const payload = { market: `${token}-USD`, leverage };
+    const { data } = await this.axiosClient.post<unknown>("/api/v1/user/leverage", payload).catch((reason: any) => {
+      throw new Error(reason.data.status || "Unknown error");
+    });
+
+    return LeverageResponseSchema.parse(data).data;
+  }
+
   public async openPosition(order: OrderData): Promise<string> {
     const { token, side, size } = order;
     try {
@@ -178,9 +189,10 @@ export class ExtendedExchange extends ExchangeConnector {
       const fees = await this.getFees({ marketName });
       const starknetDomain = await this.getStarknetDomain();
 
-      // const orderSize = market.tradingConfig.minOrderSize;
       const orderSize = Decimal(size);
       const orderPrice = market.marketStats.askPrice.times(1 + SLIPPAGE);
+
+      if (order.leverage) await this.setLeverage(order.token, order.leverage);
 
       const ctx = createOrderContext({
         market,
@@ -204,7 +216,7 @@ export class ExtendedExchange extends ExchangeConnector {
 
       const result = await this.placeOrder({ order: nativeOrder });
 
-      console.log("Order placed: %o", result);
+      // console.log("Order placed: %o", result);
 
       return result.externalId;
     } catch (error) {

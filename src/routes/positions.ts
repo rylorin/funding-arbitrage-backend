@@ -1,20 +1,20 @@
 import { Router } from "express";
 import Joi from "joi";
 import {
-  createPosition,
-  getPositions,
-  getPosition,
-  updatePosition,
   closePosition,
-  getPositionPnL,
-  getPositionsDashboard,
-  getPositionDetails,
+  getPosition,
   getPositionAlerts,
+  getPositionDetails,
   getPositionPerformance,
+  getPositionPnL,
+  // createPosition,
+  getPositions,
+  getPositionsDashboard,
+  updatePosition,
 } from "../controllers/positions";
 import { authenticateToken } from "../middleware/auth";
-import { positionRateLimit, generalRateLimit } from "../middleware/rateLimit";
-import { validateParams, schemas } from "../middleware/validation";
+import { generalRateLimit, positionRateLimit } from "../middleware/rateLimit";
+import { schemas, validateParams } from "../middleware/validation";
 
 const router = Router();
 
@@ -27,7 +27,7 @@ router.get("/alerts", generalRateLimit, getPositionAlerts);
 router.get("/performance", generalRateLimit, getPositionPerformance);
 
 // Position CRUD operations
-router.post("/", positionRateLimit, createPosition);
+// router.post("/", positionRateLimit, createPosition);
 router.get("/", generalRateLimit, getPositions);
 router.get("/:id", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), getPosition);
 router.get("/:id/details", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), getPositionDetails);

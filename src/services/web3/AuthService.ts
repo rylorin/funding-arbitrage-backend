@@ -1,9 +1,10 @@
+import { defaultSettings } from "@/config/user";
 import { verifyMessage } from "ethers";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { web3Config } from "../../config/web3";
 import User from "../../models/User";
-import { AuthChallenge, AuthTokenPayload, RiskLevel } from "../../types/index";
+import { AuthChallenge, AuthTokenPayload } from "../../types/index";
 
 export class AuthService {
   private challenges = new Map<string, AuthChallenge>();
@@ -62,23 +63,7 @@ export class AuthService {
       if (!user) {
         user = await User.create({
           walletAddress: recoveredAddress,
-          settings: {
-            enabled: false,
-            autoCloseAPRThreshold: 10,
-            autoClosePnLThreshold: -5,
-            autoCloseTimeoutHours: 168,
-            preferredExchanges: ["vest", "hyperliquid"],
-            riskTolerance: RiskLevel.MEDIUM,
-            notificationPreferences: {
-              email: false,
-              webhook: false,
-              discord: false,
-            },
-            minAPR: 1,
-            maxPositionSize: 1_000,
-            maxSimultaneousPositions: 1,
-            autoCloseEnabled: true,
-          },
+          settings: defaultSettings,
         });
       }
 

@@ -15,7 +15,6 @@ interface TradeHistoryAttributes {
   size: number;
   price: number;
   fee: number;
-  externalTradeId?: string;
   timestamp: Date;
   metadata?: any;
   createdAt: Date;
@@ -38,7 +37,6 @@ class TradeHistory
   declare public size: number;
   declare public price: number;
   declare public fee: number;
-  declare public externalTradeId?: string;
   declare public timestamp: Date;
   declare public metadata?: any;
   declare public readonly createdAt: Date;
@@ -143,10 +141,6 @@ TradeHistory.init(
       allowNull: false,
       defaultValue: 0,
     },
-    externalTradeId: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
     timestamp: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -181,10 +175,6 @@ TradeHistory.init(
       },
       {
         fields: ["timestamp"],
-      },
-      {
-        unique: true,
-        fields: ["externalTradeId", "exchange"],
       },
     ],
   },

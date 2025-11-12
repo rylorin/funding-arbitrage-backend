@@ -2,111 +2,110 @@ import { RiskLevel } from "@/types";
 import { Response } from "express";
 import Joi from "joi";
 import { AuthenticatedRequest } from "../middleware/auth";
-import { FundingRate, Position, TradeHistory, User } from "../models/index";
+import { FundingRate, Position, TradeHistory } from "../models/index";
 import { positionSyncService } from "../services/PositionSyncService";
 
-const createPositionSchema = Joi.object({
-  token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").required(),
-  longExchange: Joi.string()
-    .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
-    .required(),
-  shortExchange: Joi.string()
-    .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
-    .required(),
-  size: Joi.number().positive().required(),
-  entryFundingRates: Joi.object({
-    longRate: Joi.number().required(),
-    shortRate: Joi.number().required(),
-    spreadAPR: Joi.number().required(),
-  }).required(),
-  autoCloseEnabled: Joi.boolean().default(true),
-  autoCloseAPRThreshold: Joi.number().min(0).max(100).optional(),
-  autoClosePnLThreshold: Joi.number().min(-100).max(0).optional(),
-})
-  .custom((value, helpers) => {
-    if (value.longExchange === value.shortExchange) {
-      return helpers.error("custom.sameExchange");
-    }
-    return value;
-  })
-  .messages({
-    "custom.sameExchange": "Long and short exchanges must be different",
-  });
+// const createPositionSchema = Joi.object({
+//   token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").required(),
+//   longExchange: Joi.string()
+//     .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
+//     .required(),
+//   shortExchange: Joi.string()
+//     .valid("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi")
+//     .required(),
+//   size: Joi.number().positive().required(),
+//   entryFundingRates: Joi.object({
+//     longRate: Joi.number().required(),
+//     shortRate: Joi.number().required(),
+//     spreadAPR: Joi.number().required(),
+//   }).required(),
+//   autoCloseEnabled: Joi.boolean().default(true),
+//   autoCloseAPRThreshold: Joi.number().min(0).max(100).optional(),
+//   autoClosePnLThreshold: Joi.number().min(-100).max(0).optional(),
+// })
+//   .custom((value, helpers) => {
+//     if (value.longExchange === value.shortExchange) {
+//       return helpers.error("custom.sameExchange");
+//     }
+//     return value;
+//   })
+//   .messages({
+//     "custom.sameExchange": "Long and short exchanges must be different",
+//   });
 
-export const createPosition = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const { error, value } = createPositionSchema.validate(req.body);
-    if (error) {
-      res.status(400).json({
-        error: "Validation error",
-        details: error.details,
-      });
-      return;
-    }
+// export const createPosition = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+//   try {
+//     const { error, value } = createPositionSchema.validate(req.body);
+//     if (error) {
+//       res.status(400).json({
+//         error: "Validation error",
+//         details: error.details,
+//       });
+//       return;
+//     }
 
-    const {
-      token,
-      longExchange,
-      shortExchange,
-      size,
-      entryFundingRates,
-      autoCloseEnabled,
-      autoCloseAPRThreshold,
-      autoClosePnLThreshold,
-    } = value;
+//     const {
+//       token,
+//       longExchange,
+//       shortExchange,
+//       size,
+//       opportunityId,
+//       autoCloseEnabled,
+//       autoCloseAPRThreshold,
+//       autoClosePnLThreshold,
+//     } = value;
 
-    const user = await User.findByPk(req.user!.id);
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
+//     const user = await User.findByPk(req.user!.id);
+//     if (!user) {
+//       res.status(404).json({ error: "User not found" });
+//       return;
+//     }
 
-    // Use user settings as defaults if not provided
-    const finalAPRThreshold = autoCloseAPRThreshold || user.settings.autoCloseAPRThreshold;
-    const finalPnLThreshold = autoClosePnLThreshold || user.settings.autoClosePnLThreshold;
+//     // Use user settings as defaults if not provided
+//     const finalAPRThreshold = autoCloseAPRThreshold || user.settings.autoCloseAPRThreshold;
+//     const finalPnLThreshold = autoClosePnLThreshold || user.settings.autoClosePnLThreshold;
 
-    // Create the position record
-    const position = await Position.create({
-      userId: req.user!.id,
-      token,
-      longExchange,
-      shortExchange,
-      longSize: size / 2, // Split size equally for long and short
-      shortSize: size / 2,
-      entryTimestamp: new Date(),
-      entryFundingRates,
-      autoCloseEnabled,
-      autoCloseAPRThreshold: finalAPRThreshold,
-      autoClosePnLThreshold: finalPnLThreshold,
-      status: "OPEN",
-    });
+//     // Create the position record
+//     const position = await Position.create({
+//       userId: req.user!.id,
+//       token,
+//       longExchange,
+//       shortExchange,
+//       longSize: size / 2, // Split size equally for long and short
+//       shortSize: size / 2,
+//       entryTimestamp: new Date(),
+//       autoCloseEnabled,
+//       autoCloseAPRThreshold: finalAPRThreshold,
+//       autoClosePnLThreshold: finalPnLThreshold,
+//       status: "OPEN",
+//     });
 
-    // TODO: Actually open positions on exchanges
-    // For now, we'll simulate successful position opening
-    position.longPositionId = `long_${position.id}_${Date.now()}`;
-    position.shortPositionId = `short_${position.id}_${Date.now()}`;
-    await position.save();
+//     // TODO: Actually open positions on exchanges
+//     // For now, we'll simulate successful position opening
+//     position.longPositionId = `long_${position.id}_${Date.now()}`;
+//     position.shortPositionId = `short_${position.id}_${Date.now()}`;
+//     await position.save();
 
-    res.status(201).json({
-      id: position.id,
-      token: position.token,
-      longExchange: position.longExchange,
-      shortExchange: position.shortExchange,
-      size: position.size,
-      entryTimestamp: position.entryTimestamp,
-      entryFundingRates: position.entryFundingRates,
-      currentPnl: position.currentPnl,
-      status: position.status,
-      autoCloseEnabled: position.autoCloseEnabled,
-      autoCloseAPRThreshold: position.autoCloseAPRThreshold,
-      autoClosePnLThreshold: position.autoClosePnLThreshold,
-      createdAt: position.createdAt,
-    });
-  } catch (error) {
-    console.error("Position creation error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
+//     res.status(201).json({
+//       id: position.id,
+//       token: position.token,
+//       longExchange: position.longExchange,
+//       shortExchange: position.shortExchange,
+//       size: position.size,
+//       entryTimestamp: position.entryTimestamp,
+//       entryFundingRates: position.entryFundingRates,
+//       currentPnl: position.currentPnl,
+//       status: position.status,
+//       autoCloseEnabled: position.autoCloseEnabled,
+//       autoCloseAPRThreshold: position.autoCloseAPRThreshold,
+//       autoClosePnLThreshold: position.autoClosePnLThreshold,
+//       createdAt: position.createdAt,
+//     });
+//   } catch (error) {
+//     console.error("Position creation error:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 
 export const getPositions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {

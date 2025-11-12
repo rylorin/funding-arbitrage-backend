@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
-import { ExchangeName, PositionStatus, TokenSymbol } from "../types/index";
+import { ArbitrageOpportunityData, ExchangeName, PositionStatus, TokenSymbol } from "../types/index";
 import User from "./User";
 
 interface PositionAttributes {
@@ -16,16 +16,6 @@ interface PositionAttributes {
   longSize: number | null;
   shortSize: number | null;
   entryTimestamp: Date;
-  entryFundingRates: {
-    longRate: number;
-    shortRate: number;
-    spreadAPR: number;
-  };
-  entrySpreadAPR?: number;
-  longFundingRate?: number;
-  shortFundingRate?: number;
-  longMarkPrice?: number;
-  shortMarkPrice?: number;
   currentPnl: number;
   unrealizedPnL?: number;
   realizedPnL?: number;
@@ -39,6 +29,7 @@ interface PositionAttributes {
   closedAt?: Date;
   closedReason?: string;
   lastUpdated?: Date;
+  opportunity: ArbitrageOpportunityData;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +78,7 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
   declare public closedAt?: Date;
   declare public closedReason?: string;
   declare public lastUpdated?: Date;
+  declare public opportunity: ArbitrageOpportunityData;
   declare public readonly createdAt: Date;
   declare public readonly updatedAt: Date;
 
@@ -168,24 +160,6 @@ Position.init(
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
-    entryFundingRates: {
-      type: DataTypes.JSON,
-      allowNull: false,
-      validate: {
-        hasRequiredFields(value: any) {
-          if (!value || typeof value !== "object") {
-            throw new Error("entryFundingRates must be an object");
-          }
-          if (
-            typeof value.longRate !== "number" ||
-            typeof value.shortRate !== "number" ||
-            typeof value.spreadAPR !== "number"
-          ) {
-            throw new Error("entryFundingRates must contain longRate, shortRate, and spreadAPR");
-          }
-        },
-      },
-    },
     currentPnl: {
       type: DataTypes.DECIMAL(18, 8),
       allowNull: false,
@@ -219,26 +193,6 @@ Position.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
-    entrySpreadAPR: {
-      type: DataTypes.DECIMAL(8, 4),
-      allowNull: true,
-    },
-    longFundingRate: {
-      type: DataTypes.DECIMAL(12, 8),
-      allowNull: true,
-    },
-    shortFundingRate: {
-      type: DataTypes.DECIMAL(12, 8),
-      allowNull: true,
-    },
-    longMarkPrice: {
-      type: DataTypes.DECIMAL(18, 8),
-      allowNull: true,
-    },
-    shortMarkPrice: {
-      type: DataTypes.DECIMAL(18, 8),
-      allowNull: true,
-    },
     unrealizedPnL: {
       type: DataTypes.DECIMAL(18, 8),
       allowNull: true,
@@ -263,6 +217,27 @@ Position.init(
     lastUpdated: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    opportunity: {
+      type: DataTypes.JSON,
+      allowNull: false,
+      validate: {
+        hasRequiredFields(value: any) {
+          if (!value || typeof value !== "object") {
+            throw new Error("opportunity must be an object");
+          }
+          if (
+            !value.longExchange ||
+            typeof value.longExchange !== "object" ||
+            !value.shortExchange ||
+            typeof value.shortExchange !== "object" ||
+            !value.spread ||
+            typeof value.spread !== "object"
+          ) {
+            throw new Error("opportunity must contain longExchange, shortExchange, and spread");
+          }
+        },
+      },
     },
     createdAt: {
       type: DataTypes.DATE,

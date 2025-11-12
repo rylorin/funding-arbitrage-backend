@@ -1,6 +1,7 @@
+import { defaultSettings } from "@/config/user";
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
-import { RiskLevel, UserSettings } from "../types/index";
+import { UserSettings } from "../types/index";
 
 interface UserAttributes {
   id: string;
@@ -23,24 +24,6 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     // Will be defined when other models are created
   }
 }
-
-const defaultSettings: UserSettings = {
-  enabled: false,
-  autoCloseAPRThreshold: 10,
-  autoClosePnLThreshold: -5,
-  autoCloseTimeoutHours: 168,
-  riskTolerance: RiskLevel.MEDIUM,
-  preferredExchanges: ["vest", "orderly", "extended"],
-  minAPR: 30,
-  maxPositionSize: 25,
-  maxSimultaneousPositions: 1,
-  autoCloseEnabled: false,
-  notificationPreferences: {
-    email: false,
-    webhook: false,
-    discord: false,
-  },
-};
 
 User.init(
   {

@@ -1,3 +1,4 @@
+// https://docs.vestmarkets.com/vest-api
 import { generateOrderSignature } from "@/utils/vest";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
@@ -122,6 +123,15 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ symbol: string; value: number }> {
+    const payload = { symbol: `${token}-PERP`, value: leverage };
+    const response = await this.axiosClient.post("/account/leverage", payload).catch((reason: any) => {
+      // console.error(payload, reason);
+      throw new Error(reason.data.detail.msg || "Unknown error #1");
+    });
+    return response.data as { symbol: string; value: number };
+  }
+
   public async openPosition(order: OrderData): Promise<string> {
     const { token, side, size, price } = order;
     try {
@@ -131,7 +141,9 @@ export class VestExchange extends ExchangeConnector {
 
       const info = await this.getTokenInfo(token);
 
-      const order = {
+      if (order.leverage) await this.setLeverage(order.token, order.leverage);
+
+      const payload = {
         time,
         nonce: time,
         symbol,
@@ -144,9 +156,12 @@ export class VestExchange extends ExchangeConnector {
       };
 
       const privateKey: string = this.config.get<string>("privateKey");
-      const signature = generateOrderSignature(order, privateKey);
+      const signature = generateOrderSignature(payload, privateKey);
 
-      const response = await this.axiosClient.post("/orders", { order, signature });
+      const response = await this.axiosClient.post("/orders", { payload, signature }).catch((reason: any) => {
+        console.error(payload, reason);
+        throw new Error(reason.data.detail.msg || "Unknown error #2");
+      });
 
       if (response.data.orderId || response.data.id) {
         const orderId = response.data.orderId || response.data.id;
@@ -154,15 +169,16 @@ export class VestExchange extends ExchangeConnector {
         return orderId.toString();
       }
 
-      throw new Error(`Failed to open position: ${response.data.error || "Unknown error"}`);
+      console.error(response);
+      throw new Error(`Failed to open position: ${response?.data.detail.msg || "Unknown error #3"}`);
     } catch (error) {
-      console.error(
-        `Error opening Vest ${side} position for ${token}:`,
-        error,
-        JSON.stringify((error as any).response?.data),
-        (error as any).response?.data.detail.msg,
-      );
-      throw new Error(`Failed to open ${side} position on Vest`);
+      // console.error(
+      //   `Error opening Vest ${side} position for ${token}:`,
+      //   error,
+      //   JSON.stringify((error as any).response?.data),
+      //   (error as any).response?.data.detail.msg,
+      // );
+      throw error;
     }
   }
 

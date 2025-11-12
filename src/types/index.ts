@@ -38,6 +38,9 @@ export interface UserSettings {
     webhook: boolean;
     discord: boolean;
   };
+
+  slippageTolerance: number; // in percentage
+  positionLeverage: number;
 }
 
 export interface FundingRateData {

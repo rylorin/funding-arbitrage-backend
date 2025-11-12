@@ -1,3 +1,4 @@
+// https://orderly.network/docs/build-on-omnichain/evm-api/
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import bs58 from "bs58";
@@ -240,14 +241,21 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
+    const payload = { symbol: `PERP_${token}_USDC`, leverage };
+    const response = await this.axiosClient.post("/v1/client/leverage", payload).catch((reason: any) => {
+      throw new Error(reason.data.message || "Unknown error");
+    });
+    return response.data.success;
+  }
+
   public async openPosition(order: OrderData): Promise<string> {
     const { token, side, size } = order;
     try {
+      if (order.leverage) await this.setLeverage(order.token, order.leverage);
+
       const infos = await this.getTokenInfo([token]);
-      if (size < infos[token].base_min || size > infos[token].base_max)
-        throw new Error(
-          `Order size ${size} out of bounds for ${token} on Orderly: min ${infos[token].base_min}, max ${infos[token].base_max}`,
-        );
+
       // (side - infos[token].base_min) % infos[token].base_tick should equal to zero
       const min = infos[token].base_min;
       const tick = infos[token].base_tick;
@@ -255,16 +263,23 @@ export class OrderlyExchange extends ExchangeConnector {
       const rounded_diff = Math.round(diff / tick) * tick;
       const order_quantity = min + rounded_diff;
 
-      const orderData = {
+      if (order_quantity < infos[token].base_min || order_quantity > infos[token].base_max)
+        throw new Error(
+          `Order size ${order_quantity} out of bounds for ${token} on Orderly: min ${infos[token].base_min}, max ${infos[token].base_max}`,
+        );
+
+      const order_amount = order_quantity * order.price;
+      if (order_amount < 10) throw new Error(`The order value ${order_amount} should be greater or equal to 10`);
+
+      const payload = {
         symbol: `PERP_${token}_USDC`,
         order_type: "MARKET",
         side: side === OrderSide.LONG ? "BUY" : "SELL",
         order_quantity,
       };
-      // console.log("Orderly openPosition orderData:", orderData);
-      const response = await this.axiosClient.post("/v1/order", orderData).catch((reason: any) => {
-        // console.error(JSON.stringify(reason));
-        throw new Error(reason.data.message || "Unknown error");
+      const response = await this.axiosClient.post("/v1/order", payload).catch((reason: any) => {
+        // console.error(payload, reason.data);
+        throw new Error(reason.data.message || "Unknown error #2");
       });
 
       if (response.data.success && response.data.data?.order_id) {
@@ -273,7 +288,8 @@ export class OrderlyExchange extends ExchangeConnector {
         return orderId.toString();
       }
 
-      throw new Error(`Failed to open position: ${response.data.message || "Unknown error"}`);
+      console.error(response);
+      throw new Error(`Failed to open position: ${response.data.message || "Unknown error #3"}`);
     } catch (error) {
       // console.error(`Error opening Orderly ${side} position for ${token}:`, error);
       throw error;

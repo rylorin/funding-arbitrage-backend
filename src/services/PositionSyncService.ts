@@ -149,7 +149,7 @@ export class PositionSyncService {
   /**
    * Synchronise les métriques d'une position spécifique
    */
-  public async syncPositionMetrics(position: any): Promise<PositionMetrics> {
+  public async syncPositionMetrics(position: Position): Promise<PositionMetrics> {
     try {
       // Calculer le PnL actuel
       const currentPnL = await this.calculatePositionPnL(position);
@@ -276,7 +276,7 @@ export class PositionSyncService {
     try {
       const activePositions = await Position.findAll({
         where: { status: "OPEN" },
-        order: [["createdAt", "DESC"]],
+        // order: [["createdAt", "DESC"]],
       });
 
       // Enrichir avec les métriques actuelles

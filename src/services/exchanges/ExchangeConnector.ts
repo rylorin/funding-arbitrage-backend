@@ -13,6 +13,7 @@ export type OrderData = {
   side: OrderSide;
   size: number;
   price: number;
+  leverage?: number;
 };
 
 export abstract class ExchangeConnector {
