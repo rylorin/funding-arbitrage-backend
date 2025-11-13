@@ -11,7 +11,7 @@ import { Decimal, Long } from "@/extended/utils/number";
 import { roundToMinChange } from "@/extended/utils/round-to-min-change";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types";
-import { OrderData, OrderSide } from "./ExchangeConnector";
+import { OrderData, OrderSide, PlacedOrderData } from "./ExchangeConnector";
 
 interface ExtendedMarketStats {
   dailyVolume: string;
@@ -49,7 +49,10 @@ interface ExtendedMarketsResponse {
   data: ExtendedMarket[];
 }
 
-const SLIPPAGE = 0.0075;
+type GenericResponse<T> = {
+  status: "OK" | "ERROR";
+  data: T;
+};
 
 export class ExtendedExchange extends ExchangeConnector {
   private ws: WebSocket | null = null;
@@ -169,14 +172,18 @@ export class ExtendedExchange extends ExchangeConnector {
 
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ market: string; leverage: number }> {
     const payload = { market: `${token}-USD`, leverage };
-    const { data } = await this.axiosClient.post<unknown>("/api/v1/user/leverage", payload).catch((reason: any) => {
-      throw new Error(reason.data.status || "Unknown error");
-    });
-
-    return LeverageResponseSchema.parse(data).data;
+    const { data } = await this.axiosClient
+      .patch<GenericResponse<unknown>>("/api/v1/user/leverage", payload)
+      .catch((reason: any) => {
+        // console.error(this.name, payload, reason);
+        throw new Error(reason.data.status || reason.message || "Unknown error #1");
+      });
+    // console.log(data);
+    // returs payload if status is OK as response does not conform to documentation (empty data object returned)
+    return data.status == "OK" ? payload : LeverageResponseSchema.parse(data).data;
   }
 
-  public async openPosition(order: OrderData): Promise<string> {
+  public async openPosition(order: OrderData): Promise<PlacedOrderData> {
     const { token, side, size } = order;
     try {
       // Extended uses format like BTC-USD, ETH-USD, SOL-USD
@@ -189,8 +196,23 @@ export class ExtendedExchange extends ExchangeConnector {
       const fees = await this.getFees({ marketName });
       const starknetDomain = await this.getStarknetDomain();
 
-      const orderSize = Decimal(size);
-      const orderPrice = market.marketStats.askPrice.times(1 + SLIPPAGE);
+      // const orderSize = Decimal(size);
+      const amountOfSynthetic = roundToMinChange(
+        Decimal(size),
+        market.tradingConfig.minOrderSizeChange,
+        Decimal.ROUND_DOWN,
+      );
+
+      const orderPrice =
+        order.side == OrderSide.LONG
+          ? market.marketStats.askPrice.times(1 + order.slippage / 100)
+          : market.marketStats.bidPrice.times(1 - order.slippage / 100);
+      const price = roundToMinChange(
+        orderPrice,
+        market.tradingConfig.minPriceChange,
+        OrderSide.LONG ? Decimal.ROUND_UP : Decimal.ROUND_DOWN,
+      );
+      // console.log(market.marketStats.askPrice, market.marketStats.bidPrice, price);
 
       if (order.leverage) await this.setLeverage(order.token, order.leverage);
 
@@ -206,8 +228,8 @@ export class ExtendedExchange extends ExchangeConnector {
         marketName: marketName,
         orderType: "MARKET",
         side: orderSide,
-        amountOfSynthetic: roundToMinChange(orderSize, market.tradingConfig.minOrderSizeChange, Decimal.ROUND_DOWN),
-        price: roundToMinChange(orderPrice, market.tradingConfig.minPriceChange, Decimal.ROUND_DOWN),
+        amountOfSynthetic,
+        price,
         timeInForce: "IOC",
         reduceOnly: false,
         postOnly: false,
@@ -216,9 +238,7 @@ export class ExtendedExchange extends ExchangeConnector {
 
       const result = await this.placeOrder({ order: nativeOrder });
 
-      // console.log("Order placed: %o", result);
-
-      return result.externalId;
+      return { ...order, id: result.externalId, price: price.toNumber(), size: amountOfSynthetic.toNumber() };
     } catch (error) {
       // console.error(order);
       // console.error(`Error opening Extended ${side} position for ${token}:`, error);

@@ -2,7 +2,7 @@
 import { generateOrderSignature } from "@/utils/vest";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
-import { OrderData, OrderSide } from "./ExchangeConnector";
+import { OrderData, OrderSide, PlacedOrderData } from "./ExchangeConnector";
 
 type TokenInfo = {
   symbol: string;
@@ -23,13 +23,13 @@ export class VestExchange extends ExchangeConnector {
   constructor() {
     super("vest");
 
-    this.axiosClient.interceptors.request.use((config) => {
-      if (config.data || config.method === "get") {
-        config.headers = config.headers || {};
-        (config.headers as any)["X-API-KEY"] = this.config.get("apiKey");
-      }
-      return config;
-    });
+    // this.axiosClient.interceptors.request.use((config) => {
+    //   if (config.data || config.method === "get") {
+    //     config.headers = config.headers || {};
+    //     (config.headers as any)["X-API-KEY"] = this.config.get("apiKey");
+    //   }
+    //   return config;
+    // });
   }
 
   public async testConnection(): Promise<number> {
@@ -124,22 +124,32 @@ export class VestExchange extends ExchangeConnector {
   }
 
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ symbol: string; value: number }> {
-    const payload = { symbol: `${token}-PERP`, value: leverage };
+    const time = Date.now();
+    const payload = { time, symbol: `${token}-PERP`, value: leverage };
     const response = await this.axiosClient.post("/account/leverage", payload).catch((reason: any) => {
-      // console.error(payload, reason);
-      throw new Error(reason.data.detail.msg || "Unknown error #1");
+      // console.error(this.name, payload, reason);
+      throw new Error(
+        reason.data.detail.msg ||
+          (reason.data ? JSON.stringify(reason.data) : undefined) ||
+          reason.message ||
+          "Unknown error #1",
+      );
     });
     return response.data as { symbol: string; value: number };
   }
 
-  public async openPosition(order: OrderData): Promise<string> {
-    const { token, side, size, price } = order;
+  public async openPosition(order: OrderData): Promise<PlacedOrderData> {
+    const { token, side, price } = order;
     try {
       const symbol = `${token}-PERP`;
       const isBuy = side === OrderSide.LONG;
       const time = Date.now();
 
       const info = await this.getTokenInfo(token);
+      const limitPrice = (isBuy ? price * (1 + order.slippage / 100) : price * (1 - order.slippage / 100)).toFixed(
+        info.priceDecimals,
+      );
+      const size = order.size.toFixed(info.sizeDecimals);
 
       if (order.leverage) await this.setLeverage(order.token, order.leverage);
 
@@ -148,9 +158,9 @@ export class VestExchange extends ExchangeConnector {
         nonce: time,
         symbol,
         isBuy,
-        size: size.toFixed(info.sizeDecimals),
+        size,
         orderType: "MARKET",
-        limitPrice: price.toFixed(info.priceDecimals),
+        limitPrice,
         reduceOnly: false,
         timeInForce: "GTC",
       };
@@ -165,8 +175,8 @@ export class VestExchange extends ExchangeConnector {
 
       if (response.data.orderId || response.data.id) {
         const orderId = response.data.orderId || response.data.id;
-        console.log(`✅ Vest ${side} position opened: ${orderId}`);
-        return orderId.toString();
+        // console.log(`✅ Vest ${side} position opened: ${orderId}`);
+        return { ...order, id: orderId.toString(), size: parseFloat(size), price: parseFloat(limitPrice) };
       }
 
       console.error(response);

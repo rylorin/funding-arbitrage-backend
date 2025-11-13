@@ -13,8 +13,11 @@ export type OrderData = {
   side: OrderSide;
   size: number;
   price: number;
-  leverage?: number;
+  leverage: number;
+  slippage: number;
 };
+
+export type PlacedOrderData = OrderData & { id: string };
 
 export abstract class ExchangeConnector {
   public readonly name: ExchangeName;
@@ -38,7 +41,7 @@ export abstract class ExchangeConnector {
       timeout: 10_000,
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
+        "X-Api-Key": this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
       },
       paramsSerializer: {
         indexes: null,
@@ -50,6 +53,8 @@ export abstract class ExchangeConnector {
       },
       (error) => {
         if (axios.isAxiosError(error)) {
+          console.error(error);
+          console.error(JSON.stringify(error.response?.data));
           return Promise.reject({
             url: error.response?.config.url,
             status: error.response?.status,
@@ -84,7 +89,7 @@ export abstract class ExchangeConnector {
   public getAccountBalance(): Promise<Record<string, number>> {
     throw `${this.name} ExchangeConnector.getAccountBalance not implemented`;
   }
-  public openPosition(_order: OrderData): Promise<string> {
+  public openPosition(_order: OrderData): Promise<PlacedOrderData> {
     throw `${this.name} ExchangeConnector.openPosition not implemented`;
   }
   public closePosition(positionId: string): Promise<boolean> {

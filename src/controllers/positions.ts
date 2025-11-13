@@ -439,14 +439,8 @@ export const getPositionDetails = async (req: AuthenticatedRequest, res: Respons
     const hoursOpen = calculateHoursOpen(position.createdAt);
 
     // Get current funding rates
-    const longRate = await FundingRate.getLatestForTokenAndExchange(
-      position.longToken || position.token,
-      position.longExchange,
-    );
-    const shortRate = await FundingRate.getLatestForTokenAndExchange(
-      position.shortToken || position.token,
-      position.shortExchange,
-    );
+    const longRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.longExchange);
+    const shortRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.shortExchange);
 
     // Get position trade history
     const tradeHistory = await TradeHistory.findAll({

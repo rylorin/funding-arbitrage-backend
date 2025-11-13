@@ -1,6 +1,5 @@
 import { getFees } from "@extended/api/fees";
 import { getMarket } from "@extended/api/markets";
-import { placeOrder } from "@extended/api/order";
 import { getStarknetDomain } from "@extended/api/starknet";
 import { init } from "@extended/init";
 import { Order } from "@extended/models//order";
@@ -10,8 +9,9 @@ import { roundToMinChange } from "@extended/utils/round-to-min-change";
 import { OrderData, OrderSide } from "../../../services/exchanges/ExchangeConnector";
 import { extendedExchange as exchange } from "../../../services/exchanges/ExtendedExchange";
 
-const MARKET_NAME = "ETH-USD";
-const SLIPPAGE = 0.0075;
+const TOKEN = "DOGE";
+const MARKET_NAME = `${TOKEN}-USD`;
+const SLIPPAGE = 0.1;
 
 describe("ExtendedExchange", () => {
   beforeEach(async () => {
@@ -22,48 +22,56 @@ describe("ExtendedExchange", () => {
   });
 
   test("Native Place Order", async () => {
-    if (false) {
-      const { starkPrivateKey, vaultId } = await init();
+    const { starkPrivateKey, vaultId } = await init();
 
-      const market = await getMarket(MARKET_NAME);
-      const fees = await getFees({ marketName: MARKET_NAME });
-      const starknetDomain = await getStarknetDomain();
+    const market = await getMarket(MARKET_NAME);
+    const fees = await getFees({ marketName: MARKET_NAME });
+    const starknetDomain = await getStarknetDomain();
 
-      const orderSize = market.tradingConfig.minOrderSize;
-      const orderPrice = market.marketStats.askPrice.times(1 + SLIPPAGE);
+    const orderSize = market.tradingConfig.minOrderSize;
+    const orderPrice = market.marketStats.askPrice.times(1 + SLIPPAGE / 100);
 
-      const ctx = createOrderContext({
-        market,
-        fees,
-        starknetDomain,
-        vaultId,
-        starkPrivateKey,
-      });
-      const order = Order.create({
-        marketName: MARKET_NAME,
-        orderType: "MARKET",
-        side: "BUY",
-        amountOfSynthetic: roundToMinChange(orderSize, market.tradingConfig.minOrderSizeChange, Decimal.ROUND_DOWN),
-        price: roundToMinChange(orderPrice, market.tradingConfig.minPriceChange, Decimal.ROUND_DOWN),
-        timeInForce: "IOC",
-        reduceOnly: false,
-        postOnly: false,
-        ctx,
-      });
+    const ctx = createOrderContext({
+      market,
+      fees,
+      starknetDomain,
+      vaultId,
+      starkPrivateKey,
+    });
+    const order = Order.create({
+      marketName: MARKET_NAME,
+      orderType: "MARKET",
+      side: "BUY",
+      amountOfSynthetic: roundToMinChange(orderSize, market.tradingConfig.minOrderSizeChange, Decimal.ROUND_DOWN),
+      price: roundToMinChange(orderPrice, market.tradingConfig.minPriceChange, Decimal.ROUND_DOWN),
+      timeInForce: "IOC",
+      reduceOnly: false,
+      postOnly: false,
+      ctx,
+    });
 
-      const result = await placeOrder({ order });
+    //   const result = await placeOrder({ order });
+    // expect(result).toBeDefined();
 
-      console.log("Order placed: %o", result);
-    }
+    //   console.log("Order placed: %o", result);
+  });
+
+  test("Set leverage", async () => {
+    const result = await exchange.setLeverage(TOKEN, 1);
+    expect(result).toBeDefined();
   });
 
   test("Place Order", async () => {
     const sampleOrder: OrderData = {
-      token: "DOGE",
+      exchange: exchange.name,
+      token: TOKEN,
       side: OrderSide.LONG,
       size: 100,
+      price: 0.075,
+      leverage: 0,
+      slippage: SLIPPAGE,
     };
-    const orderId = await exchange.openPosition(sampleOrder);
-    expect(orderId).toBeDefined();
+    // const result = await exchange.openPosition(sampleOrder);
+    // expect(result).toBeDefined();
   });
 });

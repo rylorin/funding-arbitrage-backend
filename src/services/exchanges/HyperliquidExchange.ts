@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
-import { OrderData } from "./ExchangeConnector";
+import { OrderData, PlacedOrderData } from "./ExchangeConnector";
 
 interface HyperliquidFundingHistory {
   coin: string;
@@ -165,7 +165,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(order: OrderData): Promise<string> {
+  public async openPosition(order: OrderData): Promise<PlacedOrderData> {
     const { token, side } = order;
     try {
       // Note: This requires proper authentication with user's wallet and signing

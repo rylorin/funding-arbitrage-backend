@@ -4,7 +4,7 @@ import { sha512 } from "@noble/hashes/sha2.js";
 import bs58 from "bs58";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
-import { OrderData, OrderSide } from "./ExchangeConnector";
+import { OrderData, OrderSide, PlacedOrderData } from "./ExchangeConnector";
 
 interface WoofiFundingRate {
   symbol: string;
@@ -244,12 +244,12 @@ export class OrderlyExchange extends ExchangeConnector {
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
     const payload = { symbol: `PERP_${token}_USDC`, leverage };
     const response = await this.axiosClient.post("/v1/client/leverage", payload).catch((reason: any) => {
-      throw new Error(reason.data.message || "Unknown error");
+      throw new Error(reason.data.message || reason.message || "Unknown error #1");
     });
     return response.data.success;
   }
 
-  public async openPosition(order: OrderData): Promise<string> {
+  public async openPosition(order: OrderData): Promise<PlacedOrderData> {
     const { token, side, size } = order;
     try {
       if (order.leverage) await this.setLeverage(order.token, order.leverage);
@@ -260,7 +260,7 @@ export class OrderlyExchange extends ExchangeConnector {
       const min = infos[token].base_min;
       const tick = infos[token].base_tick;
       const diff = size - min;
-      const rounded_diff = Math.round(diff / tick) * tick;
+      const rounded_diff = Math.floor(diff / tick) * tick;
       const order_quantity = min + rounded_diff;
 
       if (order_quantity < infos[token].base_min || order_quantity > infos[token].base_max)
@@ -276,6 +276,7 @@ export class OrderlyExchange extends ExchangeConnector {
         order_type: "MARKET",
         side: side === OrderSide.LONG ? "BUY" : "SELL",
         order_quantity,
+        slippage: order.slippage / 100,
       };
       const response = await this.axiosClient.post("/v1/order", payload).catch((reason: any) => {
         // console.error(payload, reason.data);
@@ -284,8 +285,8 @@ export class OrderlyExchange extends ExchangeConnector {
 
       if (response.data.success && response.data.data?.order_id) {
         const orderId = response.data.data.order_id;
-        console.log(`✅ Orderly ${side} position opened: ${orderId}`);
-        return orderId.toString();
+        // console.log(`✅ Orderly ${side} position opened: ${orderId}`);
+        return { ...order, id: orderId.toString(), size: order_quantity };
       }
 
       console.error(response);

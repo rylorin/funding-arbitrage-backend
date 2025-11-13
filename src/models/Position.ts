@@ -7,15 +7,22 @@ interface PositionAttributes {
   id: string;
   userId: string;
   token: TokenSymbol;
-  longExchange: ExchangeName;
-  shortExchange: ExchangeName;
-  longPositionId?: string;
-  shortPositionId?: string;
-  longOrderId?: string;
-  shortOrderId?: string;
-  longSize: number | null;
-  shortSize: number | null;
+  status: PositionStatus;
+  opportunity: ArbitrageOpportunityData;
   entryTimestamp: Date;
+
+  // Long leg
+  longExchange: ExchangeName;
+  longSize: number | null;
+  longPrice: number | null;
+  longOrderId?: string;
+
+  // Short leg
+  shortExchange: ExchangeName;
+  shortSize: number | null;
+  shortPrice: number | null;
+  shortOrderId?: string;
+
   currentPnl: number;
   unrealizedPnL?: number;
   realizedPnL?: number;
@@ -25,11 +32,9 @@ interface PositionAttributes {
   autoCloseAPRThreshold: number;
   autoClosePnLThreshold: number;
   autoCloseTimeoutHours?: number;
-  status: PositionStatus;
   closedAt?: Date;
   closedReason?: string;
   lastUpdated?: Date;
-  opportunity: ArbitrageOpportunityData;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,24 +42,27 @@ interface PositionAttributes {
 interface PositionCreationAttributes
   extends Optional<
     PositionAttributes,
-    "id" | "createdAt" | "updatedAt" | "currentPnl" | "closedAt" | "closedReason" | "longPositionId" | "shortPositionId"
+    "id" | "createdAt" | "updatedAt" | "currentPnl" | "closedAt" | "closedReason" | "longOrderId" | "shortOrderId"
   > {}
 
 class Position extends Model<PositionAttributes, PositionCreationAttributes> implements PositionAttributes {
   declare public id: string;
   declare public userId: string;
   declare public token: TokenSymbol;
-  declare public longToken?: TokenSymbol;
-  declare public shortToken?: TokenSymbol;
-  declare public longExchange: ExchangeName;
-  declare public shortExchange: ExchangeName;
-  declare public longPositionId?: string;
-  declare public shortPositionId?: string;
-  declare public longOrderId?: string;
-  declare public shortOrderId?: string;
-  declare public longSize: number;
-  declare public shortSize: number;
+  declare public status: PositionStatus;
+  declare public opportunity: ArbitrageOpportunityData;
   declare public entryTimestamp: Date;
+
+  declare public longExchange: ExchangeName;
+  declare public longSize: number;
+  declare public longPrice: number;
+  declare public longOrderId?: string;
+
+  declare public shortExchange: ExchangeName;
+  declare public shortSize: number;
+  declare public shortPrice: number;
+  declare public shortOrderId?: string;
+
   declare public entryFundingRates: {
     longRate: number;
     shortRate: number;
@@ -63,8 +71,6 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
   declare public entrySpreadAPR?: number;
   declare public longFundingRate?: number;
   declare public shortFundingRate?: number;
-  declare public longMarkPrice?: number;
-  declare public shortMarkPrice?: number;
   declare public currentPnl: number;
   declare public unrealizedPnL?: number;
   declare public realizedPnL?: number;
@@ -74,11 +80,9 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
   declare public autoCloseAPRThreshold: number;
   declare public autoClosePnLThreshold: number;
   declare public autoCloseTimeoutHours?: number;
-  declare public status: PositionStatus;
   declare public closedAt?: Date;
   declare public closedReason?: string;
   declare public lastUpdated?: Date;
-  declare public opportunity: ArbitrageOpportunityData;
   declare public readonly createdAt: Date;
   declare public readonly updatedAt: Date;
 
@@ -125,21 +129,41 @@ Position.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    status: {
+      type: DataTypes.ENUM("OPEN", "CLOSED", "ERROR", "CLOSING"),
+      allowNull: false,
+      defaultValue: "OPEN",
+    },
+    opportunity: {
+      type: DataTypes.JSON,
+      allowNull: false,
+      validate: {
+        hasRequiredFields(value: any) {
+          if (!value || typeof value !== "object") {
+            throw new Error("opportunity must be an object");
+          }
+          if (
+            !value.longExchange ||
+            typeof value.longExchange !== "object" ||
+            !value.shortExchange ||
+            typeof value.shortExchange !== "object" ||
+            !value.spread ||
+            typeof value.spread !== "object"
+          ) {
+            throw new Error("opportunity must contain longExchange, shortExchange, and spread");
+          }
+        },
+      },
+    },
+    entryTimestamp: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+
     longExchange: {
       type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
       allowNull: false,
-    },
-    shortExchange: {
-      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
-      allowNull: false,
-    },
-    longPositionId: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    shortPositionId: {
-      type: DataTypes.STRING,
-      allowNull: true,
     },
     longSize: {
       type: DataTypes.DECIMAL(18, 8),
@@ -148,6 +172,19 @@ Position.init(
         min: 0.00000001,
       },
     },
+    longPrice: {
+      type: DataTypes.NUMBER,
+      allowNull: true,
+    },
+    longOrderId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    shortExchange: {
+      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
+      allowNull: false,
+    },
     shortSize: {
       type: DataTypes.DECIMAL(18, 8),
       allowNull: true,
@@ -155,11 +192,15 @@ Position.init(
         min: 0.00000001,
       },
     },
-    entryTimestamp: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
+    shortPrice: {
+      type: DataTypes.NUMBER,
+      allowNull: true,
     },
+    shortOrderId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
     currentPnl: {
       type: DataTypes.DECIMAL(18, 8),
       allowNull: false,
@@ -179,11 +220,6 @@ Position.init(
       type: DataTypes.DECIMAL(5, 2),
       allowNull: false,
       defaultValue: -5,
-    },
-    status: {
-      type: DataTypes.ENUM("OPEN", "CLOSED", "ERROR", "CLOSING"),
-      allowNull: false,
-      defaultValue: "OPEN",
     },
     closedAt: {
       type: DataTypes.DATE,
@@ -217,27 +253,6 @@ Position.init(
     lastUpdated: {
       type: DataTypes.DATE,
       allowNull: true,
-    },
-    opportunity: {
-      type: DataTypes.JSON,
-      allowNull: false,
-      validate: {
-        hasRequiredFields(value: any) {
-          if (!value || typeof value !== "object") {
-            throw new Error("opportunity must be an object");
-          }
-          if (
-            !value.longExchange ||
-            typeof value.longExchange !== "object" ||
-            !value.shortExchange ||
-            typeof value.shortExchange !== "object" ||
-            !value.spread ||
-            typeof value.spread !== "object"
-          ) {
-            throw new Error("opportunity must contain longExchange, shortExchange, and spread");
-          }
-        },
-      },
     },
     createdAt: {
       type: DataTypes.DATE,
