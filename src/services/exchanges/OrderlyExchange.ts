@@ -1,4 +1,6 @@
 // https://orderly.network/docs/build-on-omnichain/evm-api/
+import { Position } from "@/models";
+import { PositionSide, PositionStatus } from "@/models/Position";
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import bs58 from "bs58";
@@ -78,15 +80,21 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
+  protected extractTokenFromTicker(symbol: string): string | null {
+    // Extract token from symbol like PERP_BTC_USDC
+    const parts = symbol.split("_");
+    // console.log('Orderly symbol parts:', parts);
+    return parts.length === 3 ? (parts[1] as TokenSymbol) : null;
+  }
+
   private extractTokensFromTickers(marketsResponse: WoofiFundingRate[]): TokenSymbol[] {
     return marketsResponse
-      .map((row) => {
-        // Extract token from symbol like PERP_BTC_USDC
-        const parts = row.symbol.split("_");
-        // console.log('Orderly symbol parts:', parts);
-        return parts.length === 3 ? (parts[1] as TokenSymbol) : null;
-      })
+      .map((row) => this.extractTokenFromTicker(row.symbol))
       .filter((t): t is TokenSymbol => t !== null);
+  }
+
+  protected tokenToTicker(token: TokenSymbol): string {
+    return `PERP_${token}_USDC`;
   }
 
   public async getTokenPrice(tokens?: TokenSymbol[]): Promise<Record<TokenSymbol, TokenPrice>> {
@@ -98,13 +106,17 @@ export class OrderlyExchange extends ExchangeConnector {
       const tickersData = response.data.data as { rows: any[] };
 
       // If no tokens specified, extract all available tokens from tickers
-      const tokensToProcess = tokens || this.extractTokensFromTickers(tickersData.rows);
+      const tokensToProcess =
+        tokens ||
+        tickersData.rows
+          .map((row) => this.extractTokenFromTicker(row.symbol))
+          .filter((t): t is TokenSymbol => t !== null);
 
       // For each requested token, find its price
       for (const token of tokensToProcess) {
         try {
           // Orderly/Orderly uses format like PERP_BTC_USDC
-          const symbol = `PERP_${token}_USDC`;
+          const symbol = this.tokenToTicker(token);
 
           // Find ticker for this token
           const tokenTicker = tickersData.rows.find((ticker) => ticker.symbol === symbol);
@@ -131,7 +143,7 @@ export class OrderlyExchange extends ExchangeConnector {
     try {
       const result: Record<TokenSymbol, TokenInfo> = {};
 
-      const symbol = tokens && tokens.length > 1 ? `PERP_${tokens[0]}_USDC` : "";
+      const symbol = tokens && tokens.length > 1 ? this.tokenToTicker(tokens[0]) : "";
       const response = await this.axiosClient.get(`/v1/public/info/${symbol}`);
       const tickersData = response.data.data as { rows: any[] };
 
@@ -142,7 +154,7 @@ export class OrderlyExchange extends ExchangeConnector {
       for (const token of tokensToProcess) {
         try {
           // Orderly/Orderly uses format like PERP_BTC_USDC
-          const symbol = `PERP_${token}_USDC`;
+          const symbol = this.tokenToTicker(token);
 
           // Find ticker for this token
           const tokenTicker = tickersData.rows.find((ticker) => ticker.symbol === symbol);
@@ -184,7 +196,7 @@ export class OrderlyExchange extends ExchangeConnector {
       for (const token of tokensToProcess) {
         try {
           // Orderly/Orderly uses format like PERP_BTC_USDC
-          const symbol = `PERP_${token}_USDC`;
+          const symbol = this.tokenToTicker(token);
 
           // Find funding rate for this token
           const tokenFunding = fundingData.rows.find((funding) => funding.symbol === symbol);
@@ -205,7 +217,7 @@ export class OrderlyExchange extends ExchangeConnector {
               fundingRate,
               nextFunding,
               fundingFrequency,
-              timestamp: new Date(),
+              updatedAt: new Date(),
               markPrice: prices[token].mark_price || 0,
               indexPrice: prices[token].index_price || 0,
             });
@@ -242,7 +254,7 @@ export class OrderlyExchange extends ExchangeConnector {
   }
 
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
-    const payload = { symbol: `PERP_${token}_USDC`, leverage };
+    const payload = { symbol: this.tokenToTicker(token), leverage };
     const response = await this.axiosClient.post("/v1/client/leverage", payload).catch((reason: any) => {
       throw new Error(reason.data.message || reason.message || "Unknown error #1");
     });
@@ -256,12 +268,28 @@ export class OrderlyExchange extends ExchangeConnector {
 
       const infos = await this.getTokenInfo([token]);
 
-      // (side - infos[token].base_min) % infos[token].base_tick should equal to zero
+      // (size - infos[token].base_min) % infos[token].base_tick should equal to zero
       const min = infos[token].base_min;
       const tick = infos[token].base_tick;
-      const diff = size - min;
-      const rounded_diff = Math.floor(diff / tick) * tick;
-      const order_quantity = min + rounded_diff;
+
+      // To avoid floating-point precision errors, we work with integers
+      // Determine the number of decimal places in tick
+      const tickStr = tick.toString();
+      const decimalPlaces = tickStr.includes(".") ? tickStr.split(".")[1].length : 0;
+      const multiplier = Math.pow(10, decimalPlaces);
+
+      // Convert to integers for precise calculation
+      const sizeInt = Math.round(size * multiplier);
+      const minInt = Math.round(min * multiplier);
+      const tickInt = Math.round(tick * multiplier);
+
+      // Calculate the difference and round down to nearest tick
+      const diffInt = sizeInt - minInt;
+      const roundedDiffInt = Math.floor(diffInt / tickInt) * tickInt;
+      const orderQuantityInt = minInt + roundedDiffInt;
+
+      // Convert back to decimal
+      const order_quantity = orderQuantityInt / multiplier;
 
       if (order_quantity < infos[token].base_min || order_quantity > infos[token].base_max)
         throw new Error(
@@ -272,7 +300,7 @@ export class OrderlyExchange extends ExchangeConnector {
       if (order_amount < 10) throw new Error(`The order value ${order_amount} should be greater or equal to 10`);
 
       const payload = {
-        symbol: `PERP_${token}_USDC`,
+        symbol: this.tokenToTicker(token),
         order_type: "MARKET",
         side: side === OrderSide.LONG ? "BUY" : "SELL",
         order_quantity,
@@ -295,6 +323,17 @@ export class OrderlyExchange extends ExchangeConnector {
       // console.error(`Error opening Orderly ${side} position for ${token}:`, error);
       throw error;
     }
+  }
+
+  public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
+    const { token, id: client_order_id } = order;
+    const symbol = this.tokenToTicker(token);
+    const response = await this.axiosClient
+      .delete(`/v1/client/order?client_order_id=${client_order_id}&symbol=${symbol}`)
+      .catch((reason: any) => {
+        throw new Error(reason.data.message || reason.message || "Unknown error #1");
+      });
+    return response.data.success;
   }
 
   public async closePosition(positionId: string): Promise<boolean> {
@@ -402,6 +441,53 @@ export class OrderlyExchange extends ExchangeConnector {
       this.ws = null;
     }
     this.isConnected = false;
+  }
+
+  public async getPositions(): Promise<Position[]> {
+    const response = await this.axiosClient.get("/v1/positions").catch((reason: any) => {
+      throw new Error(reason.data.message || "Unknown error #3");
+    });
+
+    if (response.data.success && response.data.data?.rows) {
+      return response.data.data.rows.map((pos: any) => ({
+        id: "id",
+        userId: "userId",
+        tradeId: "tradeId",
+        token: this.extractTokenFromTicker(pos.symbol),
+        status: pos.position_qty ? PositionStatus.OPEN : PositionStatus.CLOSED,
+        entryTimestamp: new Date(pos.updated_time),
+
+        exchange: this.name,
+        side: pos.position_qty > 0 ? PositionSide.LONG : PositionSide.SHORT,
+        size: Math.abs(pos.position_qty),
+        price: pos.mark_price,
+        leverage: parseInt(pos.leverage),
+        orderId: "orderId",
+
+        unrealizedPnL: pos.unsettled_pnl,
+        realizedPnL: 0,
+
+        IMR_withdraw_orders: pos.IMR_withdraw_orders,
+        MMR_with_orders: pos.MMR_with_orders,
+        average_open_price: pos.average_open_price,
+        cost_position: pos.cost_position,
+        est_liq_price: pos.est_liq_price,
+        fee_24_h: pos.fee_24_h,
+        imr: pos.imr,
+        last_sum_unitary_funding: pos.last_sum_unitary_funding,
+        mmr: pos.mmr,
+        pending_long_qty: pos.pending_long_qty,
+        pending_short_qty: pos.pending_short_qty,
+        pnl_24_h: pos.pnl_24_h,
+        settle_price: pos.settle_price,
+        seq: pos.seq,
+        timestamp: new Date(pos.timestamp),
+        updated_time: new Date(pos.updated_time),
+      }));
+    }
+
+    console.error(response);
+    throw new Error(`Failed to open position: ${response.data.message || "Unknown error #3"}`);
   }
 }
 

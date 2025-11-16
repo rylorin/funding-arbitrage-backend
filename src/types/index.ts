@@ -1,3 +1,5 @@
+import { PositionMetrics } from "@/services/PositionSyncService";
+
 export interface AuthChallenge {
   message: string;
   nonce: string;
@@ -49,21 +51,18 @@ export interface FundingRateData {
   fundingRate: number;
   fundingFrequency: number; // in hours
   nextFunding: Date;
-  timestamp: Date;
+  updatedAt: Date;
   markPrice?: number | undefined;
   indexPrice?: number | undefined;
 }
 
-export interface PositionPnL {
-  positionId: string;
-  currentPnL: number;
-  unrealizedPnL: number;
-  realizedPnL: number;
-  totalFees: number;
-  currentAPR: number;
-  hoursOpen: number;
-  lastUpdated: Date;
-}
+export type PositionPnL =
+  | PositionMetrics
+  | {
+      positionId: string;
+      hoursOpen: number;
+      lastUpdated: Date;
+    };
 
 export interface ExchangeApiCredentials {
   apiKey: string;
@@ -91,7 +90,6 @@ export interface JobResult {
   executionTime: number;
 }
 
-export type PositionStatus = "OPEN" | "CLOSED" | "ERROR" | "CLOSING";
 export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "mock";
 export type TokenSymbol = string; // e.g., 'BTC', 'ETH', 'SOL', etc.
 
@@ -119,8 +117,8 @@ export interface OpportunitySpread {
 
 export interface OpportunityTiming {
   nextFunding: string;
-  longFrequency: string;
-  shortFrequency: string;
+  longFrequency: number;
+  shortFrequency: number;
 }
 
 export interface ArbitrageOpportunityData {

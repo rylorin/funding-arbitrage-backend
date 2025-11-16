@@ -2,18 +2,20 @@ import { DataTypes, Model, Op, Optional } from "sequelize";
 import { sequelize } from "../config/database";
 import { ExchangeName, TokenSymbol } from "../types/index";
 
-interface FundingRateAttributes {
+export interface FundingRateAttributes {
   id: string;
   exchange: ExchangeName;
   token: TokenSymbol;
+
   fundingRate: number;
   fundingFrequency: number; // in hours
   nextFunding: Date;
-  timestamp: Date;
+
   markPrice?: number;
   indexPrice?: number;
-  createdAt: Date;
+
   updatedAt: Date;
+  createdAt: Date;
 }
 
 type FundingRateCreationAttributes = Optional<
@@ -28,7 +30,6 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
   declare public fundingRate: number;
   declare public fundingFrequency: number; // in hours
   declare public nextFunding: Date;
-  declare public timestamp: Date;
   declare public markPrice?: number;
   declare public indexPrice?: number;
   declare public readonly createdAt: Date;
@@ -40,7 +41,7 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
 
     const whereClause: any = {
       fundingRate: { [Op.ne]: null },
-      timestamp: { [Op.gte]: new Date(now - 2 * 60 * 60_000) }, // Only consider entries from the last 2 hours
+      updatedAt: { [Op.gte]: new Date(now - 2 * 60 * 60_000) }, // Only consider entries from the last 2 hours
     };
     if (token) whereClause.token = token;
     if (exchange) whereClause.exchange = exchange;
@@ -49,14 +50,14 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
       // Get latest for specific token and exchange
       result = await FundingRate.findAll({
         where: whereClause,
-        order: [["timestamp", "DESC"]],
+        order: [["updatedAt", "DESC"]],
         limit: 1,
       });
     } else {
       // For broader queries, get more recent data to ensure we have multiple exchanges/tokens
       result = await FundingRate.findAll({
         where: whereClause,
-        order: [["timestamp", "DESC"]],
+        order: [["updatedAt", "DESC"]],
         // limit: 2000, // Increase limit to get more data for arbitrage calculations
       });
     }
@@ -67,7 +68,7 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
   public static async getLatestForTokenAndExchange(token: TokenSymbol, exchange: ExchangeName) {
     return await FundingRate.findOne({
       where: { token, exchange },
-      order: [["timestamp", "DESC"]],
+      order: [["updatedAt", "DESC"]],
     });
   }
 
@@ -79,11 +80,11 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
       where: {
         token,
         exchange,
-        timestamp: {
+        updatedAt: {
           [Op.gte]: cutoff,
         },
       },
-      order: [["timestamp", "ASC"]],
+      order: [["updatedAt", "ASC"]],
     });
   }
 }
@@ -103,6 +104,7 @@ FundingRate.init(
       type: DataTypes.ENUM("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP"),
       allowNull: false,
     },
+
     fundingRate: {
       type: DataTypes.DECIMAL(18, 12),
       allowNull: false,
@@ -116,11 +118,7 @@ FundingRate.init(
       type: DataTypes.DATE,
       allowNull: false,
     },
-    timestamp: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-    },
+
     markPrice: {
       type: DataTypes.DECIMAL(18, 8),
       allowNull: true,
@@ -129,11 +127,12 @@ FundingRate.init(
       type: DataTypes.DECIMAL(18, 8),
       allowNull: true,
     },
-    createdAt: {
+
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
     },
-    updatedAt: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
     },
@@ -154,7 +153,7 @@ FundingRate.init(
         fields: ["token"],
       },
       {
-        fields: ["timestamp"],
+        fields: ["updatedAt"],
       },
       {
         fields: ["nextFunding"],

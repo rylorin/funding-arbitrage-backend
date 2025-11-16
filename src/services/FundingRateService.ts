@@ -171,7 +171,7 @@ export class FundingRateService {
           fundingRate: rate.fundingRate,
           fundingFrequency: rate.fundingFrequency,
           nextFunding: rate.nextFunding,
-          timestamp: rate.timestamp,
+          // timestamp: rate.updatedAt,
         };
 
         if (rate.markPrice !== undefined) {

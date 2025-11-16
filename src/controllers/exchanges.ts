@@ -254,7 +254,7 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
             token: rate.token as any,
             fundingRate: rate.fundingRate,
             nextFunding: rate.nextFunding,
-            timestamp: rate.timestamp,
+            // timestamp: rate.updatedAt,
           };
 
           if (rate.markPrice !== undefined) {
@@ -283,7 +283,7 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
             token: rate.token as any,
             fundingRate: rate.fundingRate,
             nextFunding: rate.nextFunding,
-            timestamp: rate.timestamp,
+            // timestamp: rate.updatedAt,
           };
 
           if (rate.markPrice !== undefined) {
@@ -312,7 +312,7 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
             token: rate.token as any,
             fundingRate: rate.fundingRate,
             nextFunding: rate.nextFunding,
-            timestamp: rate.timestamp,
+            // timestamp: rate.updatedAt,
           };
 
           if (rate.markPrice !== undefined) {
@@ -341,7 +341,7 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
             token: rate.token as any,
             fundingRate: rate.fundingRate,
             nextFunding: rate.nextFunding,
-            timestamp: rate.timestamp,
+            // timestamp: rate.updatedAt,
           };
 
           if (rate.markPrice !== undefined) {

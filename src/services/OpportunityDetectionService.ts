@@ -1,3 +1,4 @@
+import { FundingRateAttributes } from "@/models/FundingRate";
 import { FundingRate } from "../models/index";
 import { ArbitrageOpportunityData, ExchangeName, RiskLevel, TokenSymbol } from "../types/index";
 
@@ -81,7 +82,7 @@ export class OpportunityDetectionService {
               continue;
 
             // Calculer l'APR du spread
-            const spreadAPR = this.calculateSpreadAPR(longRate, shortRate);
+            const spreadAPR = OpportunityDetectionService.calculateSpreadAPR(longRate, shortRate);
             // if (token === "KAITO")
             //   console.log(
             //     `Token: ${token}, Long: ${longRate.exchange} (${longRate.fundingRate}), Short: ${shortRate.exchange} (${shortRate.fundingRate}), Spread APR: ${spreadAPR.toFixed(2)}%`,
@@ -127,13 +128,13 @@ export class OpportunityDetectionService {
                 name: longRate.exchange,
                 fundingRate: longRate.fundingRate / longRate.fundingFrequency,
                 fundingFrequency: longRate.fundingFrequency,
-                price: longRate.markPrice,
+                price: longRate.markPrice!,
               },
               shortExchange: {
                 name: shortRate.exchange,
                 fundingRate: shortRate.fundingRate / shortRate.fundingFrequency,
                 fundingFrequency: shortRate.fundingFrequency,
-                price: shortRate.markPrice,
+                price: shortRate.markPrice!,
               },
               spread: {
                 absolute:
@@ -224,7 +225,7 @@ export class OpportunityDetectionService {
   /**
    * Calcule l'APR du spread entre deux rates
    */
-  private calculateSpreadAPR(longRate: any, shortRate: any): number {
+  public static calculateSpreadAPR(longRate: FundingRateAttributes, shortRate: FundingRateAttributes): number {
     const longApr = (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
     const shortApr = (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
     const spread = shortApr - longApr;
@@ -235,7 +236,7 @@ export class OpportunityDetectionService {
   /**
    * Calcule la déviation de prix entre deux exchanges
    */
-  private calculatePriceDeviation(longRate: any, shortRate: any): number {
+  private calculatePriceDeviation(longRate: FundingRateAttributes, shortRate: FundingRateAttributes): number {
     if (!longRate.markPrice || !shortRate.markPrice) return 0;
 
     const avgPrice = (longRate.markPrice + shortRate.markPrice) / 2;
@@ -247,7 +248,7 @@ export class OpportunityDetectionService {
   /**
    * Évalue le risque d'une opportunité de manière unifiée
    */
-  private assessRisk(longRate: any, shortRate: any, spreadAPR: number) {
+  private assessRisk(longRate: FundingRateAttributes, shortRate: FundingRateAttributes, spreadAPR: number) {
     const priceDeviation = this.calculatePriceDeviation(longRate, shortRate);
     const spread = Math.abs(shortRate.fundingRate - longRate.fundingRate);
 
@@ -344,7 +345,7 @@ export class OpportunityDetectionService {
   /**
    * Groupe les rates par token
    */
-  private groupRatesByToken(rates: FundingRate[]): Record<string, any[]> {
+  private groupRatesByToken(rates: FundingRate[]): Record<string, FundingRateAttributes[]> {
     return rates.reduce(
       (acc, rate) => {
         const rateData = rate.dataValues || rate;
@@ -356,7 +357,7 @@ export class OpportunityDetectionService {
         acc[rateData.token].push(rateData);
         return acc;
       },
-      {} as Record<string, any[]>,
+      {} as Record<string, FundingRateAttributes[]>,
     );
   }
 }

@@ -3,12 +3,15 @@ import { FeesResponseSchema } from "@/extended/api/fees.schema";
 import { LeverageResponseSchema } from "@/extended/api/leverage.schema";
 import { Market, MarketsResponseSchema } from "@/extended/api/markets.schema";
 import { PlacedOrderResponseSchema } from "@/extended/api/orders.schema";
+import { UserPositionsResponseSchema } from "@/extended/api/positions.schema";
 import { StarknetDomainResponseSchema } from "@/extended/api/starknet.schema";
 import { Order } from "@/extended/models/order";
 import { createOrderContext } from "@/extended/utils/create-order-context";
 import { HexString } from "@/extended/utils/hex";
 import { Decimal, Long } from "@/extended/utils/number";
 import { roundToMinChange } from "@/extended/utils/round-to-min-change";
+import { Position } from "@/models";
+import { PositionSide, PositionStatus } from "@/models/Position";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types";
 import { OrderData, OrderSide, PlacedOrderData } from "./ExchangeConnector";
@@ -81,14 +84,18 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
+  protected extractTokenFromTicker(symbol: string): string | null {
+    // Extract token from market name like BTC-USD
+    const parts = symbol.split("-");
+    return parts.length === 2 ? (parts[0] as TokenSymbol) : null;
+  }
+
   private extractTokensFromTickers(marketsResponse: ExtendedMarket[]): TokenSymbol[] {
-    return marketsResponse
-      .map((m) => {
-        // Extract token from market name like BTC-USD
-        const parts = m.name.split("-");
-        return parts.length === 2 ? (parts[0] as TokenSymbol) : null;
-      })
-      .filter((t): t is TokenSymbol => t !== null);
+    return marketsResponse.map((m) => this.extractTokenFromTicker(m.name)).filter((t): t is TokenSymbol => t !== null);
+  }
+
+  protected tokenToTicker(token: TokenSymbol): string {
+    return `${token}-USD`;
   }
 
   public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
@@ -107,7 +114,7 @@ export class ExtendedExchange extends ExchangeConnector {
       for (const token of tokensToProcess) {
         try {
           // Extended uses format like BTC-USD, ETH-USD, SOL-USD
-          const symbol = `${token}-USD`;
+          const symbol = this.tokenToTicker(token);
 
           // Find market for this token
           const market = marketsResponse.data.find((m) => m.name === symbol);
@@ -125,7 +132,7 @@ export class ExtendedExchange extends ExchangeConnector {
               fundingRate,
               fundingFrequency: this.config.get("fundingFrequency"), // in hours
               nextFunding,
-              timestamp: new Date(),
+              updatedAt: new Date(),
               markPrice: parseFloat(market.marketStats.markPrice),
               indexPrice: parseFloat(market.marketStats.indexPrice),
             });
@@ -156,7 +163,7 @@ export class ExtendedExchange extends ExchangeConnector {
 
   private async checkOrderBounds(order: OrderData): Promise<Market> {
     const { token, size } = order;
-    const marketName = `${token}-USD`;
+    const marketName = this.tokenToTicker(token);
     const market = await this.getMarket(marketName);
 
     const orderSize = Decimal(size);
@@ -171,7 +178,7 @@ export class ExtendedExchange extends ExchangeConnector {
   }
 
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ market: string; leverage: number }> {
-    const payload = { market: `${token}-USD`, leverage };
+    const payload = { market: this.tokenToTicker(token), leverage };
     const { data } = await this.axiosClient
       .patch<GenericResponse<unknown>>("/api/v1/user/leverage", payload)
       .catch((reason: any) => {
@@ -187,7 +194,7 @@ export class ExtendedExchange extends ExchangeConnector {
     const { token, side, size } = order;
     try {
       // Extended uses format like BTC-USD, ETH-USD, SOL-USD
-      const marketName = `${token}-USD`;
+      const marketName = this.tokenToTicker(token);
 
       // Convert side to Extended format (BUY/SELL)
       const orderSide = side === OrderSide.LONG ? "BUY" : "SELL";
@@ -240,10 +247,15 @@ export class ExtendedExchange extends ExchangeConnector {
 
       return { ...order, id: result.externalId, price: price.toNumber(), size: amountOfSynthetic.toNumber() };
     } catch (error) {
-      // console.error(order);
-      // console.error(`Error opening Extended ${side} position for ${token}:`, error);
       throw error;
     }
+  }
+
+  public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
+    const { id: externalId } = order;
+    const result = await this.axiosClient.post<GenericResponse<null>>(`/api/v1/user/order?externalId=${externalId}`);
+
+    return result.data.status == "OK";
   }
 
   async placeOrder(args: { order: Order }) {
@@ -366,6 +378,45 @@ export class ExtendedExchange extends ExchangeConnector {
       this.ws.close();
       this.ws = null;
     }
+  }
+
+  public async getPositions(): Promise<Position[]> {
+    const { data } = await this.axiosClient.get<unknown>("/api/v1/user/positions");
+    // console.log(data);
+    return UserPositionsResponseSchema.parse(data).data.map(
+      (pos) =>
+        ({
+          id: pos.id.toNumber(),
+          userId: "userId",
+          tradeId: "tradeId",
+          token: this.extractTokenFromTicker(pos.market),
+          status: pos.size ? PositionStatus.OPEN : PositionStatus.CLOSED,
+          entryTimestamp: new Date(pos.createdAt),
+
+          exchange: this.name,
+          side: pos.side == "LONG" ? PositionSide.LONG : PositionSide.SHORT,
+          size: pos.size.toNumber(),
+          price: pos.markPrice.toNumber(),
+          leverage: pos.leverage.toNumber(),
+          orderId: "orderId",
+
+          unrealizedPnL: pos.unrealisedPnl.toNumber(),
+          realizedPnL: pos.realisedPnl.toNumber(),
+
+          accountId: pos.accountId.toNumber(),
+          value: pos.value.toNumber(),
+          openPrice: pos.openPrice.toNumber(),
+          liquidationPrice: pos.liquidationPrice.toNumber(),
+          margin: pos.margin.toNumber(),
+          tpTriggerPrice: pos.tpTriggerPrice,
+          tpLimitPrice: pos.tpLimitPrice,
+          slTriggerPrice: pos.slTriggerPrice,
+          slLimitPrice: pos.slLimitPrice,
+          maxPositionSize: pos.maxPositionSize,
+          adl: pos.adl,
+          updatedAt: pos.updatedAt,
+        }) as unknown as Position,
+    );
   }
 }
 

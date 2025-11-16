@@ -71,7 +71,7 @@ export const connectDatabase = async (): Promise<void> => {
     console.log(`✅ Database connected successfully (${environment})`);
 
     if (environment === "development" && !warmupDone) {
-      await sequelize.sync({ alter: false, force: false });
+      await sequelize.sync({ alter: true, force: false });
       console.log("✅ Database tables synchronized");
     }
     warmupDone = true;

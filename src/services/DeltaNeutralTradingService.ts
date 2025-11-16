@@ -1,8 +1,10 @@
 import { defaultSettings } from "@/config/user";
-import { Position, User } from "../models/index";
-import { ArbitrageOpportunityData, JobResult, UserSettings } from "../types/index";
+import { PositionSide, PositionStatus } from "@/models/Position";
+import { TradeStatus } from "@/models/TradeHistory";
+import { Position, TradeHistory, User } from "../models/index";
+import { ArbitrageOpportunityData, ExchangeName, JobResult, UserSettings } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
-import { exchangesRegistry } from "./exchanges";
+import { ExchangesRegistry, exchangesRegistry } from "./exchanges";
 import { OrderData, OrderSide, PlacedOrderData } from "./exchanges/ExchangeConnector";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
@@ -56,13 +58,9 @@ export class DeltaNeutralTradingService {
       }
 
       // Trouver les meilleures opportunités
-      const opportunities = await opportunityDetectionService.findOpportunities({
-        // minAPRThreshold: userSettings.minAPR,
-        // maxPositionSize: userSettings.maxPositionSize,
-        // maxPriceDeviation: 0.5, // 0.5% déviation de prix max
-        // allowedExchanges: userSettings.allowedExchanges,
-        // riskTolerance: userSettings.riskTolerance,
-      });
+      const opportunities = (await opportunityDetectionService.findOpportunities()).sort(
+        (o1, o2) => o2.spread.apr - o1.spread.apr,
+      );
 
       if (opportunities.length === 0) {
         console.log("ℹ️ No arbitrage opportunities found meeting criteria");
@@ -72,6 +70,7 @@ export class DeltaNeutralTradingService {
           executionTime: Date.now() - startTime,
         };
       }
+      // if (opportunities.length >= 2) console.log(opportunities[0], opportunities[1]);
 
       // Exécuter les trades pour chaque utilisateur éligible
       for (const user of autoTradingUsers) {
@@ -137,72 +136,45 @@ export class DeltaNeutralTradingService {
   /**
    * Ferme une position delta-neutral
    */
-  public async closePosition(positionId: string, reason = "Manual close"): Promise<boolean> {
+  public async closePosition(position: TradeHistory, reason = "Manual close"): Promise<boolean> {
     try {
-      console.log(`🔒 Closing position ${positionId}: ${reason}`);
+      console.log(`🔒 Closing position ${position.id}: ${reason}`);
 
-      const position = await Position.findByPk(positionId);
-      if (!position) {
-        throw new Error("Position not found");
-      }
+      const legs = await Position.findAll({
+        where: {
+          tradeId: position.id,
+          status: PositionStatus.OPEN,
+        },
+      });
 
-      const longExchange = exchangesRegistry.getExchange(position.longExchange);
-      const shortExchange = exchangesRegistry.getExchange(position.shortExchange);
-
-      let longClosed = false;
-      let shortClosed = false;
-
-      // // Fermer la position long
-      // if (longExchange && position.longPositionId) {
-      //   try {
-      //     longClosed = await longExchange.closePosition(position.longPositionId);
-      //   } catch (error) {
-      //     console.error(`Failed to close long position on ${position.longExchange}:`, error);
-      //   }
-      // }
-
-      // // Fermer la position short
-      // if (shortExchange && position.shortPositionId) {
-      //   try {
-      //     shortClosed = await shortExchange.closePosition(position.shortPositionId);
-      //   } catch (error) {
-      //     console.error(`Failed to close short position on ${position.shortExchange}:`, error);
-      //   }
-      // }
-
-      // Calculer le PnL final
-      const finalPnL = await positionSyncService.calculatePositionPnL(position);
+      const success = await legs.reduce(
+        (p, leg) =>
+          p.then((success) => {
+            const exchange = ExchangesRegistry.getExchange(leg.exchange);
+            if (exchange)
+              return exchange
+                .closePosition(leg)
+                .then(() => success)
+                .catch((_reason) => false);
+            else {
+              return success;
+            }
+          }),
+        Promise.resolve(true),
+      );
 
       // Mettre à jour le statut de la position
       await position.update({
-        status: longClosed && shortClosed ? "CLOSED" : "ERROR",
-        closedAt: new Date(),
-        realizedPnL: finalPnL,
+        status: TradeStatus.CLOSING,
+        // closedAt: new Date(),
         closedReason: reason,
       });
 
-      // Enregistrer l'historique des trades
-      // await TradeHistory.create({
-      //   userId: position.userId,
-      //   positionId: position.id,
-      //   action: "CLOSE",
-      //   exchange: position.longExchange, // Utiliser l'exchange principal
-      //   token: position.longToken || position.token,
-      //   side: "AUTO_CLOSE",
-      //   size: position.longSize + position.shortSize,
-      //   price: 0,
-      //   fee: 0,
-      //   timestamp: new Date(),
-      //   metadata: { reason, longClosed, shortClosed },
-      // });
+      console.log(`${success ? "✅" : "⚠️"} Position ${position.id} closing: ${reason}`);
 
-      console.log(
-        `${longClosed && shortClosed ? "✅" : "⚠️"} Position ${positionId} close ${longClosed && shortClosed ? "completed" : "partially failed"}`,
-      );
-
-      return longClosed && shortClosed;
+      return success;
     } catch (error) {
-      console.error(`Error closing position ${positionId}:`, error);
+      console.error(`Error closing position ${position.id}:`, error);
       return false;
     }
   }
@@ -217,7 +189,7 @@ export class DeltaNeutralTradingService {
       console.log("🔍 Starting auto-close monitoring...");
 
       // Récupérer les positions ouvertes avec auto-close activé
-      const openPositions = await Position.findAll({
+      const openPositions = await TradeHistory.findAll({
         where: {
           status: "OPEN",
           autoCloseEnabled: true,
@@ -241,7 +213,7 @@ export class DeltaNeutralTradingService {
 
       console.log(`📊 Monitoring ${openPositions.length} positions for auto-close...`);
 
-      const positionsToClose: { position: any; reason: string }[] = [];
+      const positionsToClose: { position: TradeHistory; reason: string }[] = [];
 
       // Vérifier chaque position
       for (const position of openPositions) {
@@ -264,13 +236,13 @@ export class DeltaNeutralTradingService {
 
       for (const { position, reason } of positionsToClose) {
         try {
-          const success = await this.closePosition(position.id, reason);
+          const success = await this.closePosition(position, reason);
           closeResults.push({ positionId: position.id, success, reason });
 
           // Notification WebSocket
           const wsHandlers = getWebSocketHandlers();
           if (wsHandlers) {
-            wsHandlers.handlePositionClosed(position.userId, position.id, reason, position.currentPnl);
+            wsHandlers.handlePositionClosed(position.userId, position.id, reason, 0);
           }
         } catch (error) {
           console.error(`Error auto-closing position ${position.id}:`, error);
@@ -281,6 +253,8 @@ export class DeltaNeutralTradingService {
           });
         }
       }
+
+      await this.checkClosingTrades();
 
       const executionTime = Date.now() - startTime;
       const successfulCloses = closeResults.filter((r) => r.success).length;
@@ -311,43 +285,66 @@ export class DeltaNeutralTradingService {
       };
     }
   }
+  private async checkClosingTrades() {
+    const closingTrades = await TradeHistory.findAll({
+      where: {
+        status: "CLOSING",
+      },
+    });
+    for (const position of closingTrades) {
+      const legs = await Position.findAll({
+        where: {
+          tradeId: position.id,
+          status: PositionStatus.OPEN,
+        },
+      });
+
+      if (legs.length == 0) await position.update({ status: TradeStatus.CLOSE });
+    }
+  }
 
   /**
    * Vérifie si une position doit être fermée automatiquement
    */
-  private async checkAutoCloseConditions(position: Position): Promise<{ shouldClose: boolean; reason: string }> {
+  private async checkAutoCloseConditions(position: TradeHistory): Promise<{ shouldClose: boolean; reason: string }> {
     try {
-      if (!position.longOrderId || !position.shortOrderId) {
+      const legs = await Position.findAll({
+        where: {
+          tradeId: position.id,
+        },
+      });
+      const longLeg = legs.find((pos) => pos.side == PositionSide.LONG);
+      const shortLeg = legs.find((pos) => pos.side == PositionSide.SHORT);
+      if (!longLeg || !shortLeg) {
         return { shouldClose: true, reason: "Missing one of Long or Short order id" };
       }
 
-      const metrics = await positionSyncService.syncPositionMetrics(position);
-      const hoursOpen = metrics.hoursOpen;
+      const metrics = await positionSyncService.getPositionMetrics(position);
+      if (metrics) {
+        // Vérifier le seuil de PnL
+        if (position.autoClosePnLThreshold && metrics.currentPnL <= -Math.abs(position.autoClosePnLThreshold)) {
+          return {
+            shouldClose: true,
+            reason: `Stop loss hit: PnL ${metrics.currentPnL.toFixed(2)} <= -$${Math.abs(position.autoClosePnLThreshold)}`,
+          };
+        }
 
-      // Vérifier le seuil de PnL
-      if (position.autoClosePnLThreshold && metrics.currentPnL <= -Math.abs(position.autoClosePnLThreshold)) {
-        return {
-          shouldClose: true,
-          reason: `Stop loss hit: PnL ${metrics.currentPnL.toFixed(2)} <= -$${Math.abs(position.autoClosePnLThreshold)}`,
-        };
+        // Vérifier le seuil d'APR
+        if (position.autoCloseAPRThreshold && metrics.currentApr < position.autoCloseAPRThreshold) {
+          return {
+            shouldClose: true,
+            reason: `APR below threshold: ${metrics.currentApr.toFixed(2)}% < ${position.autoCloseAPRThreshold}%`,
+          };
+        }
+
+        // Vérifier le timeout
+        if (position.autoCloseTimeoutHours && metrics.hoursOpen >= position.autoCloseTimeoutHours) {
+          return {
+            shouldClose: true,
+            reason: `Position timeout: ${metrics.hoursOpen.toFixed(1)}h >= ${position.autoCloseTimeoutHours}h`,
+          };
+        }
       }
-
-      // Vérifier le seuil d'APR
-      if (position.autoCloseAPRThreshold && metrics.currentAPR < position.autoCloseAPRThreshold) {
-        return {
-          shouldClose: true,
-          reason: `APR below threshold: ${metrics.currentAPR.toFixed(2)}% < ${position.autoCloseAPRThreshold}%`,
-        };
-      }
-
-      // Vérifier le timeout
-      if (position.autoCloseTimeoutHours && hoursOpen >= position.autoCloseTimeoutHours) {
-        return {
-          shouldClose: true,
-          reason: `Position timeout: ${hoursOpen.toFixed(1)}h >= ${position.autoCloseTimeoutHours}h`,
-        };
-      }
-
       return { shouldClose: false, reason: "" };
     } catch (error) {
       console.error("Error checking auto-close conditions:", error);
@@ -441,20 +438,17 @@ export class DeltaNeutralTradingService {
         return exchange.openPosition(order);
       }),
     ).then((results) => {
-      // console.log(results);
       return results.reduce(
         (p, result, index) => {
           if (result.status === "fulfilled") {
             const order = orders[index];
             const statusMsg = `✅ Opened ${result.value.side} position on ${result.value.exchange} for ${result.value.token} Size: ${result.value.size} at $${result.value.price} (Order ID: ${result.value.id})`;
-            // console.log(statusMsg);
             p.count += 1;
             p.orderIds.push(result.value);
             p.status.push(statusMsg);
           } else {
             const order = orders[index];
             const statusMsg = `❌ Error opening ${order.side} position on ${order.exchange}: ${result.reason.message || result.reason}`;
-            // console.error(statusMsg);
             p.success = false;
             p.orderIds.push(undefined);
             p.status.push(statusMsg);
@@ -507,54 +501,65 @@ export class DeltaNeutralTradingService {
       const result = await this.placeOrders([longOrder, shortOrder]);
       result.status.forEach((s) => console.log(s));
       if (result.count > 0) {
-        // Créer l'enregistrement de position
-        const position = await Position.create({
+        // Enregistrer l'historique des trades
+        const trade = await TradeHistory.create({
           userId: user.id,
+          exchange: `${opportunity.longExchange}/${opportunity.shortExchange}` as ExchangeName,
+          status: TradeStatus.OPEN,
           token: opportunity.token,
-          status: "OPEN",
-          opportunity,
-          entryTimestamp: new Date(),
+          side: "DELTA_NEUTRAL",
+          size,
+          price,
 
-          longExchange: opportunity.longExchange.name,
-          longSize: result.orderIds[0]?.size,
-          longPrice: result.orderIds[0]?.price,
-          longOrderId: result.orderIds[0]?.id,
+          currentPnL: 0,
+          currentApr: null,
 
-          shortExchange: opportunity.shortExchange.name,
-          shortSize: result.orderIds[1]?.size,
-          shortPrice: result.orderIds[1]?.price,
-          shortOrderId: result.orderIds[1]?.id,
-
-          currentPnl: 0,
           autoCloseEnabled: settings.autoCloseEnabled,
           autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
           autoClosePnLThreshold: settings.autoClosePnLThreshold,
           autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
+
+          metadata: opportunity,
         });
 
-        // Enregistrer l'historique des trades
-        // await TradeHistory.create({
-        //   userId: user.id,
-        //   positionId: position.id,
-        //   action: "OPEN",
-        //   exchange: opportunity.longExchange.name, // Utiliser l'exchange principal
-        //   token: opportunity.token,
-        //   side: "DELTA_NEUTRAL",
-        //   size,
-        //   price,
-        //   fee: 0, // À mettre à jour avec les frais réels
-        //   timestamp: new Date(),
-        //   metadata: {
-        //     longExchange: opportunity.longExchange,
-        //     shortExchange: opportunity.shortExchange,
-        //     expectedAPR: opportunity.spread.apr,
-        //   },
-        // });
+        await result.orderIds.forEach(async (order, i) => {
+          if (order) {
+            await Position.create({
+              userId: user.id,
+              tradeId: trade.id,
+              token: opportunity.token,
+              status: PositionStatus.OPEN,
+              side: i == 0 ? PositionSide.LONG : PositionSide.SHORT,
+              entryTimestamp: new Date(),
+
+              exchange: order.exchange,
+              size: order.size,
+              price: order.price,
+              leverage: order.leverage,
+              orderId: order.id,
+
+              // currentPnl: 0,
+            });
+          }
+        });
+
+        if (!result.success) {
+          // cancel all openend orders
+          await result.orderIds
+            .filter((order) => order)
+            .forEach(async (order) => {
+              try {
+                return await this.cancelOrder(order!).then();
+              } catch (error) {
+                console.error(`❌ Failed to cancel order ${order?.id}: ${error}`);
+              }
+            });
+        }
 
         return {
           success: result.success,
           opportunity,
-          positionId: position.id,
+          positionId: trade.id,
         };
       } else {
         // to be implemented: order cancellation logic here if one order succeeded and the other failed
@@ -573,6 +578,14 @@ export class DeltaNeutralTradingService {
         opportunity,
       };
     }
+  }
+
+  cancelOrder(order: PlacedOrderData): Promise<boolean> {
+    const exchange = exchangesRegistry.getExchange(order.exchange);
+    if (!exchange) {
+      return Promise.reject(`Exchange ${order.exchange} not found`);
+    }
+    return exchange.cancelOrder(order);
   }
 
   /**

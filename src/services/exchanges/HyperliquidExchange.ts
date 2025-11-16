@@ -109,7 +109,7 @@ export class HyperliquidExchange extends ExchangeConnector {
               fundingRate: parseFloat(nextFundingItem![1].fundingRate), // 1h funding rate
               fundingFrequency: parseInt(this.config.get("fundingFrequency")), // in hours
               nextFunding,
-              timestamp: new Date(),
+              updatedAt: new Date(),
               markPrice: prices[token],
             });
           } else {
@@ -136,7 +136,7 @@ export class HyperliquidExchange extends ExchangeConnector {
                 fundingRate: parseFloat(latestFunding.fundingRate),
                 fundingFrequency: this.config.get("fundingFrequency"), // in hours
                 nextFunding,
-                timestamp: new Date(),
+                updatedAt: new Date(),
                 markPrice: prices[token],
               });
             }

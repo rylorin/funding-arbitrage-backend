@@ -3,7 +3,6 @@ import { Response } from "express";
 import Joi from "joi";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { FundingRate, Position, TradeHistory } from "../models/index";
-import { positionSyncService } from "../services/PositionSyncService";
 
 // const createPositionSchema = Joi.object({
 //   token: Joi.string().valid("BTC", "ETH", "SOL", "AVAX", "MATIC", "ARB", "OP").required(),
@@ -172,13 +171,13 @@ export const getPosition = async (req: AuthenticatedRequest, res: Response): Pro
       return;
     }
 
-    const hoursOpen = position.getHoursOpen();
-    const shouldAutoClose = position.shouldAutoClose();
+    // const hoursOpen = position.getHoursOpen();
+    // const shouldAutoClose = position.shouldAutoClose();
 
     res.json({
       ...position.toJSON(),
-      hoursOpen,
-      shouldAutoClose,
+      // hoursOpen,
+      // shouldAutoClose,
     });
   } catch (error) {
     console.error("Position fetch error:", error);
@@ -256,16 +255,16 @@ export const closePosition = async (req: AuthenticatedRequest, res: Response): P
     }
 
     // Set status to CLOSING to prevent other operations
-    position.status = "CLOSING";
+    // position.status = "CLOSING";
     await position.save();
 
     try {
       // TODO: Actually close positions on exchanges
       // For now, we'll simulate successful closure
 
-      position.status = "CLOSED";
-      position.closedAt = new Date();
-      position.closedReason = "Manual closure by user";
+      // position.status = "CLOSED";
+      // position.closedAt = new Date();
+      // position.closedReason = "Manual closure by user";
       await position.save();
 
       res.json({
@@ -274,8 +273,8 @@ export const closePosition = async (req: AuthenticatedRequest, res: Response): P
       });
     } catch (closeError) {
       // Revert status if closing failed
-      position.status = "ERROR";
-      position.closedReason = `Closure failed: ${closeError}`;
+      // position.status = "ERROR";
+      // position.closedReason = `Closure failed: ${closeError}`;
       await position.save();
 
       throw closeError;
@@ -302,17 +301,17 @@ export const getPositionPnL = async (req: AuthenticatedRequest, res: Response): 
       return;
     }
 
-    const hoursOpen = position.getHoursOpen();
+    // const hoursOpen = position.getHoursOpen();
 
     // TODO: Calculate real-time PnL from exchanges
     // For now, return stored PnL
 
     res.json({
       positionId: position.id,
-      currentPnL: position.currentPnl,
-      unrealizedPnL: position.currentPnl, // Simplified for now
+      // currentPnL: position.currentPnl,
+      // unrealizedPnL: position.currentPnl, // Simplified for now
       realizedPnL: 0, // Will be calculated from closed trades
-      hoursOpen,
+      // hoursOpen,
       lastUpdated: position.updatedAt,
       status: position.status,
     });
@@ -354,36 +353,36 @@ export const getPositionsDashboard = async (req: AuthenticatedRequest, res: Resp
       allPositions
         .filter((pos) => pos.status === "OPEN")
         .map(async (position) => {
-          const currentPnL = await positionSyncService.calculatePositionPnL(position);
+          // const currentPnL = await positionSyncService.calculatePositionPnL(position);
           const currentAPR = await calculateCurrentAPR(position);
           const hoursOpen = calculateHoursOpen(position.createdAt);
 
           return {
             id: position.id,
             token: position.token,
-            longExchange: position.longExchange,
-            shortExchange: position.shortExchange,
+            // longExchange: position.longExchange,
+            // shortExchange: position.shortExchange,
             size: position.size,
             sizeFormatted: `$${position.size.toLocaleString()}`,
-            entrySpreadAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
+            // entrySpreadAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
             currentAPR,
-            aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
-            currentPnL,
-            currentPnLFormatted: formatCurrency(currentPnL),
-            pnlPercentage: (currentPnL / position.size()) * 100,
+            // aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
+            // currentPnL,
+            // currentPnLFormatted: formatCurrency(currentPnL),
+            // pnlPercentage: (currentPnL / position.size) * 100,
             hoursOpen: Math.floor(hoursOpen),
             hoursOpenFormatted: formatHours(hoursOpen),
             status: position.status,
-            riskLevel: assessPositionRisk(position, currentAPR, currentPnL),
-            shouldClose: shouldPositionClose(position, currentAPR, currentPnL),
-            autoCloseEnabled: position.autoCloseEnabled,
-            autoCloseAPRThreshold: position.autoCloseAPRThreshold,
-            autoClosePnLThreshold: position.autoClosePnLThreshold,
+            // riskLevel: assessPositionRisk(position, currentAPR, currentPnL),
+            // shouldClose: shouldPositionClose(position, currentAPR, currentPnL),
+            // autoCloseEnabled: position.autoCloseEnabled,
+            // autoCloseAPRThreshold: position.autoCloseAPRThreshold,
+            // autoClosePnLThreshold: position.autoClosePnLThreshold,
             createdAt: position.createdAt,
             metrics: {
               fundingFeesReceived: estimateFundingFeesReceived(position, hoursOpen),
               tradingFeesEstimate: estimateTradingFees(position),
-              netPnL: currentPnL - estimateTradingFees(position),
+              // netPnL: currentPnL - estimateTradingFees(position),
             },
           };
         }),
@@ -399,7 +398,7 @@ export const getPositionsDashboard = async (req: AuthenticatedRequest, res: Resp
       success: true,
       data: {
         summary: portfolioStats,
-        activePositions: activePositions.sort((a, b) => b.currentPnL - a.currentPnL),
+        // activePositions: activePositions.sort((a, b) => b.currentPnL - a.currentPnL),
         positionHistory,
         alerts: generatePositionAlerts(activePositions),
         recommendations: generatePositionRecommendations(activePositions),
@@ -434,17 +433,17 @@ export const getPositionDetails = async (req: AuthenticatedRequest, res: Respons
     }
 
     // Get comprehensive position data
-    const currentPnL = await positionSyncService.calculatePositionPnL(position);
+    // const currentPnL = await positionSyncService.calculatePositionPnL(position);
     const currentAPR = await calculateCurrentAPR(position);
     const hoursOpen = calculateHoursOpen(position.createdAt);
 
     // Get current funding rates
-    const longRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.longExchange);
-    const shortRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.shortExchange);
+    // const longRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.longExchange);
+    // const shortRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.shortExchange);
 
     // Get position trade history
     const tradeHistory = await TradeHistory.findAll({
-      where: { userId, positionId: id },
+      where: { userId, id },
       order: [["timestamp", "DESC"]],
       limit: 50,
     });
@@ -457,62 +456,60 @@ export const getPositionDetails = async (req: AuthenticatedRequest, res: Respons
       token: position.token,
       exchanges: {
         long: {
-          name: position.longExchange,
-          color: getExchangeColor(position.longExchange),
-          positionId: position.longPositionId,
-          currentRate: longRate?.fundingRate || 0,
-          entryRate: position.longFundingRate,
+          // name: position.longExchange,
+          // color: getExchangeColor(position.longExchange),
+          // // positionId: position.longPositionId,
+          // currentRate: longRate?.fundingRate || 0,
+          // entryRate: position.longFundingRate,
         },
         short: {
-          name: position.shortExchange,
-          color: getExchangeColor(position.shortExchange),
-          positionId: position.shortPositionId,
-          currentRate: shortRate?.fundingRate || 0,
-          entryRate: position.shortFundingRate,
+          // name: position.shortExchange,
+          // color: getExchangeColor(position.shortExchange),
+          // // positionId: position.shortPositionId,
+          // currentRate: shortRate?.fundingRate || 0,
+          // entryRate: position.shortFundingRate,
         },
       },
       size: {
         amount: position.size,
-        formatted: `$${(position.longSize + position.shortSize).toLocaleString()}`,
+        // formatted: `$${(position.longSize + position.shortSize).toLocaleString()}`,
       },
       timing: {
         opened: position.createdAt,
         hoursOpen: Math.floor(hoursOpen),
         formatted: formatHours(hoursOpen),
-        shouldClose: shouldPositionClose(position, currentAPR, currentPnL),
+        // shouldClose: shouldPositionClose(position, currentAPR, currentPnL),
       },
       performance: {
-        entryAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
+        // entryAPR: position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0,
         currentAPR,
-        aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
-        currentPnL,
-        pnlFormatted: formatCurrency(currentPnL),
-        pnlPercentage: (currentPnL / (position.longSize + position.shortSize)) * 100,
+        // aprChange: currentAPR - (position.entrySpreadAPR || position.entryFundingRates?.spreadAPR || 0),
+        // currentPnL,
+        // pnlFormatted: formatCurrency(currentPnL),
+        // pnlPercentage: (currentPnL / (position.longSize + position.shortSize)) * 100,
         totalFees: estimateTotalFees(position, hoursOpen),
-        netPnL: currentPnL - estimateTotalFees(position, hoursOpen),
+        // netPnL: currentPnL - estimateTotalFees(position, hoursOpen),
       },
       risk: {
-        level: assessPositionRisk(position, currentAPR, currentPnL),
-        factors: analyzeRiskFactors(position, longRate, shortRate, currentAPR),
+        // level: assessPositionRisk(position, currentAPR, currentPnL),
+        // factors: analyzeRiskFactors(position, longRate, shortRate, currentAPR),
       },
       autoClose: {
-        enabled: position.autoCloseEnabled,
-        aprThreshold: position.autoCloseAPRThreshold,
-        pnlThreshold: position.autoClosePnLThreshold,
-        timeoutHours: position.autoCloseTimeoutHours,
-        willTrigger: checkAutoCloseTriggers(position, currentAPR, currentPnL, hoursOpen),
+        // enabled: position.autoCloseEnabled,
+        // aprThreshold: position.autoCloseAPRThreshold,
+        // pnlThreshold: position.autoClosePnLThreshold,
+        // timeoutHours: position.autoCloseTimeoutHours,
+        // willTrigger: checkAutoCloseTriggers(position, currentAPR, currentPnL, hoursOpen),
       },
       status: position.status,
       history: {
         trades: tradeHistory.map((trade) => ({
           id: trade.id,
-          action: trade.action,
-          exchange: trade.exchange,
+          action: trade.status,
           side: trade.side,
           size: trade.size,
           price: trade.price,
-          fee: trade.fee,
-          timestamp: trade.timestamp,
+          currentPnL: trade.currentPnL,
           metadata: trade.metadata,
         })),
         pnl: pnlHistory,
@@ -544,7 +541,7 @@ export const getPositionAlerts = async (req: AuthenticatedRequest, res: Response
     const alerts = [];
 
     for (const position of activePositions) {
-      const currentPnL = await positionSyncService.calculatePositionPnL(position);
+      // const currentPnL = await positionSyncService.calculatePositionPnL(position);
       const currentAPR = await calculateCurrentAPR(position);
       const hoursOpen = calculateHoursOpen(position.createdAt);
 
@@ -553,12 +550,12 @@ export const getPositionAlerts = async (req: AuthenticatedRequest, res: Response
         {
           id: position.id,
           token: position.token,
-          currentPnL,
+          // currentPnL,
           currentAPR,
           hoursOpen,
-          autoCloseAPRThreshold: position.autoCloseAPRThreshold,
-          autoClosePnLThreshold: position.autoClosePnLThreshold,
-          autoCloseTimeoutHours: position.autoCloseTimeoutHours,
+          // autoCloseAPRThreshold: position.autoCloseAPRThreshold,
+          // autoClosePnLThreshold: position.autoClosePnLThreshold,
+          // autoCloseTimeoutHours: position.autoCloseTimeoutHours,
         },
       ]);
 

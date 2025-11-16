@@ -39,3 +39,29 @@ export function generateOrderSignature(
 
   return signature;
 }
+
+export function generateCancelOrderSignature(
+  order: {
+    time: number;
+    nonce: number;
+    id: string;
+  },
+  privateKey: string,
+): string {
+  const { time, nonce, id } = order;
+
+  // Encode the parameters using ethers ABI encoding
+  const encodedData = ethers.AbiCoder.defaultAbiCoder().encode(["uint256", "uint256", "string"], [time, nonce, id]);
+
+  // Hash the encoded data with keccak256
+  const args = ethers.keccak256(encodedData);
+
+  // Create the signable message using the Ethereum signed message format
+  const signable_msg = ethers.hashMessage(ethers.getBytes(args));
+
+  // Sign the message with the private key using signingKey.sign() to avoid double hashing
+  const wallet = new ethers.Wallet(privateKey);
+  const signature = wallet.signingKey.sign(signable_msg).serialized;
+
+  return signature;
+}

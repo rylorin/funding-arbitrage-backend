@@ -16,7 +16,7 @@ export class WebSocketHandlers {
   }
 
   public handlePositionPnLUpdate(userId: string, positionPnL: PositionPnL): void {
-    if (!userId || !positionPnL.positionId) {
+    if (!userId || !positionPnL) {
       console.warn("Invalid position PnL update data");
       return;
     }

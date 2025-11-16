@@ -1,25 +1,20 @@
-import { FundingRate, Position, User } from "../models/index";
+import { PositionSide, PositionStatus } from "@/models/Position";
+import { Op } from "sequelize";
+import { FundingRate, Position, TradeHistory, User } from "../models/index";
 import { JobResult, PositionPnL } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
+import { exchangesRegistry } from "./exchanges";
 import { extendedExchange } from "./exchanges/ExtendedExchange";
 import { hyperliquidExchange } from "./exchanges/HyperliquidExchange";
 import { orderlyExchange } from "./exchanges/OrderlyExchange";
 import { vestExchange } from "./exchanges/VestExchange";
+import { OpportunityDetectionService } from "./OpportunityDetectionService";
 
-interface PositionMetrics {
+export type PositionMetrics = {
+  currentApr: number;
   currentPnL: number;
-  currentAPR: number;
   hoursOpen: number;
-  totalFees: number;
-  unrealizedPnL: number;
-  lastUpdated: Date;
-}
-
-// interface UserApiCredentials {
-//   apiKey: string;
-//   secretKey?: string;
-//   passphrase?: string;
-// }
+};
 
 export class PositionSyncService {
   private exchanges = {
@@ -28,6 +23,52 @@ export class PositionSyncService {
     orderly: orderlyExchange,
     extended: extendedExchange,
   };
+
+  private async syncAllExchangesPositions(): Promise<void> {
+    for (const exchange of exchangesRegistry.getAllExchanges()) {
+      try {
+        const now = Date.now();
+        let count = 0;
+
+        const exchangePos = await exchange.getPositions();
+        for (const position of exchangePos) {
+          const ref = await Position.findOne({
+            where: {
+              exchange: position.exchange,
+              token: position.token,
+              status: PositionStatus.OPEN,
+            },
+          });
+          if (ref) {
+            console.log(position);
+            await ref.update({
+              status: position.status,
+              side: position.side,
+              size: position.size,
+              price: position.price,
+              leverage: position.leverage,
+              unrealizedPnL: position.unrealizedPnL,
+              realizedPnL: position.realizedPnL,
+              entryTimestamp: position.entryTimestamp || undefined,
+            });
+            count += 1;
+          }
+        }
+
+        // Flag all non updated positions with ERROR status
+        await Position.update(
+          { status: PositionStatus.ERROR },
+          {
+            where: { exchange: exchange.name, status: PositionStatus.OPEN, updatedAt: { [Op.lt]: now - 180_000 } },
+          },
+        );
+
+        console.log(`✅ Syncied ${count} positions from ${exchange.name}`);
+      } catch (exchangeError) {
+        console.error(`Error fetching ${exchange.name} positions:`, exchangeError);
+      }
+    }
+  }
 
   /**
    * Synchronise toutes les positions ouvertes avec les exchanges
@@ -38,9 +79,12 @@ export class PositionSyncService {
     try {
       console.log("🔄 Starting position synchronization...");
 
-      // Récupérer toutes les positions ouvertes
-      const openPositions = await Position.findAll({
-        where: { status: "OPEN" },
+      // Mettre à jour chaque exchange
+      await this.syncAllExchangesPositions();
+
+      // Récupérer tous les (delta neutral) trades ouverts
+      const openPositions = await TradeHistory.findAll({
+        where: { status: "OPEN", side: "DELTA_NEUTRAL" },
         include: [
           {
             model: User,
@@ -51,10 +95,10 @@ export class PositionSyncService {
       });
 
       if (openPositions.length === 0) {
-        console.log("✅ No open positions to sync");
+        console.log("✅ No open trade to sync");
         return {
           success: true,
-          message: "No open positions to sync",
+          message: "No open trade to sync",
           executionTime: Date.now() - startTime,
         };
       }
@@ -68,34 +112,29 @@ export class PositionSyncService {
       // Traiter chaque position
       for (const position of openPositions) {
         try {
-          const metrics = await this.syncPositionMetrics(position);
+          const metrics = await this.getPositionMetrics(position);
+          if (metrics) {
+            // Mettre à jour la position en DB
+            await position.update({
+              currentPnL: metrics.currentPnL,
+              currentApr: metrics.currentApr,
+            });
 
-          // Mettre à jour la position en DB
-          await position.update({
-            unrealizedPnL: metrics.unrealizedPnL,
-            totalFees: metrics.totalFees,
-            hoursOpen: Math.floor(metrics.hoursOpen),
-            lastUpdated: new Date(),
-          });
+            syncedPositions.push(position.id);
 
-          syncedPositions.push(position.id);
+            // Préparer la mise à jour WebSocket
+            const positionPnL: PositionPnL = {
+              positionId: position.id,
+              currentPnL: metrics.currentPnL,
+              currentApr: metrics.currentApr,
+              hoursOpen: metrics.hoursOpen,
+            };
 
-          // Préparer la mise à jour WebSocket
-          const positionPnL: PositionPnL = {
-            positionId: position.id,
-            currentPnL: metrics.currentPnL,
-            unrealizedPnL: metrics.unrealizedPnL,
-            realizedPnL: 0, // TODO: Calculer depuis l'historique
-            totalFees: metrics.totalFees,
-            currentAPR: metrics.currentAPR,
-            hoursOpen: metrics.hoursOpen,
-            lastUpdated: metrics.lastUpdated,
-          };
-
-          pnlUpdates.push({
-            userId: position.userId,
-            positionPnL,
-          });
+            pnlUpdates.push({
+              userId: position.userId,
+              positionPnL,
+            });
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
           console.error(`Error syncing position ${position.id}:`, error);
@@ -149,31 +188,39 @@ export class PositionSyncService {
   /**
    * Synchronise les métriques d'une position spécifique
    */
-  public async syncPositionMetrics(position: Position): Promise<PositionMetrics> {
+  public async getPositionMetrics(position: TradeHistory): Promise<PositionMetrics | null> {
     try {
+      const legs = await Position.findAll({
+        where: {
+          tradeId: position.id,
+        },
+      });
+      const longLeg = legs.find((pos) => pos.side == PositionSide.LONG);
+      const shortLeg = legs.find((pos) => pos.side == PositionSide.SHORT);
+      if (!longLeg || !shortLeg) {
+        return null;
+      }
+
       // Calculer le PnL actuel
-      const currentPnL = await this.calculatePositionPnL(position);
+      const currentPnL = await this.calculatePositionPnL(legs);
 
       // Calculer l'APR actuel
-      const currentAPR = await this.calculateCurrentAPR(position);
+      const currentApr = await this.calculateCurrentAPR(legs);
 
       // Calculer les heures d'ouverture
-      const hoursOpen = this.calculateHoursOpen(position.createdAt);
+      const hoursOpen = this.calculateHoursOpen(position);
 
       // Estimer les frais totaux
-      const totalFees = this.calculateTotalFees(position, hoursOpen);
+      // const totalFees = this.calculateTotalFees(position, hoursOpen);
 
-      // Le PnL non réalisé est généralement le PnL total actuel
-      const unrealizedPnL = currentPnL;
-
-      return {
-        currentPnL,
-        currentAPR,
+      const metrics = {
+        currentApr,
         hoursOpen,
-        totalFees,
-        unrealizedPnL,
-        lastUpdated: new Date(),
+        // totalFees,
+        currentPnL,
       };
+      console.log(position.token, metrics);
+      return metrics;
     } catch (error) {
       console.error(`Error calculating metrics for position ${position.id}:`, error);
       throw error;
@@ -183,69 +230,42 @@ export class PositionSyncService {
   /**
    * Calcule le PnL actuel d'une position
    */
-  public async calculatePositionPnL(position: Position): Promise<number> {
-    try {
-      // Récupérer les funding rates actuels
-      const longRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.longExchange);
-      const shortRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.shortExchange);
-
-      if (!longRate || !shortRate) return 0;
-
-      // Calculer les frais de funding reçus depuis l'ouverture
-      const hoursOpen = this.calculateHoursOpen(position.createdAt);
-      const fundingFeesReceived = this.calculateFundingFeesReceived(position, longRate, shortRate, hoursOpen);
-
-      // Récupérer le PnL non réalisé depuis les exchanges si disponible
-      let unrealizedPnL = 0;
-      try {
-        const longExchange = this.exchanges[position.longExchange as keyof typeof this.exchanges];
-        const shortExchange = this.exchanges[position.shortExchange as keyof typeof this.exchanges];
-
-        if (longExchange && position.longPositionId) {
-          unrealizedPnL += await longExchange.getPositionPnL(position.longPositionId);
-        }
-        if (shortExchange && position.shortPositionId) {
-          unrealizedPnL += await shortExchange.getPositionPnL(position.shortPositionId);
-        }
-      } catch (error) {
-        console.warn(`Could not fetch unrealized PnL from exchanges for position ${position.id}:`, error);
-      }
-
-      return fundingFeesReceived + unrealizedPnL;
-    } catch (error) {
-      console.error(`Error calculating PnL for position ${position.id}:`, error);
-      return 0;
-    }
+  public calculatePositionPnL(positions: Position[]): number {
+    return positions.reduce((p, item) => p + item.unrealizedPnL + item.realizedPnL, 0);
   }
 
   /**
    * Calcule l'APR actuel d'une position
    */
-  public async calculateCurrentAPR(position: Position): Promise<number> {
-    try {
-      const longRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.longExchange);
-      const shortRate = await FundingRate.getLatestForTokenAndExchange(position.token, position.shortExchange);
+  public async calculateCurrentAPR(legs: Position[]): Promise<number> {
+    let spreadAPR = Number.NEGATIVE_INFINITY;
+    const longLeg = legs.find((pos) => pos.side == PositionSide.LONG)!;
+    const shortLeg = legs.find((pos) => pos.side == PositionSide.SHORT)!;
 
-      if (!longRate || !shortRate) return 0;
+    const longRate = await FundingRate.findOne({
+      where: {
+        exchange: longLeg.exchange,
+        token: longLeg.token,
+      },
+    });
+    const shortRate = await FundingRate.findOne({
+      where: {
+        exchange: shortLeg.exchange,
+        token: shortLeg.token,
+      },
+    });
 
-      // Calculer le spread APR actuel
-      const longApr = (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
-      const shortApr = (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
-      const spread = shortApr - longApr;
+    if (longRate && shortRate) spreadAPR = OpportunityDetectionService.calculateSpreadAPR(longRate, shortRate);
 
-      return spread * 100; // Convertir en pourcentage
-    } catch (error) {
-      console.error(`Error calculating APR for position ${position.id}:`, error);
-      return 0;
-    }
+    return spreadAPR;
   }
 
   /**
    * Calcule les heures d'ouverture d'une position
    */
-  private calculateHoursOpen(createdAt: Date): number {
-    const now = new Date();
-    const diffMs = now.getTime() - new Date(createdAt).getTime();
+  private calculateHoursOpen(trade: TradeHistory): number {
+    const now = Date.now();
+    const diffMs = now - trade.createdAt.getTime();
     return diffMs / (1000 * 60 * 60); // Convertir en heures
   }
 
@@ -274,7 +294,7 @@ export class PositionSyncService {
    */
   public async getActivePositions(): Promise<any[]> {
     try {
-      const activePositions = await Position.findAll({
+      const activePositions = await TradeHistory.findAll({
         where: { status: "OPEN" },
         // order: [["createdAt", "DESC"]],
       });
@@ -282,14 +302,14 @@ export class PositionSyncService {
       // Enrichir avec les métriques actuelles
       const enrichedPositions = await Promise.all(
         activePositions.map(async (position) => {
-          const metrics = await this.syncPositionMetrics(position);
+          const metrics = await this.getPositionMetrics(position);
 
           return {
             ...position.toJSON(),
-            currentPnL: metrics.currentPnL,
-            currentAPR: metrics.currentAPR,
-            hoursOpen: metrics.hoursOpen,
-            shouldClose: metrics.currentAPR < position.autoCloseAPRThreshold,
+            // currentPnL: metrics.currentPnL,
+            // currentApr: metrics.currentApr,
+            // hoursOpen: metrics.hoursOpen,
+            // shouldClose: metrics.currentAPR < position.autoCloseAPRThreshold,
           };
         }),
       );
