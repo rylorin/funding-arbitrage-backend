@@ -1,4 +1,4 @@
-import { ExchangeConnector, OrderSide } from "../../../services/exchanges/ExchangeConnector";
+import { ExchangeConnector, PositionSide } from "../../../services/exchanges/ExchangeConnector";
 import { TokenSymbol } from "../../../types/index";
 
 // Mock implementation for testing
@@ -34,7 +34,7 @@ describe("ExchangeConnector", () => {
     }).toThrow();
 
     expect(() => {
-      mockExchange.openPosition({ token: "BTC" as TokenSymbol, side: OrderSide.LONG, size: 1, price: 50000 });
+      mockExchange.openPosition({ token: "BTC" as TokenSymbol, side: PositionSide.LONG, size: 1, price: 50000 });
     }).toThrow();
 
     expect(() => {

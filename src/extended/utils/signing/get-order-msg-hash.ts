@@ -1,14 +1,14 @@
 import { get_order_msg as wasmLibGetOrderMsgHash } from "@x10xchange/stark-crypto-wrapper-wasm";
 
 import { type StarknetDomain } from "../../api/starknet.schema";
-import { type OrderSide } from "../../models/order.types";
+import { type PositionSide } from "../../models/order.types";
 import { fromHexString, toHexString, type HexString } from "../hex";
 import { type Decimal, type Long } from "../number";
 import { calcStarknetExpiration } from "./calc-starknet-expiration";
 import { jsGetOrderMsgHash } from "./js/js-get-order-msg-hash";
 
 type GetStarknetOrderMsgHashArgs = {
-  side: OrderSide;
+  side: PositionSide;
   nonce: Long;
   assetIdCollateral: Decimal;
   assetIdSynthetic: Decimal;

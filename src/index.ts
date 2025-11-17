@@ -13,12 +13,11 @@ import healthService from "./services/HealthService";
 
 // Routes
 import { default as config, IConfig } from "config";
+import { ExchangesRegistry, extendedExchange, hyperliquidExchange, orderlyExchange, vestExchange } from "./exchanges";
 import authRoutes from "./routes/auth";
 import dashboardRoutes from "./routes/dashboard";
 import exchangeRoutes from "./routes/exchanges";
 import positionRoutes from "./routes/positions";
-import { ExchangesRegistry, extendedExchange, hyperliquidExchange, vestExchange } from "./services/exchanges";
-import orderlyExchange from "./services/exchanges/OrderlyExchange";
 
 // Initialize environment variables
 dotenv();

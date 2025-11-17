@@ -1,7 +1,7 @@
+import { exchangesRegistry } from "../exchanges";
 import { FundingRate } from "../models/index";
 import { ExchangeName, FundingRateData, JobResult } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
-import { exchangesRegistry } from "./exchanges";
 
 export class FundingRateService {
   /**

@@ -5,8 +5,7 @@ import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import bs58 from "bs58";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
-import { OrderData, OrderSide, PlacedOrderData } from "./ExchangeConnector";
+import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
 interface WoofiFundingRate {
   symbol: string;
@@ -302,7 +301,7 @@ export class OrderlyExchange extends ExchangeConnector {
       const payload = {
         symbol: this.tokenToTicker(token),
         order_type: "MARKET",
-        side: side === OrderSide.LONG ? "BUY" : "SELL",
+        side: side === PositionSide.LONG ? "BUY" : "SELL",
         order_quantity,
         slippage: order.slippage / 100,
       };
@@ -314,7 +313,7 @@ export class OrderlyExchange extends ExchangeConnector {
       if (response.data.success && response.data.data?.order_id) {
         const orderId = response.data.data.order_id;
         // console.log(`✅ Orderly ${side} position opened: ${orderId}`);
-        return { ...order, id: orderId.toString(), size: order_quantity };
+        return { ...order, orderId: orderId.toString(), size: order_quantity };
       }
 
       console.error(response);
@@ -326,7 +325,7 @@ export class OrderlyExchange extends ExchangeConnector {
   }
 
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
-    const { token, id: client_order_id } = order;
+    const { token, orderId: client_order_id } = order;
     const symbol = this.tokenToTicker(token);
     const response = await this.axiosClient
       .delete(`/v1/client/order?client_order_id=${client_order_id}&symbol=${symbol}`)
@@ -448,13 +447,13 @@ export class OrderlyExchange extends ExchangeConnector {
         leverage: parseInt(pos.leverage),
         orderId: "orderId",
 
+        cost: pos.cost_position,
         unrealizedPnL: pos.unsettled_pnl,
         realizedPnL: 0,
 
         IMR_withdraw_orders: pos.IMR_withdraw_orders,
         MMR_with_orders: pos.MMR_with_orders,
         average_open_price: pos.average_open_price,
-        cost_position: pos.cost_position,
         est_liq_price: pos.est_liq_price,
         fee_24_h: pos.fee_24_h,
         imr: pos.imr,

@@ -1,7 +1,7 @@
 import { jobManager } from "@/jobs";
 import { connectDatabase } from "../config/database";
+import { exchangesRegistry } from "../exchanges";
 import { JobResult } from "../types/index";
-import { exchangesRegistry } from "./exchanges";
 
 interface HealthStatus {
   status: "healthy" | "warning" | "unhealthy";

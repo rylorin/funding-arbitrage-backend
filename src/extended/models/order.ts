@@ -14,10 +14,10 @@ import { OrderSettlement } from "./order-settlement";
 import { OrderTpSlTrigger, type OrderTpSlTriggerParam } from "./order-tp-sl-trigger";
 import {
   type OrderContext,
-  type OrderSide,
   type OrderTimeInForce,
   type OrderTpSlType,
   type OrderType,
+  type PositionSide,
 } from "./order.types";
 
 const ORDER_EXPIRATION_HOURS = 1;
@@ -30,7 +30,7 @@ export class Order {
 
   private readonly market: string;
   private readonly type: OrderType;
-  private readonly side: OrderSide;
+  private readonly side: PositionSide;
   private readonly qty: Decimal;
   private readonly price: Decimal;
   private readonly timeInForce: OrderTimeInForce;
@@ -73,7 +73,7 @@ export class Order {
     id: string;
     market: string;
     type: OrderType;
-    side: OrderSide;
+    side: PositionSide;
     qty: Decimal;
     price: Decimal;
     timeInForce: OrderTimeInForce;
@@ -156,7 +156,7 @@ export class Order {
   }: {
     marketName: string;
     orderType: OrderType;
-    side: OrderSide;
+    side: PositionSide;
     amountOfSynthetic: Decimal;
     price: Decimal;
     timeInForce: OrderTimeInForce;
@@ -263,7 +263,7 @@ export class Order {
     totalFeeRate,
     ctx,
   }: {
-    side: OrderSide;
+    side: PositionSide;
     amountOfSynthetic: Decimal;
     price: Decimal;
     expiryEpochMillis: number;

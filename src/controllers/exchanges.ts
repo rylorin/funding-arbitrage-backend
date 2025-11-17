@@ -1,11 +1,8 @@
 import { Request, Response } from "express";
 import Joi from "joi";
+import { extendedExchange, hyperliquidExchange, orderlyExchange, vestExchange } from "../exchanges";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { FundingRate } from "../models/index";
-import { extendedExchange } from "../services/exchanges/ExtendedExchange";
-import { hyperliquidExchange } from "../services/exchanges/HyperliquidExchange";
-import { orderlyExchange } from "../services/exchanges/OrderlyExchange";
-import { vestExchange } from "../services/exchanges/VestExchange";
 import { TokenSymbol } from "../types/index";
 
 export const getFundingRates = async (req: Request, res: Response): Promise<void> => {

@@ -1,29 +1,56 @@
 {
-  "extended": {
-    "enabled": true,
-    "fundingFrequency": 1,
-    "baseUrl": "https://api.starknet.extended.exchange/",
-    "webSocketURL": "wss://api.starknet.extended.exchange/ws"
+  "exchanges": {
+    "extended": {
+      "enabled": true,
+      "fundingFrequency": 1,
+      "baseUrl": "https://api.starknet.extended.exchange/",
+      "webSocketURL": "wss://api.starknet.extended.exchange/ws"
+    },
+    "hyperliquid": {
+      "enabled": true,
+      "fundingFrequency": 1,
+      "baseUrl": "https://api.hyperliquid.xyz",
+      "webSocketURL": "wss://api.hyperliquid.xyz/ws"
+    },
+    "vest": {
+      "enabled": true,
+      "fundingFrequency": 1,
+      "baseUrl": "https://server-prod.hz.vestmarkets.com/v2",
+      "webSocketURL": "wss://ws.vest.exchange",
+      "secretKey": "your-vest-secret-key"
+    },
+    "orderly": {
+      "enabled": true,
+      "baseUrl": "https://api.orderly.org",
+      "webSocketURL": "wss://ws-evm.orderly.org",
+      "orderly-account-id": "your-orderly-account-id",
+      "orderly-key": "your-orderly-key",
+      "secretKey": "your-orderly-secret-key"
+    }
   },
-  "hyperliquid": {
-    "enabled": true,
-    "fundingFrequency": 1,
-    "baseUrl": "https://api.hyperliquid.xyz",
-    "webSocketURL": "wss://api.hyperliquid.xyz/ws"
+  "services": {
+    "delta-neutral": { "graceDelay": 200 },
+    "position-sync": {
+      "graceDelay": 180
+    }
   },
-  "vest": {
-    "enabled": true,
-    "fundingFrequency": 1,
-    "baseUrl": "https://server-prod.hz.vestmarkets.com/v2",
-    "webSocketURL": "wss://ws.vest.exchange",
-    "secretKey": "your-vest-secret-key"
-  },
-  "orderly": {
-    "enabled": true,
-    "baseUrl": "https://api.orderly.org",
-    "webSocketURL": "wss://ws-evm.orderly.org",
-    "orderly-account-id": "your-orderly-account-id",
-    "orderly-key": "your-orderly-key",
-    "secretKey": "your-orderly-secret-key"
+  "defaultUserSettings": {
+    "enabled": false,
+    "minAPR": 30,
+    "maxPositionSize": 1000,
+    "maxSimultaneousPositions": 1,
+    "riskTolerance": "medium",
+    "preferredExchanges": ["orderly", "extended", "vest"],
+    "autoCloseEnabled": true,
+    "autoCloseAPRThreshold": 0,
+    "autoCloseTimeoutHours": 0,
+    "autoClosePnLThreshold": 25,
+    "positionLeverage": 1,
+    "slippageTolerance": 0.2,
+    "notificationPreferences": {
+      "email": true,
+      "webhook": true,
+      "discord": true
+    }
   }
 }

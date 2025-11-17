@@ -1,9 +1,8 @@
-import { defaultSettings } from "@/config/user";
 import { verifyMessage } from "ethers";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { web3Config } from "../../config/web3";
-import User from "../../models/User";
+import User, { defaultUserSettings } from "../../models/User";
 import { AuthChallenge, AuthTokenPayload } from "../../types/index";
 
 export class AuthService {
@@ -63,7 +62,7 @@ export class AuthService {
       if (!user) {
         user = await User.create({
           walletAddress: recoveredAddress,
-          settings: defaultSettings,
+          settings: defaultUserSettings,
         });
       }
 

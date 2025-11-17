@@ -1,6 +1,5 @@
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
-import { OrderData, PlacedOrderData } from "./ExchangeConnector";
+import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
 interface HyperliquidFundingHistory {
   coin: string;

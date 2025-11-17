@@ -6,7 +6,7 @@ import { Order } from "@extended/models//order";
 import { createOrderContext } from "@extended/utils/create-order-context";
 import { Decimal } from "@extended/utils/number";
 import { roundToMinChange } from "@extended/utils/round-to-min-change";
-import { OrderData, OrderSide } from "../../../services/exchanges/ExchangeConnector";
+import { OrderData, PositionSide } from "../../../services/exchanges/ExchangeConnector";
 import { extendedExchange as exchange } from "../../../services/exchanges/ExtendedExchange";
 
 const TOKEN = "DOGE";
@@ -65,7 +65,7 @@ describe("ExtendedExchange", () => {
     const sampleOrder: OrderData = {
       exchange: exchange.name,
       token: TOKEN,
-      side: OrderSide.LONG,
+      side: PositionSide.LONG,
       size: 100,
       price: 0.075,
       leverage: 0,

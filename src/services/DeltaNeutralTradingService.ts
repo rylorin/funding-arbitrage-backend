@@ -1,11 +1,19 @@
-import { defaultSettings } from "@/config/user";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import { TradeStatus } from "@/models/TradeHistory";
+import { defaultUserSettings, UserSettings } from "@/models/User";
+import { default as config, IConfig } from "config";
+import { Op } from "sequelize";
+import { ExchangesRegistry, exchangesRegistry } from "../exchanges";
 import { Position, TradeHistory, User } from "../models/index";
-import { ArbitrageOpportunityData, ExchangeName, JobResult, UserSettings } from "../types/index";
+import {
+  ArbitrageOpportunityData,
+  ExchangeName,
+  JobResult,
+  OrderData,
+  PlacedOrderData,
+  ServiceName,
+} from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
-import { ExchangesRegistry, exchangesRegistry } from "./exchanges";
-import { OrderData, OrderSide, PlacedOrderData } from "./exchanges/ExchangeConnector";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
 
@@ -17,7 +25,13 @@ interface TradingResult {
 }
 
 export class DeltaNeutralTradingService {
+  public readonly name: ServiceName = ServiceName.DELTA_NEUTRAL;
+  public readonly config: IConfig;
   private isRunning = false;
+
+  constructor() {
+    this.config = config.get("services." + this.name);
+  }
 
   /**
    * Exécute le trading automatique delta-neutral
@@ -162,7 +176,7 @@ export class DeltaNeutralTradingService {
               const orderData: OrderData = {
                 exchange: exchange.name,
                 token: leg.token,
-                side: leg.side == PositionSide.LONG ? OrderSide.SHORT : OrderSide.LONG,
+                side: leg.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG,
                 size: leg.size,
                 price: leg.price,
                 leverage: 0,
@@ -210,6 +224,7 @@ export class DeltaNeutralTradingService {
         where: {
           status: "OPEN",
           autoCloseEnabled: true,
+          createdAt: { [Op.lt]: startTime - this.config.get<number>("graceDelay") * 1_000 },
         },
         include: [
           {
@@ -328,27 +343,27 @@ export class DeltaNeutralTradingService {
       const legs = await Position.findAll({
         where: {
           tradeId: position.id,
+          status: PositionStatus.OPEN,
         },
       });
-      const longLeg = legs.find((pos) => pos.side == PositionSide.LONG);
-      const shortLeg = legs.find((pos) => pos.side == PositionSide.SHORT);
-      if (!longLeg || !shortLeg) {
+      if (legs.length < 2) {
         return { shouldClose: true, reason: "Some legs missing." };
+      }
+      for (const leg of legs) {
+        // Vérifier le seuil de PnL
+        if (
+          position.autoClosePnLThreshold != null &&
+          leg.unrealizedPnL <= -(Math.abs(position.autoClosePnLThreshold / 100) * position.size * position.price)
+        ) {
+          return {
+            shouldClose: true,
+            reason: `Stop loss hit: PnL ${leg.unrealizedPnL.toFixed(2)} <= -$${Math.abs(position.autoClosePnLThreshold)}`,
+          };
+        }
       }
 
       const metrics = await positionSyncService.getPositionMetrics(position);
       if (metrics) {
-        // Vérifier le seuil de PnL
-        if (
-          position.autoClosePnLThreshold != null &&
-          metrics.currentPnL <= -(Math.abs(position.autoClosePnLThreshold / 100) * position.size * position.price)
-        ) {
-          return {
-            shouldClose: true,
-            reason: `Stop loss hit: PnL ${metrics.currentPnL.toFixed(2)} <= -$${Math.abs(position.autoClosePnLThreshold)}`,
-          };
-        }
-
         // Vérifier le seuil d'APR
         if (position.autoCloseAPRThreshold != null && metrics.currentApr < position.autoCloseAPRThreshold) {
           return {
@@ -401,8 +416,7 @@ export class DeltaNeutralTradingService {
           allowedExchanges: settings.preferredExchanges,
         })
         // filter out token that already have an active position as multiple positions for the same token is unsupported
-        .filter((opportunity) => activePositions.findIndex((pos) => pos.token == opportunity.token) == -1)
-        .slice(0, settings.maxSimultaneousPositions - activePositionsCount);
+        .filter((opportunity) => activePositions.findIndex((pos) => pos.token == opportunity.token) == -1);
 
       if (filteredOpportunities.length === 0) {
         console.log(`ℹ️ No suitable opportunities for user ${user.id}`);
@@ -465,7 +479,7 @@ export class DeltaNeutralTradingService {
         (p, result, index) => {
           if (result.status === "fulfilled") {
             const order = orders[index];
-            const statusMsg = `✅ Opened ${result.value.side} position on ${result.value.exchange} for ${result.value.token} Size: ${result.value.size} at $${result.value.price} (Order ID: ${result.value.id})`;
+            const statusMsg = `✅ Opened ${result.value.side} position on ${result.value.exchange} for ${result.value.token} Size: ${result.value.size} at $${result.value.price} (Order ID: ${result.value.orderId})`;
             p.count += 1;
             p.orderIds.push(result.value);
             p.status.push(statusMsg);
@@ -498,7 +512,7 @@ export class DeltaNeutralTradingService {
   ): Promise<TradingResult> {
     try {
       const price = (opportunity.longExchange.price + opportunity.shortExchange.price) / 2;
-      const size = settings.maxPositionSize / (2 * price * (settings.positionLeverage || 1)); // Diviser par 2 pour long et short, ajuster par le levier
+      const size = settings.maxPositionSize / price;
 
       console.log(
         `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange.name}) Short(${opportunity.shortExchange.name}) Size: ${size} @ $${price}`,
@@ -506,7 +520,7 @@ export class DeltaNeutralTradingService {
       const longOrder: OrderData = {
         exchange: opportunity.longExchange.name,
         token: opportunity.token,
-        side: OrderSide.LONG,
+        side: PositionSide.LONG,
         price: opportunity.longExchange.price,
         size,
         leverage: settings.positionLeverage,
@@ -515,7 +529,7 @@ export class DeltaNeutralTradingService {
       const shortOrder: OrderData = {
         exchange: opportunity.shortExchange.name,
         token: opportunity.token,
-        side: OrderSide.SHORT,
+        side: PositionSide.SHORT,
         price: opportunity.shortExchange.price,
         size,
         leverage: settings.positionLeverage,
@@ -527,7 +541,7 @@ export class DeltaNeutralTradingService {
         // Enregistrer l'historique des trades
         const trade = await TradeHistory.create({
           userId: user.id,
-          exchange: `${opportunity.longExchange}/${opportunity.shortExchange}` as ExchangeName,
+          exchange: `${opportunity.longExchange.name}/${opportunity.shortExchange.name}` as ExchangeName,
           status: TradeStatus.OPEN,
           token: opportunity.token,
           side: "DELTA_NEUTRAL",
@@ -535,7 +549,7 @@ export class DeltaNeutralTradingService {
           price,
 
           currentPnL: 0,
-          currentApr: null,
+          currentApr: opportunity.spread.apr,
 
           autoCloseEnabled: settings.autoCloseEnabled,
           autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
@@ -559,9 +573,8 @@ export class DeltaNeutralTradingService {
               size: order.size,
               price: order.price,
               leverage: order.leverage,
-              orderId: order.id,
-
-              // currentPnl: 0,
+              slippage: order.slippage,
+              orderId: order.orderId,
             });
           }
         });
@@ -574,7 +587,7 @@ export class DeltaNeutralTradingService {
               try {
                 return await this.cancelOrder(order!).then();
               } catch (error) {
-                console.error(`❌ Failed to cancel order ${order?.id}: ${error}`);
+                console.error(`❌ Failed to cancel order ${order?.orderId}: ${error}`);
               }
             });
         }
@@ -617,7 +630,7 @@ export class DeltaNeutralTradingService {
   private getUserTradingSettings(user?: User): UserSettings {
     // En implémentation réelle, ceci récupérerait les settings spécifiques de l'utilisateur depuis la DB
     return {
-      ...defaultSettings,
+      ...defaultUserSettings,
       // Override avec les settings utilisateur si disponibles
       ...user?.settings,
     };

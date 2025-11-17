@@ -1,13 +1,10 @@
 import { PositionSide, PositionStatus } from "@/models/Position";
+import { default as config, IConfig } from "config";
 import { Op } from "sequelize";
+import { exchangesRegistry } from "../exchanges";
 import { FundingRate, Position, TradeHistory, User } from "../models/index";
-import { JobResult, PositionPnL } from "../types/index";
+import { JobResult, PositionPnL, ServiceName } from "../types/index";
 import { getWebSocketHandlers } from "../websocket/handlers";
-import { exchangesRegistry } from "./exchanges";
-import { extendedExchange } from "./exchanges/ExtendedExchange";
-import { hyperliquidExchange } from "./exchanges/HyperliquidExchange";
-import { orderlyExchange } from "./exchanges/OrderlyExchange";
-import { vestExchange } from "./exchanges/VestExchange";
 import { OpportunityDetectionService } from "./OpportunityDetectionService";
 
 export type PositionMetrics = {
@@ -17,12 +14,12 @@ export type PositionMetrics = {
 };
 
 export class PositionSyncService {
-  private exchanges = {
-    vest: vestExchange,
-    hyperliquid: hyperliquidExchange,
-    orderly: orderlyExchange,
-    extended: extendedExchange,
-  };
+  public readonly name: ServiceName = ServiceName.POSITION_SYNC;
+  public readonly config: IConfig;
+
+  constructor() {
+    this.config = config.get("services." + this.name);
+  }
 
   private async syncAllExchangesPositions(): Promise<void> {
     for (const exchange of exchangesRegistry.getAllExchanges()) {
@@ -47,6 +44,7 @@ export class PositionSyncService {
               size: position.size,
               price: position.price,
               leverage: position.leverage,
+              cost: position.cost || undefined,
               unrealizedPnL: position.unrealizedPnL,
               realizedPnL: position.realizedPnL,
               entryTimestamp: position.entryTimestamp || undefined,
@@ -62,7 +60,7 @@ export class PositionSyncService {
             where: {
               exchange: exchange.name,
               status: { [Op.in]: [PositionStatus.OPEN, PositionStatus.CLOSING] },
-              updatedAt: { [Op.lt]: now - 180_000 },
+              updatedAt: { [Op.lt]: now - this.config.get<number>("graceDelay") * 1_000 },
             },
           },
         );

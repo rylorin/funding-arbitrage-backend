@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
-import { ExchangeName, TokenSymbol } from "../types/index";
+import { ExchangeName, PlacedOrderData, TokenSymbol } from "../types/index";
 import TradeHistory from "./TradeHistory";
 import User from "./User";
 
@@ -23,7 +23,7 @@ export enum PositionSide {
   SHORT = "short",
 }
 
-interface PositionAttributes {
+interface PositionAttributes extends PlacedOrderData {
   id: string;
   userId: string;
   tradeId: string;
@@ -31,13 +31,7 @@ interface PositionAttributes {
   status: PositionStatus;
   entryTimestamp: Date;
 
-  exchange: ExchangeName;
-  side: PositionSide;
-  size: number;
-  price: number;
-  leverage: number;
-  orderId?: string;
-
+  cost?: number;
   unrealizedPnL?: number;
   realizedPnL?: number;
 
@@ -60,8 +54,10 @@ class Position extends Model<PositionAttributes, PositionCreationAttributes> imp
   declare public size: number;
   declare public price: number;
   declare public leverage: number;
-  declare public orderId?: string;
+  declare public slippage: number;
+  declare public orderId: string;
 
+  declare public cost: number;
   declare public unrealizedPnL: number;
   declare public realizedPnL: number;
 
@@ -121,21 +117,26 @@ Position.init(
     size: {
       type: DataTypes.DECIMAL(18, 8),
       allowNull: false,
-      validate: {
-        min: 0.00000001,
-      },
     },
     price: {
       type: DataTypes.NUMBER,
       allowNull: false,
     },
     leverage: {
-      type: DataTypes.NUMBER,
+      type: DataTypes.TINYINT,
       allowNull: false,
       defaultValue: 1,
     },
+    slippage: {
+      type: DataTypes.NUMBER,
+      allowNull: false,
+    },
     orderId: {
       type: DataTypes.STRING,
+      allowNull: true,
+    },
+    cost: {
+      type: DataTypes.DECIMAL(18, 8),
       allowNull: true,
     },
     unrealizedPnL: {

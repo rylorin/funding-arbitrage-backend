@@ -1,25 +1,10 @@
 import { parseJsonWithBigNumber } from "@/extended/utils/json";
 import { Position } from "@/models";
-import { ExchangeName, FundingRateData, TokenSymbol } from "@/types";
+import { FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "@/types";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { default as config, IConfig } from "config";
 
-export enum OrderSide {
-  LONG = "long",
-  SHORT = "short",
-}
-
-export type OrderData = {
-  exchange: ExchangeName;
-  token: TokenSymbol;
-  side: OrderSide;
-  size: number;
-  price: number;
-  leverage: number;
-  slippage: number;
-};
-
-export type PlacedOrderData = OrderData & { id: string };
+export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "mock";
 
 const _safeParseResponse = (data: unknown) => {
   if (!data || typeof data !== "string") {
@@ -46,7 +31,7 @@ export abstract class ExchangeConnector {
 
   constructor(name: ExchangeName) {
     this.name = name;
-    this.config = config.get(name);
+    this.config = config.get("exchanges." + name);
     this.isEnabled = this.config.has("enabled") ? this.config.get("enabled") : false;
     this.baseUrl = this.config.has("baseUrl") ? this.config.get("baseUrl") : "";
     this.wsUrl = this.config.has("webSocketURL") ? this.config.get("webSocketURL") : "";
@@ -109,7 +94,7 @@ export abstract class ExchangeConnector {
     return this.openPosition(order, true);
   }
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
-    throw `${this.name} ExchangeConnector.cancelOrder(${order.id}) not implemented`;
+    throw `${this.name} ExchangeConnector.cancelOrder(${order.orderId}) not implemented`;
   }
   public async getPositions(): Promise<Position[]> {
     throw `${this.name} ExchangeConnector.getPositions not implemented`;

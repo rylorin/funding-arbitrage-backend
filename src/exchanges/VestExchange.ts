@@ -3,8 +3,7 @@ import { Position } from "@/models";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import { generateCancelOrderSignature, generateOrderSignature } from "@/utils/vest";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types/index";
-import { OrderData, OrderSide, PlacedOrderData } from "./ExchangeConnector";
+import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
 type TokenInfo = {
   symbol: string;
@@ -157,7 +156,7 @@ export class VestExchange extends ExchangeConnector {
       if (leverage) await this.setLeverage(token, leverage);
 
       const symbol = this.tokenToTicker(token);
-      const isBuy = side === OrderSide.LONG;
+      const isBuy = side === PositionSide.LONG;
       const time = Date.now();
 
       const info = await this.getTokenInfo(token);
@@ -192,19 +191,19 @@ export class VestExchange extends ExchangeConnector {
       //   return { ...orderData, id: orderId.toString(), size: parseFloat(quantity), price: parseFloat(limitPrice) };
       // }
       const orderId = await this.placeOrder(order);
-      return { ...orderData, id: orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
+      return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
     } catch (error) {
       throw error;
     }
   }
 
   public async cancelOrder(orderData: PlacedOrderData): Promise<boolean> {
-    const { id } = orderData;
+    const { orderId } = orderData;
     const time = Date.now();
     const order = {
       time,
       nonce: time,
-      id,
+      id: orderId,
     };
 
     const privateKey: string = this.config.get<string>("privateKey");
@@ -227,7 +226,7 @@ export class VestExchange extends ExchangeConnector {
     const { token, side, price, size, slippage, leverage } = orderData;
     try {
       const symbol = this.tokenToTicker(token);
-      const isBuy = side === OrderSide.LONG;
+      const isBuy = side === PositionSide.LONG;
       const time = Date.now();
 
       const info = await this.getTokenInfo(token);
@@ -264,7 +263,7 @@ export class VestExchange extends ExchangeConnector {
       //   return { ...orderData, id: orderId.toString(), size: parseFloat(quantity), price: parseFloat(limitPrice) };
       // }
       const orderId = await this.placeOrder(order);
-      return { ...orderData, id: orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
+      return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
     } catch (error) {
       throw error;
     }
@@ -401,6 +400,7 @@ export class VestExchange extends ExchangeConnector {
         leverage: pos.leverage.toNumber(),
         orderId: "orderId",
 
+        cost: parseFloat(pos.entryPrice) * parseFloat(pos.size),
         unrealizedPnL: parseFloat(pos.unrealizedPnl),
         realizedPnL: 0,
 

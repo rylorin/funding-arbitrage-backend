@@ -1,4 +1,4 @@
-import { OrderData, OrderSide } from "../../../services/exchanges/ExchangeConnector";
+import { OrderData, PositionSide } from "../../../services/exchanges/ExchangeConnector";
 import { VestExchange as Exchange, vestExchange as exchange } from "../../../services/exchanges/VestExchange";
 
 const TOKEN = "DOGE";
@@ -29,7 +29,7 @@ describe("VestExchange", () => {
     const sampleOrder: OrderData = {
       exchange: exchange.name,
       token: TOKEN,
-      side: OrderSide.LONG,
+      side: PositionSide.LONG,
       size: 10,
       price: 0.1,
       leverage: 0,

@@ -1,4 +1,18 @@
+import { ExchangeName } from "@/exchanges/ExchangeConnector";
+import { PositionSide } from "@/models/Position";
 import { PositionMetrics } from "@/services/PositionSyncService";
+
+export type OrderData = {
+  exchange: ExchangeName;
+  token: TokenSymbol;
+  side: PositionSide;
+  size: number;
+  price: number;
+  leverage: number;
+  slippage: number;
+};
+
+export type PlacedOrderData = OrderData & { orderId: string };
 
 export interface AuthChallenge {
   message: string;
@@ -18,31 +32,6 @@ export enum RiskLevel {
   MEDIUM = "medium",
   HIGH = "high",
   CRITICAL = "critical",
-}
-
-export interface UserSettings {
-  enabled: boolean;
-
-  autoCloseAPRThreshold: number;
-  autoClosePnLThreshold: number;
-  autoCloseTimeoutHours: number;
-  riskTolerance: RiskLevel;
-
-  preferredExchanges: ExchangeName[];
-
-  minAPR: number;
-  maxPositionSize: number;
-  maxSimultaneousPositions: number;
-  autoCloseEnabled: boolean;
-
-  notificationPreferences: {
-    email: boolean;
-    webhook: boolean;
-    discord: boolean;
-  };
-
-  slippageTolerance: number; // in percentage
-  positionLeverage: number;
 }
 
 export interface FundingRateData {
@@ -90,7 +79,6 @@ export interface JobResult {
   executionTime: number;
 }
 
-export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "mock";
 export type TokenSymbol = string; // e.g., 'BTC', 'ETH', 'SOL', etc.
 
 export interface ExchangeData {
@@ -132,4 +120,9 @@ export interface ArbitrageOpportunityData {
   timing: OpportunityTiming;
 }
 
-export { ExchangeConnector } from "@/services/exchanges/ExchangeConnector";
+export { ExchangeConnector, ExchangeName } from "@/exchanges/ExchangeConnector";
+
+export enum ServiceName {
+  POSITION_SYNC = "position-sync",
+  DELTA_NEUTRAL = "delta-neutral",
+}

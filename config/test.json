@@ -1,21 +1,23 @@
 {
-  "mock": {
-    "enabled": true
-  },
-  "extended": {
-    "disabled-baseUrl": "https://api.starknet.sepolia.extended.exchange/",
-    "webSocketURL": "wss://api.starknet.extended.exchange/ws"
-  },
-  "hyperliquid": {
-    "baseUrl": "https://api.hyperliquid.xyz",
-    "webSocketURL": "wss://api.hyperliquid.xyz/ws"
-  },
-  "vest": {
-    "disabled-baseUrl": "https://server-dev.hz.vestmarkets.com/v2",
-    "webSocketURL": "wss://ws.vest.exchange"
-  },
-  "orderly": {
-    "baseUrl": "https://testnet-api.orderly.org",
-    "webSocketURL": "wss://ws-evm.orderly.org"
+  "exchanges": {
+    "mock": {
+      "enabled": true
+    },
+    "extended": {
+      "disabled-baseUrl": "https://api.starknet.sepolia.extended.exchange/",
+      "webSocketURL": "wss://api.starknet.extended.exchange/ws"
+    },
+    "hyperliquid": {
+      "baseUrl": "https://api.hyperliquid.xyz",
+      "webSocketURL": "wss://api.hyperliquid.xyz/ws"
+    },
+    "vest": {
+      "disabled-baseUrl": "https://server-dev.hz.vestmarkets.com/v2",
+      "webSocketURL": "wss://ws.vest.exchange"
+    },
+    "orderly": {
+      "baseUrl": "https://testnet-api.orderly.org",
+      "webSocketURL": "wss://ws-evm.orderly.org"
+    }
   }
 }

@@ -1,7 +1,35 @@
-import { defaultSettings } from "@/config/user";
+import { ExchangeName, RiskLevel } from "@/types";
+import { default as config } from "config";
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
-import { UserSettings } from "../types/index";
+
+export const defaultUserSettings = config.get<UserSettings>("defaultUserSettings");
+// console.log(defaultUserSettings);
+
+export interface UserSettings {
+  enabled: boolean;
+
+  autoCloseAPRThreshold: number;
+  autoClosePnLThreshold: number;
+  autoCloseTimeoutHours: number;
+  riskTolerance: RiskLevel;
+
+  preferredExchanges: ExchangeName[];
+
+  minAPR: number;
+  maxPositionSize: number;
+  maxSimultaneousPositions: number;
+  autoCloseEnabled: boolean;
+
+  notificationPreferences: {
+    email: boolean;
+    webhook: boolean;
+    discord: boolean;
+  };
+
+  slippageTolerance: number; // in percentage
+  positionLeverage: number;
+}
 
 interface UserAttributes {
   id: string;
@@ -43,7 +71,7 @@ User.init(
     settings: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: defaultSettings,
+      defaultValue: defaultUserSettings,
     },
     createdAt: {
       type: DataTypes.DATE,

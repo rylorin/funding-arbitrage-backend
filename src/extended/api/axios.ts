@@ -47,4 +47,4 @@
 //   axiosClient.defaults.headers.common["x-api-key"] = apiKey;
 // };
 
-export { extendedExchange as axiosClient } from "../../services/exchanges/ExtendedExchange";
+export { extendedExchange as axiosClient } from "@exchanges/ExtendedExchange";

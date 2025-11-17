@@ -1,5 +1,5 @@
-import { type OrderSide } from "../models/order.types";
+import { type PositionSide } from "../models/order.types";
 
-export const getOppositeOrderSide = (side: OrderSide) => {
+export const getOppositeOrderSide = (side: PositionSide) => {
   return side === "BUY" ? "SELL" : "BUY";
 };

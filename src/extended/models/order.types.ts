@@ -2,7 +2,7 @@ import type { StarknetDomain } from "../api/starknet.schema";
 import type { HexString } from "../utils/hex";
 import { type Decimal, type Long } from "../utils/number";
 
-export type OrderSide = "BUY" | "SELL";
+export type PositionSide = "BUY" | "SELL";
 export type OrderType = "LIMIT" | "MARKET" | "TPSL";
 export type OrderTimeInForce = "GTT" | "IOC";
 export type OrderTpSlType = "ORDER" | "POSITION";

@@ -13,8 +13,7 @@ import { roundToMinChange } from "@/extended/utils/round-to-min-change";
 import { Position } from "@/models";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, TokenSymbol } from "../../types";
-import { OrderData, OrderSide, PlacedOrderData } from "./ExchangeConnector";
+import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types";
 
 interface ExtendedMarketStats {
   dailyVolume: string;
@@ -199,7 +198,7 @@ export class ExtendedExchange extends ExchangeConnector {
       const marketName = this.tokenToTicker(token);
 
       // Convert side to Extended format (BUY/SELL)
-      const orderSide = side === OrderSide.LONG ? "BUY" : "SELL";
+      const orderSide = side === PositionSide.LONG ? "BUY" : "SELL";
 
       const market = await this.checkOrderBounds(order);
       const fees = await this.getFees({ marketName });
@@ -213,13 +212,13 @@ export class ExtendedExchange extends ExchangeConnector {
       );
 
       const orderPrice =
-        order.side == OrderSide.LONG
+        order.side == PositionSide.LONG
           ? market.marketStats.askPrice.times(1 + order.slippage / 100)
           : market.marketStats.bidPrice.times(1 - order.slippage / 100);
       const price = roundToMinChange(
         orderPrice,
         market.tradingConfig.minPriceChange,
-        OrderSide.LONG ? Decimal.ROUND_UP : Decimal.ROUND_DOWN,
+        PositionSide.LONG ? Decimal.ROUND_UP : Decimal.ROUND_DOWN,
       );
       // console.log(market.marketStats.askPrice, market.marketStats.bidPrice, price);
 
@@ -245,14 +244,14 @@ export class ExtendedExchange extends ExchangeConnector {
 
       const result = await this.placeOrder({ order: nativeOrder });
 
-      return { ...order, id: result.externalId, price: price.toNumber(), size: amountOfSynthetic.toNumber() };
+      return { ...order, orderId: result.externalId, price: price.toNumber(), size: amountOfSynthetic.toNumber() };
     } catch (error) {
       throw error;
     }
   }
 
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
-    const { id: externalId } = order;
+    const { orderId: externalId } = order;
     const result = await this.axiosClient.post<GenericResponse<null>>(`/api/v1/user/order?externalId=${externalId}`);
 
     return result.data.status == "OK";
@@ -390,6 +389,7 @@ export class ExtendedExchange extends ExchangeConnector {
           leverage: pos.leverage.toNumber(),
           orderId: "orderId",
 
+          cost: pos.openPrice.times(pos.size).toNumber(),
           unrealizedPnL: pos.unrealisedPnl.toNumber(),
           realizedPnL: pos.realisedPnl.toNumber(),
 

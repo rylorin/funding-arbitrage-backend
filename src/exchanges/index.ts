@@ -1,14 +1,13 @@
-import { ExchangeName } from "../../types/index";
-import { ExchangeConnector } from "./ExchangeConnector";
+import { ExchangeConnector, ExchangeName } from "./ExchangeConnector";
+
+// Export types
+export { ExchangeConnector };
 
 // Export all exchange connectors
 export { ExtendedExchange, extendedExchange } from "./ExtendedExchange";
 export { HyperliquidExchange, hyperliquidExchange } from "./HyperliquidExchange";
 export { OrderlyExchange, orderlyExchange } from "./OrderlyExchange";
 export { VestExchange, vestExchange } from "./VestExchange";
-
-// Export types
-export { ExchangeConnector } from "../../types/index";
 
 export class ExchangesRegistry {
   private static readonly exchanges: ExchangeConnector[] = [];
