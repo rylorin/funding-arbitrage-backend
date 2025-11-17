@@ -190,9 +190,11 @@ export class ExtendedExchange extends ExchangeConnector {
     return data.status == "OK" ? payload : LeverageResponseSchema.parse(data).data;
   }
 
-  public async openPosition(order: OrderData): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
     const { token, side, size } = order;
     try {
+      if (order.leverage) await this.setLeverage(order.token, order.leverage);
+
       // Extended uses format like BTC-USD, ETH-USD, SOL-USD
       const marketName = this.tokenToTicker(token);
 
@@ -221,8 +223,6 @@ export class ExtendedExchange extends ExchangeConnector {
       );
       // console.log(market.marketStats.askPrice, market.marketStats.bidPrice, price);
 
-      if (order.leverage) await this.setLeverage(order.token, order.leverage);
-
       const ctx = createOrderContext({
         market,
         fees,
@@ -238,7 +238,7 @@ export class ExtendedExchange extends ExchangeConnector {
         amountOfSynthetic,
         price,
         timeInForce: "IOC",
-        reduceOnly: false,
+        reduceOnly,
         postOnly: false,
         ctx,
       });
@@ -289,16 +289,6 @@ export class ExtendedExchange extends ExchangeConnector {
     });
 
     return MarketsResponseSchema.parse(data).data[0];
-  }
-
-  public async closePosition(positionId: string): Promise<boolean> {
-    try {
-      // Note: Extended requires Stark signature for trading operations
-      throw new Error("Extended position closing requires Stark signature authentication");
-    } catch (error) {
-      console.error(`Error closing Extended position ${positionId}:`, error);
-      return false;
-    }
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {

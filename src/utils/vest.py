@@ -51,5 +51,5 @@ print(cmd)
 os.system(cmd)
 
 print("\n\n")
-print("Signing Address:", signing_public_key)
+print("Signing Address (for information):", signing_public_key)
 print("Signing Private Key (keep this secret!):", f"{signing_private_key}")

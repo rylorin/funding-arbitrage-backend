@@ -177,15 +177,8 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
-  public async closePosition(positionId: string): Promise<boolean> {
-    try {
-      // Note: This requires proper authentication with user's wallet and signing
-      // For now, throw an error indicating authentication is needed
-      throw new Error("Hyperliquid position closing requires wallet authentication and signing");
-    } catch (error) {
-      console.error(`Error closing Hyperliquid position ${positionId}:`, error);
-      return false;
-    }
+  public async closePosition(_orderData: OrderData): Promise<PlacedOrderData> {
+    throw new Error("Hyperliquid position closing requires wallet authentication and signing");
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {

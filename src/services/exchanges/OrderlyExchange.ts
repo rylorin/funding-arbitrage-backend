@@ -261,7 +261,7 @@ export class OrderlyExchange extends ExchangeConnector {
     return response.data.success;
   }
 
-  public async openPosition(order: OrderData): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {
     const { token, side, size } = order;
     try {
       if (order.leverage) await this.setLeverage(order.token, order.leverage);
@@ -334,22 +334,6 @@ export class OrderlyExchange extends ExchangeConnector {
         throw new Error(reason.data.message || reason.message || "Unknown error #1");
       });
     return response.data.success;
-  }
-
-  public async closePosition(positionId: string): Promise<boolean> {
-    try {
-      const response = await this.axiosClient.delete(`/v1/order/${positionId}`);
-
-      if (response.data.success || response.status === 200) {
-        console.log(`✅ Orderly position closed: ${positionId}`);
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error(`Error closing Orderly position ${positionId}:`, error);
-      return false;
-    }
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {

@@ -36,7 +36,7 @@ export class PositionSyncService {
             where: {
               exchange: position.exchange,
               token: position.token,
-              status: PositionStatus.OPEN,
+              status: { [Op.in]: [PositionStatus.OPEN, PositionStatus.CLOSING] },
             },
           });
           if (ref) {
@@ -59,7 +59,11 @@ export class PositionSyncService {
         await Position.update(
           { status: PositionStatus.ERROR },
           {
-            where: { exchange: exchange.name, status: PositionStatus.OPEN, updatedAt: { [Op.lt]: now - 180_000 } },
+            where: {
+              exchange: exchange.name,
+              status: { [Op.in]: [PositionStatus.OPEN, PositionStatus.CLOSING] },
+              updatedAt: { [Op.lt]: now - 180_000 },
+            },
           },
         );
 
@@ -295,8 +299,7 @@ export class PositionSyncService {
   public async getActivePositions(): Promise<any[]> {
     try {
       const activePositions = await TradeHistory.findAll({
-        where: { status: "OPEN" },
-        // order: [["createdAt", "DESC"]],
+        where: { status: { [Op.in]: ["OPEN"] } },
       });
 
       // Enrichir avec les métriques actuelles

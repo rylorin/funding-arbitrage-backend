@@ -21,7 +21,7 @@ export type OrderData = {
 
 export type PlacedOrderData = OrderData & { id: string };
 
-const safeParseResponse = (data: unknown) => {
+const _safeParseResponse = (data: unknown) => {
   if (!data || typeof data !== "string") {
     if (data) console.error("Undefined content returned:", data);
     return undefined;
@@ -102,8 +102,11 @@ export abstract class ExchangeConnector {
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     throw `${this.name} ExchangeConnector.getFundingRates not implemented`;
   }
-  public async openPosition(_order: OrderData): Promise<PlacedOrderData> {
-    throw `${this.name} ExchangeConnector.openPosition not implemented`;
+  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+    throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
+  }
+  public async closePosition(order: OrderData): Promise<PlacedOrderData> {
+    return this.openPosition(order, true);
   }
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     throw `${this.name} ExchangeConnector.cancelOrder(${order.id}) not implemented`;
@@ -120,9 +123,6 @@ export abstract class ExchangeConnector {
 
   public getAccountBalance(): Promise<Record<string, number>> {
     throw `${this.name} ExchangeConnector.getAccountBalance not implemented`;
-  }
-  public closePosition(position: Position): Promise<boolean> {
-    throw `${this.name} ExchangeConnector.closePosition(${position.id}) not implemented`;
   }
   public getPositionPnL(positionId: string): Promise<number> {
     throw `${this.name} ExchangeConnector.getPositionPnL(${positionId}) not implemented`;

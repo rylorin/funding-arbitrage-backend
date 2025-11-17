@@ -70,7 +70,6 @@ export class DeltaNeutralTradingService {
           executionTime: Date.now() - startTime,
         };
       }
-      // if (opportunities.length >= 2) console.log(opportunities[0], opportunities[1]);
 
       // Exécuter les trades pour chaque utilisateur éligible
       for (const user of autoTradingUsers) {
@@ -145,18 +144,36 @@ export class DeltaNeutralTradingService {
           tradeId: position.id,
           status: PositionStatus.OPEN,
         },
+        include: [
+          {
+            model: User,
+            as: "user",
+          },
+        ],
       });
+      const user = await User.findByPk(position.userId);
+      const userSettings = this.getUserTradingSettings(user || undefined);
 
       const success = await legs.reduce(
         (p, leg) =>
           p.then((success) => {
             const exchange = ExchangesRegistry.getExchange(leg.exchange);
-            if (exchange)
+            if (exchange) {
+              const orderData: OrderData = {
+                exchange: exchange.name,
+                token: leg.token,
+                side: leg.side == PositionSide.LONG ? OrderSide.SHORT : OrderSide.LONG,
+                size: leg.size,
+                price: leg.price,
+                leverage: 0,
+                slippage: userSettings.slippageTolerance,
+              };
               return exchange
-                .closePosition(leg)
+                .closePosition(orderData)
+                .then(() => leg.update({ status: PositionStatus.CLOSING }))
                 .then(() => success)
                 .catch((_reason) => false);
-            else {
+            } else {
               return success;
             }
           }),
@@ -316,13 +333,16 @@ export class DeltaNeutralTradingService {
       const longLeg = legs.find((pos) => pos.side == PositionSide.LONG);
       const shortLeg = legs.find((pos) => pos.side == PositionSide.SHORT);
       if (!longLeg || !shortLeg) {
-        return { shouldClose: true, reason: "Missing one of Long or Short order id" };
+        return { shouldClose: true, reason: "Some legs missing." };
       }
 
       const metrics = await positionSyncService.getPositionMetrics(position);
       if (metrics) {
         // Vérifier le seuil de PnL
-        if (position.autoClosePnLThreshold && metrics.currentPnL <= -Math.abs(position.autoClosePnLThreshold)) {
+        if (
+          position.autoClosePnLThreshold != null &&
+          metrics.currentPnL <= -(Math.abs(position.autoClosePnLThreshold / 100) * position.size * position.price)
+        ) {
           return {
             shouldClose: true,
             reason: `Stop loss hit: PnL ${metrics.currentPnL.toFixed(2)} <= -$${Math.abs(position.autoClosePnLThreshold)}`,
@@ -330,7 +350,7 @@ export class DeltaNeutralTradingService {
         }
 
         // Vérifier le seuil d'APR
-        if (position.autoCloseAPRThreshold && metrics.currentApr < position.autoCloseAPRThreshold) {
+        if (position.autoCloseAPRThreshold != null && metrics.currentApr < position.autoCloseAPRThreshold) {
           return {
             shouldClose: true,
             reason: `APR below threshold: ${metrics.currentApr.toFixed(2)}% < ${position.autoCloseAPRThreshold}%`,
@@ -364,12 +384,13 @@ export class DeltaNeutralTradingService {
 
     try {
       // Vérifier les positions actives de l'utilisateur
-      let activePositions = await Position.count({
+      const activePositions = await TradeHistory.findAll({
         where: {
           userId: user.id,
           status: "OPEN",
         },
       });
+      let activePositionsCount = activePositions.length;
 
       // Filtrer les opportunités selon les settings utilisateur
       const filteredOpportunities = opportunityDetectionService
@@ -379,7 +400,9 @@ export class DeltaNeutralTradingService {
           riskTolerance: settings.riskTolerance,
           allowedExchanges: settings.preferredExchanges,
         })
-        .slice(0, settings.maxSimultaneousPositions - activePositions);
+        // filter out token that already have an active position as multiple positions for the same token is unsupported
+        .filter((opportunity) => activePositions.findIndex((pos) => pos.token == opportunity.token) == -1)
+        .slice(0, settings.maxSimultaneousPositions - activePositionsCount);
 
       if (filteredOpportunities.length === 0) {
         console.log(`ℹ️ No suitable opportunities for user ${user.id}`);
@@ -391,7 +414,7 @@ export class DeltaNeutralTradingService {
       // Exécuter les trades pour les opportunités filtrées
       for (const opportunity of filteredOpportunities) {
         try {
-          if (activePositions >= settings.maxSimultaneousPositions) {
+          if (activePositionsCount >= settings.maxSimultaneousPositions) {
             console.log(`ℹ️ User ${user.id} has reached max positions limit (${settings.maxSimultaneousPositions})`);
             return results;
           }
@@ -407,7 +430,7 @@ export class DeltaNeutralTradingService {
             console.log(
               `✅ Successfully opened position for user ${user.id}: ${opportunity.token} ${opportunity.spread.apr.toFixed(2)}% APR`,
             );
-            activePositions += 1;
+            activePositionsCount += 1;
           } else {
             console.log(`❌ Failed to open position for user ${user.id}: ${tradingResult.error}`);
           }
@@ -591,12 +614,12 @@ export class DeltaNeutralTradingService {
   /**
    * Récupère les settings de trading d'un utilisateur
    */
-  private getUserTradingSettings(user: User): UserSettings {
+  private getUserTradingSettings(user?: User): UserSettings {
     // En implémentation réelle, ceci récupérerait les settings spécifiques de l'utilisateur depuis la DB
     return {
       ...defaultSettings,
       // Override avec les settings utilisateur si disponibles
-      ...user.settings,
+      ...user?.settings,
     };
   }
 

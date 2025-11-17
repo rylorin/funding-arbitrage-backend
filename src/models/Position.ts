@@ -6,9 +6,18 @@ import User from "./User";
 
 export enum PositionStatus {
   OPEN = "OPEN",
+  CLOSING = "CLOSING",
   CLOSED = "CLOSED",
   ERROR = "ERROR",
 }
+// export const PositionStatus = {
+//   OPEN : "OPEN",
+//   CLOSING:"CLOSING",
+//   CLOSED : "CLOSED",
+//   ERROR : "ERROR",
+// } as const;
+// export type PositionStatus = (typeof PositionStatus)[keyof typeof PositionStatus];
+
 export enum PositionSide {
   LONG = "long",
   SHORT = "short",

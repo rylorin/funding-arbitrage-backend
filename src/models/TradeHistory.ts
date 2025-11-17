@@ -27,7 +27,7 @@ interface TradeHistoryAttributes {
   autoCloseEnabled: boolean;
   autoCloseAPRThreshold: number;
   autoClosePnLThreshold: number;
-  autoCloseTimeoutHours?: number;
+  autoCloseTimeoutHours: number;
   closedAt?: Date;
   closedReason?: string;
 
@@ -58,7 +58,7 @@ class TradeHistory
   declare public autoCloseEnabled: boolean;
   declare public autoCloseAPRThreshold: number;
   declare public autoClosePnLThreshold: number;
-  declare public autoCloseTimeoutHours?: number;
+  declare public autoCloseTimeoutHours: number;
   declare public closedAt?: Date;
   declare public closedReason?: string;
 
@@ -169,13 +169,18 @@ TradeHistory.init(
     },
     autoCloseAPRThreshold: {
       type: DataTypes.DECIMAL(5, 2),
-      allowNull: false,
-      defaultValue: 10,
+      allowNull: true,
+      defaultValue: 0,
     },
     autoClosePnLThreshold: {
       type: DataTypes.DECIMAL(5, 2),
-      allowNull: false,
+      allowNull: true,
       defaultValue: -5,
+    },
+    autoCloseTimeoutHours: {
+      type: DataTypes.TINYINT,
+      allowNull: true,
+      defaultValue: 0,
     },
     closedAt: {
       type: DataTypes.DATE,

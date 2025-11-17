@@ -9,8 +9,8 @@ export const defaultSettings: UserSettings = {
   preferredExchanges: ["orderly", "extended", "vest"],
   autoCloseEnabled: true,
   autoCloseAPRThreshold: 0, // Fermer si APR < 0%
-  autoClosePnLThreshold: 100, // Fermer si perte > $100
-  autoCloseTimeoutHours: 24 * 30, // Fermer après 30 jours max
+  autoClosePnLThreshold: 5, // Fermer si perte > 5%
+  autoCloseTimeoutHours: 0, // Pas de délai de fermeture automatique
   notificationPreferences: {
     email: true,
     webhook: true,
