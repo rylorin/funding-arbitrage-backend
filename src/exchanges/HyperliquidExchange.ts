@@ -1,4 +1,7 @@
 import WebSocket from "ws";
+import { createSignedPositionsRequest, HyperliquidAuthConfig } from "../hl/signing";
+import { HyperliquidPosition, HyperliquidPositionsResponse } from "../hl/types";
+import Position, { PositionSide, PositionStatus } from "../models/Position";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
 interface HyperliquidFundingHistory {
@@ -26,7 +29,7 @@ export class HyperliquidExchange extends ExchangeConnector {
   public async testConnection(): Promise<number> {
     try {
       // Test connection with a simple info request (get all mid prices)
-      const response = await this.axiosClient.post("/info", {
+      const response = await this.post("/info", {
         type: "allMids",
       });
       const count = Object.keys(response.data || {}).length;
@@ -52,7 +55,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     try {
       const prices: { [token: string]: number } = {};
 
-      const response = await this.axiosClient.post("/info", {
+      const response = await this.post("/info", {
         type: "allMids",
       });
 
@@ -80,7 +83,7 @@ export class HyperliquidExchange extends ExchangeConnector {
       const prices = await this.getPrice(tokens);
 
       // Get predicted funding rates for current period
-      const predictedResponse = await this.axiosClient.post("/info", {
+      const predictedResponse = await this.post("/info", {
         type: "predictedFundings",
       });
 
@@ -113,7 +116,7 @@ export class HyperliquidExchange extends ExchangeConnector {
             });
           } else {
             // If no predicted funding, try to get the latest historical funding
-            const historyResponse = await this.axiosClient.post("/info", {
+            const historyResponse = await this.post("/info", {
               type: "fundingHistory",
               coin: token,
               startTime: Date.now() - 24 * 60 * 60 * 1000, // Last 24 hours
@@ -191,11 +194,124 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
-  public async getAllPositions(): Promise<any[]> {
+  public async XgetAllPositions(): Promise<Position[]> {
     try {
-      // Note: This requires user's wallet address to fetch positions
-      console.warn("Hyperliquid positions require user wallet address authentication");
-      return [];
+      // Check if authentication credentials are available
+      const walletAddress = this.config.has("walletAddress") ? this.config.get<string>("walletAddress") : null;
+      const privateKey = this.config.has("privateKey") ? this.config.get<string>("privateKey") : null;
+
+      if (!walletAddress || !privateKey) {
+        console.warn("Hyperliquid positions require walletAddress and privateKey configuration");
+        return [];
+      }
+
+      const auth: HyperliquidAuthConfig = {
+        walletAddress,
+        privateKey,
+      };
+
+      // Create signed request for positions
+      const signedRequest = await createSignedPositionsRequest(auth);
+
+      // Make API call to get positions
+      const response = await this.post("/exchange", signedRequest);
+
+      if (!response.data) {
+        console.warn("No positions data received from Hyperliquid");
+        return [];
+      }
+
+      // Parse the response
+      const positionsData: HyperliquidPositionsResponse = response.data;
+
+      // Extract positions for the user
+      const userPositions = positionsData[walletAddress.toLowerCase()];
+      if (!userPositions || !userPositions.assetPositions) {
+        return [];
+      }
+
+      // Map Hyperliquid positions to Position model
+      return userPositions.assetPositions.map((hlPosition: HyperliquidPosition) => ({
+        id: `${walletAddress}-${hlPosition.coin}`,
+        userId: "userId", // This should be provided by the caller
+        tradeId: "tradeId", // This should be provided by the caller
+        token: hlPosition.coin as TokenSymbol,
+        status: parseFloat(hlPosition.szi) !== 0 ? PositionStatus.OPEN : PositionStatus.CLOSED,
+        entryTimestamp: new Date(), // Hyperliquid doesn't provide entry timestamp in this endpoint
+
+        exchange: this.name,
+        side: parseFloat(hlPosition.szi) > 0 ? PositionSide.LONG : PositionSide.SHORT,
+        size: Math.abs(parseFloat(hlPosition.szi)),
+        price: parseFloat(hlPosition.entryPx),
+        leverage: hlPosition.leverage.value,
+        slippage: 0,
+        orderId: "orderId", // Not available in this endpoint
+
+        cost: parseFloat(hlPosition.positionValue),
+        unrealizedPnL: parseFloat(hlPosition.unrealizedPnl),
+        realizedPnL: parseFloat(hlPosition.realizedPnl),
+
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      })) as unknown as Position[];
+    } catch (error) {
+      console.error("Error fetching Hyperliquid positions:", error);
+      throw new Error("Failed to fetch positions from Hyperliquid");
+    }
+  }
+
+  public async getAllPositions(): Promise<Position[]> {
+    try {
+      // Check if authentication credentials are available
+      const walletAddress = this.config.has("walletAddress") ? this.config.get<string>("walletAddress") : null;
+      const privateKey = this.config.has("privateKey") ? this.config.get<string>("privateKey") : null;
+
+      if (!walletAddress || !privateKey) {
+        console.warn("Hyperliquid positions require walletAddress and privateKey configuration");
+        return [];
+      }
+
+      // Make API call to get positions
+      const response = await this.post("/info", { type: "userFills", user: walletAddress });
+
+      if (!response.data) {
+        console.warn("No positions data received from Hyperliquid");
+        return [];
+      }
+
+      // Parse the response
+      const positionsData: HyperliquidPositionsResponse = response.data;
+
+      // Extract positions for the user
+      const userPositions = positionsData[walletAddress.toLowerCase()];
+      if (!userPositions || !userPositions.assetPositions) {
+        return [];
+      }
+
+      // Map Hyperliquid positions to Position model
+      return userPositions.assetPositions.map((hlPosition: HyperliquidPosition) => ({
+        id: `${walletAddress}-${hlPosition.coin}`,
+        userId: "userId", // This should be provided by the caller
+        tradeId: "tradeId", // This should be provided by the caller
+        token: hlPosition.coin as TokenSymbol,
+        status: parseFloat(hlPosition.szi) !== 0 ? PositionStatus.OPEN : PositionStatus.CLOSED,
+        entryTimestamp: new Date(), // Hyperliquid doesn't provide entry timestamp in this endpoint
+
+        exchange: this.name,
+        side: parseFloat(hlPosition.szi) > 0 ? PositionSide.LONG : PositionSide.SHORT,
+        size: Math.abs(parseFloat(hlPosition.szi)),
+        price: parseFloat(hlPosition.entryPx),
+        leverage: hlPosition.leverage.value,
+        slippage: 0,
+        orderId: "orderId", // Not available in this endpoint
+
+        cost: parseFloat(hlPosition.positionValue),
+        unrealizedPnL: parseFloat(hlPosition.unrealizedPnl),
+        realizedPnL: parseFloat(hlPosition.realizedPnl),
+
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      })) as unknown as Position[];
     } catch (error) {
       console.error("Error fetching Hyperliquid positions:", error);
       throw new Error("Failed to fetch positions from Hyperliquid");

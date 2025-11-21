@@ -406,6 +406,12 @@ export class DeltaNeutralTradingService {
         },
       });
       let activePositionsCount = activePositions.length;
+      const legs = await Position.findAll({
+        where: {
+          userId: user.id,
+          status: "OPEN",
+        },
+      });
 
       // Filtrer les opportunités selon les settings utilisateur
       const filteredOpportunities = opportunityDetectionService
@@ -415,8 +421,15 @@ export class DeltaNeutralTradingService {
           riskTolerance: settings.riskTolerance,
           allowedExchanges: settings.preferredExchanges,
         })
-        // filter out token that already have an active position as multiple positions for the same token is unsupported
-        .filter((opportunity) => activePositions.findIndex((pos) => pos.token == opportunity.token) == -1);
+        // filter out token that already have an active position as multiple positions for the same token/exchange combinaison is unsupported
+        .filter(
+          (opportunity) =>
+            legs.findIndex(
+              (leg) =>
+                leg.token == opportunity.token &&
+                (opportunity.longExchange.name == leg.exchange || opportunity.shortExchange.name == leg.exchange),
+            ) == -1,
+        );
 
       if (filteredOpportunities.length === 0) {
         console.log(`ℹ️ No suitable opportunities for user ${user.id}`);
@@ -479,7 +492,7 @@ export class DeltaNeutralTradingService {
         (p, result, index) => {
           if (result.status === "fulfilled") {
             const order = orders[index];
-            const statusMsg = `✅ Opened ${result.value.side} position on ${result.value.exchange} for ${result.value.token} Size: ${result.value.size} at $${result.value.price} (Order ID: ${result.value.orderId})`;
+            const statusMsg = `✅ Opening ${result.value.side} position on ${result.value.exchange} for ${result.value.token} Size: ${result.value.size} at $${result.value.price} (Order ID: ${result.value.orderId})`;
             p.count += 1;
             p.orderIds.push(result.value);
             p.status.push(statusMsg);
@@ -511,12 +524,11 @@ export class DeltaNeutralTradingService {
     settings: UserSettings,
   ): Promise<TradingResult> {
     try {
-      const price = (opportunity.longExchange.price + opportunity.shortExchange.price) / 2;
-      const size = settings.maxPositionSize / price;
-
       console.log(
-        `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange.name}) Short(${opportunity.shortExchange.name}) Size: ${size} @ $${price}`,
+        `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange.name}) Short(${opportunity.shortExchange.name})`,
       );
+      const price = (opportunity.longExchange.price + opportunity.shortExchange.price) / 2;
+      const size = settings.maxPositionSize / (price * 2);
       const longOrder: OrderData = {
         exchange: opportunity.longExchange.name,
         token: opportunity.token,
@@ -548,12 +560,13 @@ export class DeltaNeutralTradingService {
           size,
           price,
 
+          cost: size * price * 2,
           currentPnL: 0,
           currentApr: opportunity.spread.apr,
 
           autoCloseEnabled: settings.autoCloseEnabled,
           autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
-          autoClosePnLThreshold: settings.autoClosePnLThreshold,
+          autoClosePnLThreshold: -Math.abs(settings.autoClosePnLThreshold),
           autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
 
           metadata: opportunity,
@@ -575,6 +588,8 @@ export class DeltaNeutralTradingService {
               leverage: order.leverage,
               slippage: order.slippage,
               orderId: order.orderId,
+
+              cost: order.size * order.price,
             });
           }
         });

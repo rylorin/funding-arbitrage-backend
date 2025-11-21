@@ -71,7 +71,7 @@ export class ExtendedExchange extends ExchangeConnector {
   public async testConnection(): Promise<number> {
     try {
       // Test connection with public endpoint - get markets
-      const response = await this.axiosClient.get("/api/v1/info/markets");
+      const response = await this.get("/api/v1/info/markets");
       const marketsResponse = response.data as ExtendedMarketsResponse;
       const count = marketsResponse.data?.length || 0;
 
@@ -83,14 +83,14 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  protected extractTokenFromTicker(symbol: string): string | null {
+  protected tokenFromTicker(symbol: string): string | null {
     // Extract token from market name like BTC-USD
     const parts = symbol.split("-");
     return parts.length === 2 ? (parts[0] as TokenSymbol) : null;
   }
 
   private extractTokensFromTickers(marketsResponse: ExtendedMarket[]): TokenSymbol[] {
-    return marketsResponse.map((m) => this.extractTokenFromTicker(m.name)).filter((t): t is TokenSymbol => t !== null);
+    return marketsResponse.map((m) => this.tokenFromTicker(m.name)).filter((t): t is TokenSymbol => t !== null);
   }
 
   protected tokenToTicker(token: TokenSymbol): string {
@@ -102,7 +102,7 @@ export class ExtendedExchange extends ExchangeConnector {
       const fundingRates: FundingRateData[] = [];
 
       // Get all markets to find funding rates
-      const response = await this.axiosClient.get("/api/v1/info/markets");
+      const response = await this.get("/api/v1/info/markets");
       const marketsResponse = response.data as ExtendedMarketsResponse;
 
       // If no tokens specified, extract all available tokens from tickers
@@ -178,12 +178,12 @@ export class ExtendedExchange extends ExchangeConnector {
 
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ market: string; leverage: number }> {
     const payload = { market: this.tokenToTicker(token), leverage };
-    const { data } = await this.axiosClient
-      .patch<GenericResponse<unknown>>("/api/v1/user/leverage", payload)
-      .catch((reason: any) => {
+    const { data } = await this.patch<GenericResponse<unknown>>("/api/v1/user/leverage", payload).catch(
+      (reason: any) => {
         // console.error(this.name, payload, reason);
         throw new Error(reason.data.status || reason.message || "Unknown error #1");
-      });
+      },
+    );
     // console.log(data);
     // returs payload if status is OK as response does not conform to documentation (empty data object returned)
     return data.status == "OK" ? payload : LeverageResponseSchema.parse(data).data;
@@ -252,25 +252,25 @@ export class ExtendedExchange extends ExchangeConnector {
 
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     const { orderId: externalId } = order;
-    const result = await this.axiosClient.post<GenericResponse<null>>(`/api/v1/user/order?externalId=${externalId}`);
+    const result = await this.post<GenericResponse<null>>(`/api/v1/user/order?externalId=${externalId}`);
 
     return result.data.status == "OK";
   }
 
   async placeOrder(args: { order: Order }) {
-    const { data } = await this.axiosClient.post<unknown>("/api/v1/user/order", args.order);
+    const { data } = await this.post<unknown>("/api/v1/user/order", args.order);
 
     return PlacedOrderResponseSchema.parse(data).data;
   }
 
   private async getStarknetDomain() {
-    const { data } = await this.axiosClient.get<unknown>("/api/v1/info/starknet");
+    const { data } = await this.get<unknown>("/api/v1/info/starknet");
 
     return StarknetDomainResponseSchema.parse(data).data;
   }
 
   private async getFees({ marketName, builderId }: { marketName: string; builderId?: Long }) {
-    const { data } = await this.axiosClient.get<unknown>("/api/v1/user/fees", {
+    const { data } = await this.get<unknown>("/api/v1/user/fees", {
       params: {
         market: [marketName],
         builderId: builderId?.toString(),
@@ -281,7 +281,7 @@ export class ExtendedExchange extends ExchangeConnector {
   }
 
   private async getMarket(marketName: string): Promise<Market> {
-    const { data } = await this.axiosClient.get<unknown>("/api/v1/info/markets", {
+    const { data } = await this.get<unknown>("/api/v1/info/markets", {
       params: {
         market: [marketName],
       },
@@ -297,17 +297,6 @@ export class ExtendedExchange extends ExchangeConnector {
     } catch (error) {
       console.error(`Error fetching Extended position PnL for ${positionId}:`, error);
       throw new Error("Failed to fetch position PnL from Extended");
-    }
-  }
-
-  public async getAllPositions(): Promise<any[]> {
-    try {
-      // Note: Extended requires authentication for positions
-      console.warn("Extended positions require Stark signature authentication");
-      return [];
-    } catch (error) {
-      console.error("Error fetching Extended positions:", error);
-      throw new Error("Failed to fetch positions from Extended");
     }
   }
 
@@ -369,8 +358,8 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  public async getPositions(): Promise<Position[]> {
-    const { data } = await this.axiosClient.get<unknown>("/api/v1/user/positions");
+  public async getAllPositions(): Promise<Position[]> {
+    const { data } = await this.get<unknown>("/api/v1/user/positions");
     // console.log(data);
     return UserPositionsResponseSchema.parse(data).data.map(
       (pos) =>
@@ -378,7 +367,7 @@ export class ExtendedExchange extends ExchangeConnector {
           id: pos.id.toNumber(),
           userId: "userId",
           tradeId: "tradeId",
-          token: this.extractTokenFromTicker(pos.market),
+          token: this.tokenFromTicker(pos.market),
           status: pos.size ? PositionStatus.OPEN : PositionStatus.CLOSED,
           entryTimestamp: new Date(pos.createdAt),
 

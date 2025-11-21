@@ -1,16 +1,18 @@
 {
-  "extended": {
-    "apiKey": "EXTENDED_API_KEY"
-  },
-  "hyperliquid": {
-    "apiKey": "HYPERLIQUID_API_KEY"
-  },
-  "vest": {
-    "apiKey": "VEST_API_KEY",
-    "secretKey": "VEST_SECRET_KEY"
-  },
-  "orderly": {
-    "orderly-account-id": "ORDERLY_API_KEY",
-    "secretKey": "ORDERLY_SECRET_KEY"
+  "exchanges": {
+    "extended": {
+      "apiKey": "EXTENDED_API_KEY"
+    },
+    "hyperliquid": {
+      "privateKey": "PRIVATE_KEY"
+    },
+    "vest": {
+      "apiKey": "VEST_API_KEY",
+      "secretKey": "VEST_SECRET_KEY"
+    },
+    "orderly": {
+      "orderly-account-id": "ORDERLY_API_KEY",
+      "secretKey": "ORDERLY_SECRET_KEY"
+    }
   }
 }

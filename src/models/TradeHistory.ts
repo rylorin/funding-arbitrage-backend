@@ -21,6 +21,7 @@ interface TradeHistoryAttributes {
   size: number;
   price: number;
 
+  cost: number;
   currentPnL: number;
   currentApr: number | null;
 
@@ -52,6 +53,7 @@ class TradeHistory
   declare public size: number;
   declare public price: number;
 
+  declare public cost: number;
   declare public currentPnL: number;
   declare public currentApr: number;
 
@@ -89,22 +91,6 @@ class TradeHistory
 
     return trades.reduce((total, trade) => total + trade.size * trade.price, 0);
   }
-
-  // public static async getTradingFees(userId: string, days = 30) {
-  //   const cutoff = new Date();
-  //   cutoff.setDate(cutoff.getDate() - days);
-
-  //   const trades = await TradeHistory.findAll({
-  //     where: {
-  //       userId,
-  //       createdAt: {
-  //         [Op.gte]: cutoff,
-  //       },
-  //     },
-  //   });
-
-  //   return trades.reduce((total, trade) => total + trade.fee, 0);
-  // }
 }
 
 TradeHistory.init(
@@ -151,7 +137,7 @@ TradeHistory.init(
         min: 0.00000001,
       },
     },
-
+    cost: { type: DataTypes.NUMBER, allowNull: false },
     currentPnL: {
       type: DataTypes.NUMBER,
       allowNull: false,

@@ -27,7 +27,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async testConnection(): Promise<number> {
     try {
-      const response = await this.axiosClient.get("/exchangeInfo");
+      const response = await this.get("/exchangeInfo");
       const count = response.data.symbols?.length || 0;
 
       console.log(`✅ Vest Exchange connected: ${count} pairs available`);
@@ -40,7 +40,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async getTokenInfo(token: TokenSymbol): Promise<TokenInfo> {
     try {
-      const response = await this.axiosClient.get(`/exchangeInfo?symbols=${this.tokenToTicker(token)}`);
+      const response = await this.get(`/exchangeInfo?symbols=${this.tokenToTicker(token)}`);
       const info: TokenInfo = response.data.symbols[0];
       return info;
     } catch (error) {
@@ -54,7 +54,7 @@ export class VestExchange extends ExchangeConnector {
       const fundingRates: FundingRateData[] = [];
 
       // Get all tickers which contain funding rates
-      const response = await this.axiosClient.get("/ticker/latest");
+      const response = await this.get("/ticker/latest");
       const tickerData = response.data.tickers;
 
       // If no tokens specified, extract all available tokens from tickers
@@ -99,7 +99,7 @@ export class VestExchange extends ExchangeConnector {
 
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
-      const response = await this.axiosClient.get("/account");
+      const response = await this.get("/account");
       const balances: { [token: string]: number } = {};
 
       if (response.data.balances) {
@@ -119,7 +119,7 @@ export class VestExchange extends ExchangeConnector {
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ symbol: string; value: number }> {
     const time = Date.now();
     const payload = { time, symbol: this.tokenToTicker(token), value: leverage };
-    const response = await this.axiosClient.post("/account/leverage", payload).catch((reason: any) => {
+    const response = await this.post("/account/leverage", payload).catch((reason: any) => {
       // console.error(this.name, payload, reason);
       throw new Error(
         reason.data.detail.msg ||
@@ -135,7 +135,7 @@ export class VestExchange extends ExchangeConnector {
     const privateKey: string = this.config.get<string>("privateKey");
     const signature = generateOrderSignature(order, privateKey);
 
-    const response = await this.axiosClient.post("/orders", { order, signature }).catch((reason: any) => {
+    const response = await this.post("/orders", { order, signature }).catch((reason: any) => {
       console.error(order, reason);
       throw new Error(reason.data.detail.msg || "Unknown error #2");
     });
@@ -209,7 +209,7 @@ export class VestExchange extends ExchangeConnector {
     const privateKey: string = this.config.get<string>("privateKey");
     const signature = generateCancelOrderSignature(order, privateKey);
 
-    const response = await this.axiosClient.post("/orders/cancel", { order, signature }).catch((reason: any) => {
+    const response = await this.post("/orders/cancel", { order, signature }).catch((reason: any) => {
       console.error(order, reason);
       throw new Error(reason.data.detail.msg || "Unknown error #2");
     });
@@ -222,54 +222,54 @@ export class VestExchange extends ExchangeConnector {
     throw new Error(`Failed to cancel order: ${response?.data.detail.msg || "Unknown error #3"}`);
   }
 
-  public async closePosition(orderData: OrderData): Promise<PlacedOrderData> {
-    const { token, side, price, size, slippage, leverage } = orderData;
-    try {
-      const symbol = this.tokenToTicker(token);
-      const isBuy = side === PositionSide.LONG;
-      const time = Date.now();
+  // public async closePosition(orderData: OrderData): Promise<PlacedOrderData> {
+  //   const { token, side, price, size, slippage, leverage } = orderData;
+  //   try {
+  //     const symbol = this.tokenToTicker(token);
+  //     const isBuy = side === PositionSide.LONG;
+  //     const time = Date.now();
 
-      const info = await this.getTokenInfo(token);
-      const limitPrice = (isBuy ? price * (1 + slippage / 100) : price * (1 - slippage / 100)).toFixed(
-        info.priceDecimals,
-      );
-      const quantity = size.toFixed(info.sizeDecimals);
+  //     const info = await this.getTokenInfo(token);
+  //     const limitPrice = (isBuy ? price * (1 + slippage / 100) : price * (1 - slippage / 100)).toFixed(
+  //       info.priceDecimals,
+  //     );
+  //     const quantity = size.toFixed(info.sizeDecimals);
 
-      if (leverage) await this.setLeverage(token, leverage);
+  //     if (leverage) await this.setLeverage(token, leverage);
 
-      const order = {
-        time,
-        nonce: time,
-        symbol,
-        isBuy,
-        size: quantity,
-        orderType: "MARKET",
-        limitPrice,
-        reduceOnly: true,
-        timeInForce: "GTC",
-      };
+  //     const order = {
+  //       time,
+  //       nonce: time,
+  //       symbol,
+  //       isBuy,
+  //       size: quantity,
+  //       orderType: "MARKET",
+  //       limitPrice,
+  //       reduceOnly: true,
+  //       timeInForce: "GTC",
+  //     };
 
-      // const privateKey: string = this.config.get<string>("privateKey");
-      // const signature = generateOrderSignature(order, privateKey);
+  //     // const privateKey: string = this.config.get<string>("privateKey");
+  //     // const signature = generateOrderSignature(order, privateKey);
 
-      // const response = await this.axiosClient.post("/orders", { order, signature }).catch((reason: any) => {
-      //   console.error(order, reason);
-      //   throw new Error(reason.data.detail.msg || "Unknown error #2");
-      // });
+  //     // const response = await this.axiosClient.post("/orders", { order, signature }).catch((reason: any) => {
+  //     //   console.error(order, reason);
+  //     //   throw new Error(reason.data.detail.msg || "Unknown error #2");
+  //     // });
 
-      // if (response.data.orderId || response.data.id) {
-      //   const orderId = response.data.orderId || response.data.id;
-      //   // console.log(`✅ Vest ${side} position opened: ${orderId}`);
-      //   return { ...orderData, id: orderId.toString(), size: parseFloat(quantity), price: parseFloat(limitPrice) };
-      // }
-      const orderId = await this.placeOrder(order);
-      return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
-    } catch (error) {
-      throw error;
-    }
-  }
+  //     // if (response.data.orderId || response.data.id) {
+  //     //   const orderId = response.data.orderId || response.data.id;
+  //     //   // console.log(`✅ Vest ${side} position opened: ${orderId}`);
+  //     //   return { ...orderData, id: orderId.toString(), size: parseFloat(quantity), price: parseFloat(limitPrice) };
+  //     // }
+  //     const orderId = await this.placeOrder(order);
+  //     return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
 
-  protected extractTokenFromTicker(symbol: string): TokenSymbol | null {
+  protected tokenFromTicker(symbol: string): TokenSymbol | null {
     const token = symbol.replace("-PERP", "");
     if (token.endsWith("-USD")) return null;
     else return token;
@@ -277,7 +277,7 @@ export class VestExchange extends ExchangeConnector {
 
   private extractTokensFromTickers(tickerData: any[]): TokenSymbol[] {
     const tokens = tickerData
-      .map((ticker): TokenSymbol | null => this.extractTokenFromTicker(ticker.symbol))
+      .map((ticker): TokenSymbol | null => this.tokenFromTicker(ticker.symbol))
       .filter((token) => token);
     return tokens as TokenSymbol[];
   }
@@ -289,7 +289,7 @@ export class VestExchange extends ExchangeConnector {
   public async getPositionPnL(positionId: string): Promise<number> {
     try {
       // Get account info which includes positions
-      const response = await this.axiosClient.get("/account");
+      const response = await this.get("/account");
 
       if (response.data.positions) {
         const position = response.data.positions.find((pos: any) => pos.id === positionId);
@@ -305,23 +305,13 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async getAllPositions(): Promise<any[]> {
-    try {
-      const response = await this.axiosClient.get("/account");
-      return response.data.positions || [];
-    } catch (error) {
-      console.error("Error fetching Vest positions:", error);
-      throw new Error("Failed to fetch positions from Vest");
-    }
-  }
-
   public async getOrderHistory(symbol?: string, limit: number = 100): Promise<any[]> {
     try {
       const params: any = {};
       if (symbol) params.symbol = symbol;
       if (limit) params.limit = limit;
 
-      const response = await this.axiosClient.get("/orders", { params });
+      const response = await this.get("/orders", { params });
       return response.data || [];
     } catch (error) {
       console.error("Error fetching Vest order history:", error);
@@ -377,42 +367,45 @@ export class VestExchange extends ExchangeConnector {
     this.isConnected = false;
   }
 
-  public async getPositions(): Promise<Position[]> {
+  public async getAllPositions(): Promise<Position[]> {
     const time = Date.now();
-    const response = await this.axiosClient.get("/account").catch((reason: any) => {
+    const response = await this.get("/account").catch((reason: any) => {
       console.error(time, reason);
       throw new Error(reason.data.detail.msg || "Unknown error #4");
     });
 
     if (response.data.positions) {
-      return response.data.positions.map((pos: any) => ({
-        id: "id",
-        userId: "userId",
-        tradeId: "tradeId",
-        token: this.extractTokenFromTicker(pos.symbol),
-        status: pos.size ? PositionStatus.OPEN : PositionStatus.CLOSED,
-        entryTimestamp: 0,
+      return response.data.positions.map((pos: any) => {
+        console.log(pos);
+        return {
+          id: "id",
+          userId: "userId",
+          tradeId: "tradeId",
+          token: this.tokenFromTicker(pos.symbol),
+          status: pos.size ? PositionStatus.OPEN : PositionStatus.CLOSED,
+          entryTimestamp: 0,
 
-        exchange: this.name,
-        side: pos.isLong ? PositionSide.LONG : PositionSide.SHORT,
-        size: parseFloat(pos.size),
-        price: parseFloat(pos.markPrice),
-        leverage: pos.leverage.toNumber(),
-        orderId: "orderId",
+          exchange: this.name,
+          side: pos.isLong ? PositionSide.LONG : PositionSide.SHORT,
+          size: parseFloat(pos.size),
+          price: parseFloat(pos.markPrice),
+          leverage: undefined,
+          orderId: "orderId",
 
-        cost: parseFloat(pos.entryPrice) * parseFloat(pos.size),
-        unrealizedPnL: parseFloat(pos.unrealizedPnl),
-        realizedPnL: 0,
+          cost: parseFloat(pos.entryPrice) * parseFloat(pos.size),
+          unrealizedPnL: parseFloat(pos.unrealizedPnl),
+          realizedPnL: 0,
 
-        entryPrice: parseFloat(pos.entryPrice),
-        entryFunding: parseFloat(pos.entryFunding),
-        settledFunding: parseFloat(pos.settledFunding),
-        indexPrice: parseFloat(pos.indexPrice),
-        liqPrice: parseFloat(pos.liqPrice),
-        initMargin: parseFloat(pos.initMargin),
-        maintMargin: parseFloat(pos.maintMargin),
-        initMarginRatio: parseFloat(pos.initMarginRatio),
-      }));
+          entryPrice: parseFloat(pos.entryPrice),
+          entryFunding: parseFloat(pos.entryFunding),
+          settledFunding: parseFloat(pos.settledFunding),
+          indexPrice: parseFloat(pos.indexPrice),
+          liqPrice: parseFloat(pos.liqPrice),
+          initMargin: parseFloat(pos.initMargin),
+          maintMargin: parseFloat(pos.maintMargin),
+          initMarginRatio: parseFloat(pos.initMarginRatio),
+        };
+      });
     }
 
     console.error(response);

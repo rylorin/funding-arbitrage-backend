@@ -72,13 +72,27 @@ export abstract class ExchangeConnector {
   public get<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
     return this.axiosClient.get<T, R, D>(url, config);
   }
-
   public post<T = any, R = AxiosResponse<T>, D = any>(
     url: string,
     data?: D,
     config?: AxiosRequestConfig<D>,
   ): Promise<R> {
     return this.axiosClient.post<T, R, D>(url, data, config);
+  }
+  public patch<T = any, R = AxiosResponse<T>, D = any>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig<D>,
+  ): Promise<R> {
+    return this.axiosClient.patch<T, R, D>(url, data, config);
+  }
+  public delete<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
+    return this.axiosClient.delete<T, R, D>(url, {
+      ...config,
+      headers: {
+        "Content-Type": undefined,
+      },
+    });
   }
 
   public async testConnection(): Promise<number> {
@@ -96,11 +110,11 @@ export abstract class ExchangeConnector {
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     throw `${this.name} ExchangeConnector.cancelOrder(${order.orderId}) not implemented`;
   }
-  public async getPositions(): Promise<Position[]> {
-    throw `${this.name} ExchangeConnector.getPositions not implemented`;
+  public async getAllPositions(): Promise<Position[]> {
+    throw `${this.name} ExchangeConnector.getAllPositions not implemented`;
   }
-  protected extractTokenFromTicker(symbol: string): TokenSymbol | null {
-    throw `${this.name} ExchangeConnector.extractTokenFromTicker(${symbol}) not implemented`;
+  protected tokenFromTicker(symbol: string): TokenSymbol | null {
+    throw `${this.name} ExchangeConnector.tokenFromTicker(${symbol}) not implemented`;
   }
   protected tokenToTicker(token: TokenSymbol): string {
     throw `${this.name} ExchangeConnector.tokenToTicker(${token}) not implemented`;

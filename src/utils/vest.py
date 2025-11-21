@@ -15,6 +15,7 @@ primary_private_key = os.getenv("PRIVATE_KEY")  # Replace with your primary priv
 priv = secrets.token_hex(32)
 private_key = "0x" + priv
 acct = EthAccount.from_key(private_key)
+
 signing_private_key = acct.key.hex()
 signing_public_key = acct.address
 

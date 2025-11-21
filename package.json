@@ -22,9 +22,11 @@
     "start": "node dist/index.js",
     "test": "jest --maxWorkers=8 --reporters=default --useStderr --detectOpenHandles",
     "test:watch": "jest --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "vest:register": "ts-node --project tsconfig.json -r tsconfig-paths/register src/utils/vest-cli.ts"
   },
   "dependencies": {
+    "@msgpack/msgpack": "^3.1.2",
     "@noble/curves": "^2.0.1",
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.1",

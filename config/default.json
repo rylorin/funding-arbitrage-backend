@@ -22,10 +22,10 @@
     "orderly": {
       "enabled": true,
       "baseUrl": "https://api.orderly.org",
-      "webSocketURL": "wss://ws-evm.orderly.org",
       "orderly-account-id": "your-orderly-account-id",
       "orderly-key": "your-orderly-key",
-      "secretKey": "your-orderly-secret-key"
+      "secretKey": "your-orderly-secret-key",
+      "webSocketURL": "wss://ws-private-evm.orderly.org/v2/ws/private/stream/{account_id}"
     }
   },
   "services": {
@@ -46,7 +46,7 @@
     "autoCloseTimeoutHours": 0,
     "autoClosePnLThreshold": 25,
     "positionLeverage": 1,
-    "slippageTolerance": 0.2,
+    "slippageTolerance": 0.25,
     "notificationPreferences": {
       "email": true,
       "webhook": true,

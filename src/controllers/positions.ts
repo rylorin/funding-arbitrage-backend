@@ -106,7 +106,7 @@ import { FundingRate, Position, TradeHistory } from "../models/index";
 //   }
 // };
 
-export const getPositions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getAllPositions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const querySchema = Joi.object({
       status: Joi.string().valid("OPEN", "CLOSED", "ERROR", "CLOSING").optional(),

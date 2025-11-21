@@ -1,4 +1,4 @@
-// https://orderly.network/docs/build-on-omnichain/evm-api/
+// API reference documation available at https://orderly.network/docs/build-on-omnichain/evm-api/
 import { Position } from "@/models";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import * as ed from "@noble/ed25519";
@@ -63,12 +63,14 @@ export class OrderlyExchange extends ExchangeConnector {
       }
       return config;
     });
+
+    this.connectWebSocket((data) => console.log("ws:", data));
   }
 
   public async testConnection(): Promise<number> {
     try {
       // Test connection with public endpoint - get exchange info
-      const response = await this.axiosClient.get("/v1/public/info");
+      const response = await this.get("/v1/public/info");
       const count = response.data.data?.rows?.length || 0;
 
       console.log(`✅ Orderly Exchange connected: ${count} markets available`);
@@ -79,7 +81,7 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
-  protected extractTokenFromTicker(symbol: string): string | null {
+  protected tokenFromTicker(symbol: string): string | null {
     // Extract token from symbol like PERP_BTC_USDC
     const parts = symbol.split("_");
     // console.log('Orderly symbol parts:', parts);
@@ -87,9 +89,7 @@ export class OrderlyExchange extends ExchangeConnector {
   }
 
   private extractTokensFromTickers(marketsResponse: WoofiFundingRate[]): TokenSymbol[] {
-    return marketsResponse
-      .map((row) => this.extractTokenFromTicker(row.symbol))
-      .filter((t): t is TokenSymbol => t !== null);
+    return marketsResponse.map((row) => this.tokenFromTicker(row.symbol)).filter((t): t is TokenSymbol => t !== null);
   }
 
   protected tokenToTicker(token: TokenSymbol): string {
@@ -101,15 +101,13 @@ export class OrderlyExchange extends ExchangeConnector {
       const result: Record<TokenSymbol, TokenPrice> = {};
 
       // Get all tickers
-      const response = await this.axiosClient.get("/v1/public/futures");
+      const response = await this.get("/v1/public/futures");
       const tickersData = response.data.data as { rows: any[] };
 
       // If no tokens specified, extract all available tokens from tickers
       const tokensToProcess =
         tokens ||
-        tickersData.rows
-          .map((row) => this.extractTokenFromTicker(row.symbol))
-          .filter((t): t is TokenSymbol => t !== null);
+        tickersData.rows.map((row) => this.tokenFromTicker(row.symbol)).filter((t): t is TokenSymbol => t !== null);
 
       // For each requested token, find its price
       for (const token of tokensToProcess) {
@@ -143,7 +141,7 @@ export class OrderlyExchange extends ExchangeConnector {
       const result: Record<TokenSymbol, TokenInfo> = {};
 
       const symbol = tokens && tokens.length > 1 ? this.tokenToTicker(tokens[0]) : "";
-      const response = await this.axiosClient.get(`/v1/public/info/${symbol}`);
+      const response = await this.get(`/v1/public/info/${symbol}`);
       const tickersData = response.data.data as { rows: any[] };
 
       // If no tokens specified, extract all available tokens from tickers
@@ -184,7 +182,7 @@ export class OrderlyExchange extends ExchangeConnector {
       const prices = await this.getTokenPrice(tokens);
 
       // Get all predicted funding rates
-      const response = await this.axiosClient.get("/v1/public/funding_rates");
+      const response = await this.get("/v1/public/funding_rates");
       const fundingData = response.data.data as { rows: WoofiFundingRate[] };
 
       // If no tokens specified, extract all available tokens from tickers
@@ -236,7 +234,7 @@ export class OrderlyExchange extends ExchangeConnector {
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
       // This requires authentication with Orderly key
-      const response = await this.axiosClient.get("/v1/client/holding");
+      const response = await this.get("/v1/client/holding");
       const balances: { [token: string]: number } = {};
 
       if (response.data && response.data.holding) {
@@ -254,7 +252,7 @@ export class OrderlyExchange extends ExchangeConnector {
 
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
     const payload = { symbol: this.tokenToTicker(token), leverage };
-    const response = await this.axiosClient.post("/v1/client/leverage", payload).catch((reason: any) => {
+    const response = await this.post("/v1/client/leverage", payload).catch((reason: any) => {
       throw new Error(reason.data.message || reason.message || "Unknown error #1");
     });
     return response.data.success;
@@ -305,7 +303,7 @@ export class OrderlyExchange extends ExchangeConnector {
         order_quantity,
         slippage: order.slippage / 100,
       };
-      const response = await this.axiosClient.post("/v1/order", payload).catch((reason: any) => {
+      const response = await this.post("/v1/order", payload).catch((reason: any) => {
         // console.error(payload, reason.data);
         throw new Error(reason.data.message || "Unknown error #2");
       });
@@ -327,18 +325,18 @@ export class OrderlyExchange extends ExchangeConnector {
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     const { token, orderId: client_order_id } = order;
     const symbol = this.tokenToTicker(token);
-    const response = await this.axiosClient
-      .delete(`/v1/client/order?client_order_id=${client_order_id}&symbol=${symbol}`)
-      .catch((reason: any) => {
+    const response = await this.delete(`/v1/client/order?client_order_id=${client_order_id}&symbol=${symbol}`).catch(
+      (reason: any) => {
         throw new Error(reason.data.message || reason.message || "Unknown error #1");
-      });
+      },
+    );
     return response.data.success;
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {
     try {
       // Get all positions and find the specific one
-      const response = await this.axiosClient.get("/v1/positions");
+      const response = await this.get("/v1/positions");
 
       if (response.data.data?.rows) {
         const position = response.data.data.rows.find((pos: any) => pos.position_id === positionId);
@@ -354,23 +352,13 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
-  public async getAllPositions(): Promise<any[]> {
-    try {
-      const response = await this.axiosClient.get("/v1/positions");
-      return response.data.data?.rows || [];
-    } catch (error) {
-      console.error("Error fetching Orderly positions:", error);
-      throw new Error("Failed to fetch positions from Orderly");
-    }
-  }
-
   public async getOrderHistory(symbol?: string, limit: number = 100): Promise<any[]> {
     try {
       const params: any = {};
       if (symbol) params.symbol = symbol;
       if (limit) params.size = limit;
 
-      const response = await this.axiosClient.get("/v1/orders", { params });
+      const response = await this.get("/v1/orders", { params });
       return response.data.data?.rows || [];
     } catch (error) {
       console.error("Error fetching Orderly order history:", error);
@@ -380,24 +368,53 @@ export class OrderlyExchange extends ExchangeConnector {
 
   public connectWebSocket(onMessage: (data: any) => void): void {
     try {
-      this.ws = new WebSocket(this.wsUrl);
+      // Build WebSocket URL with account ID
+      let wsUrl = this.wsUrl;
+      if (this.config.has("orderly-account-id")) {
+        const accountId = this.config.get("orderly-account-id") as string;
+        wsUrl = wsUrl.replace("{account_id}", accountId);
+      }
+
+      // Create WebSocket connection first
+      console.log("🔌 Attempting to connect to Orderly WebSocket:", wsUrl);
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.on("open", () => {
         console.log("✅ Orderly WebSocket connected");
 
-        // Subscribe to funding rate updates
-        const subscribeMessage = {
-          id: Date.now().toString(),
-          topic: "estfundingrate",
-          event: "subscribe",
-        };
+        // Authenticate after connection is established
+        this.authenticateWebSocket();
 
-        this.ws?.send(JSON.stringify(subscribeMessage));
+        // Subscribe to all private topics after a short delay to ensure auth is processed
+        setTimeout(() => {
+          const topics = [
+            "account",
+            "balance",
+            "executionreport",
+            "liquidationsaccount",
+            "liquidatorliquidations",
+            "notifications",
+            "settle",
+            "position",
+            "wallet",
+          ];
+
+          topics.forEach((topic) => {
+            const subscribeMessage = {
+              id: `${topic}_${Date.now()}`,
+              topic,
+              event: "subscribe",
+            };
+            console.log(`📡 Subscribing to topic: ${topic}`);
+            this.ws?.send(JSON.stringify(subscribeMessage));
+          });
+        }, 1000);
       });
 
       this.ws.on("message", (data: WebSocket.Data) => {
         try {
           const message = JSON.parse(data.toString());
+          console.log("📨 Orderly WebSocket message received:", JSON.stringify(message, null, 2));
           onMessage(message);
         } catch (error) {
           console.error("Error parsing Orderly WebSocket message:", error);
@@ -418,6 +435,42 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
+  private authenticateWebSocket(): void {
+    if (!this.config.has("orderly-key") || !this.config.has("secretKey") || !this.config.has("orderly-account-id")) {
+      console.warn("⚠️ Missing authentication credentials for Orderly WebSocket");
+      return;
+    }
+
+    try {
+      const timestamp = Date.now().toString();
+      const secretKey = bs58.decode(this.config.get("secretKey") as string);
+
+      if (secretKey.length !== 32) {
+        throw new Error(`Invalid secret key length: ${secretKey.length} bytes. Ed25519 private key must be 32 bytes.`);
+      }
+
+      // Generate signature for WebSocket authentication
+      const message = `${timestamp}`;
+      const signatureBuffer = Buffer.from(ed.sign(new TextEncoder().encode(message), secretKey));
+      const signature = signatureBuffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+
+      const authMessage = {
+        id: `auth_${timestamp}`,
+        event: "auth",
+        params: {
+          orderly_key: this.config.get("orderly-key"),
+          sign: signature,
+          timestamp,
+        },
+      };
+
+      console.log("🔐 Authenticating Orderly WebSocket connection");
+      this.ws?.send(JSON.stringify(authMessage));
+    } catch (error) {
+      console.error("Error authenticating Orderly WebSocket:", error);
+    }
+  }
+
   public disconnect(): void {
     if (this.ws) {
       this.ws.close();
@@ -426,8 +479,8 @@ export class OrderlyExchange extends ExchangeConnector {
     this.isConnected = false;
   }
 
-  public async getPositions(): Promise<Position[]> {
-    const response = await this.axiosClient.get("/v1/positions").catch((reason: any) => {
+  public async getAllPositions(): Promise<Position[]> {
+    const response = await this.get("/v1/positions").catch((reason: any) => {
       throw new Error(reason.data.message || "Unknown error #3");
     });
 
@@ -436,7 +489,7 @@ export class OrderlyExchange extends ExchangeConnector {
         id: "id",
         userId: "userId",
         tradeId: "tradeId",
-        token: this.extractTokenFromTicker(pos.symbol),
+        token: this.tokenFromTicker(pos.symbol),
         status: pos.position_qty ? PositionStatus.OPEN : PositionStatus.CLOSED,
         entryTimestamp: new Date(pos.updated_time),
 
@@ -447,7 +500,7 @@ export class OrderlyExchange extends ExchangeConnector {
         leverage: parseInt(pos.leverage),
         orderId: "orderId",
 
-        cost: pos.cost_position,
+        cost: Math.abs(pos.cost_position),
         unrealizedPnL: pos.unsettled_pnl,
         realizedPnL: 0,
 

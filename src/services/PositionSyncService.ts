@@ -8,6 +8,7 @@ import { getWebSocketHandlers } from "../websocket/handlers";
 import { OpportunityDetectionService } from "./OpportunityDetectionService";
 
 export type PositionMetrics = {
+  cost: number;
   currentApr: number;
   currentPnL: number;
   hoursOpen: number;
@@ -27,7 +28,7 @@ export class PositionSyncService {
         const now = Date.now();
         let count = 0;
 
-        const exchangePos = await exchange.getPositions();
+        const exchangePos = await exchange.getAllPositions();
         for (const position of exchangePos) {
           const ref = await Position.findOne({
             where: {
@@ -118,6 +119,7 @@ export class PositionSyncService {
           if (metrics) {
             // Mettre à jour la position en DB
             await position.update({
+              cost: metrics.cost,
               currentPnL: metrics.currentPnL,
               currentApr: metrics.currentApr,
             });
@@ -127,6 +129,7 @@ export class PositionSyncService {
             // Préparer la mise à jour WebSocket
             const positionPnL: PositionPnL = {
               positionId: position.id,
+              cost: metrics.cost,
               currentPnL: metrics.currentPnL,
               currentApr: metrics.currentApr,
               hoursOpen: metrics.hoursOpen,
@@ -203,6 +206,8 @@ export class PositionSyncService {
         return null;
       }
 
+      const cost = legs.reduce((p, leg) => p + leg.cost, 0);
+
       // Calculer le PnL actuel
       const currentPnL = await this.calculatePositionPnL(legs);
 
@@ -216,9 +221,9 @@ export class PositionSyncService {
       // const totalFees = this.calculateTotalFees(position, hoursOpen);
 
       const metrics = {
+        cost,
         currentApr,
         hoursOpen,
-        // totalFees,
         currentPnL,
       };
       console.log(position.token, metrics);

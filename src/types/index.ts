@@ -49,7 +49,7 @@ export type PositionPnL =
   | PositionMetrics
   | {
       positionId: string;
-      hoursOpen: number;
+      // hoursOpen: number;
       lastUpdated: Date;
     };
 

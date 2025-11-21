@@ -2,13 +2,13 @@ import { Router } from "express";
 import Joi from "joi";
 import {
   closePosition,
+  // createPosition,
+  getAllPositions,
   getPosition,
   getPositionAlerts,
   getPositionDetails,
   getPositionPerformance,
   getPositionPnL,
-  // createPosition,
-  getPositions,
   getPositionsDashboard,
   updatePosition,
 } from "../controllers/positions";
@@ -28,7 +28,7 @@ router.get("/performance", generalRateLimit, getPositionPerformance);
 
 // Position CRUD operations
 // router.post("/", positionRateLimit, createPosition);
-router.get("/", generalRateLimit, getPositions);
+router.get("/", generalRateLimit, getAllPositions);
 router.get("/:id", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), getPosition);
 router.get("/:id/details", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), getPositionDetails);
 router.put("/:id", generalRateLimit, validateParams(Joi.object({ id: schemas.uuid })), updatePosition);
