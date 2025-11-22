@@ -25,7 +25,7 @@ export class VestExchange extends ExchangeConnector {
     super("vest");
 
     // Auto-connect WebSocket for real-time data
-    this.connectWebSocket((data) => console.log("Vest WS:", data));
+    // this.connectWebSocket((data) => console.log("Vest WS:", data));
   }
 
   public async testConnection(): Promise<number> {

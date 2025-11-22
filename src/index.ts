@@ -13,7 +13,14 @@ import healthService from "./services/HealthService";
 
 // Routes
 import { default as config, IConfig } from "config";
-import { ExchangesRegistry, extendedExchange, hyperliquidExchange, orderlyExchange, vestExchange } from "./exchanges";
+import {
+  asterPerpExchange,
+  ExchangesRegistry,
+  extendedExchange,
+  hyperliquidExchange,
+  orderlyExchange,
+  vestExchange,
+} from "./exchanges";
 import authRoutes from "./routes/auth";
 import dashboardRoutes from "./routes/dashboard";
 import exchangeRoutes from "./routes/exchanges";
@@ -134,18 +141,21 @@ async function startServer(_config: IConfig): Promise<void> {
 
     // Setting up exchanges connections
     console.log("🔌 Setting up exchanges connections...");
-    await [extendedExchange, hyperliquidExchange, vestExchange, orderlyExchange].reduce(async (p, exchange) => {
-      p.then(async () => {
-        if (exchange.isEnabled) {
-          console.log(`🔗 Connecting to ${exchange.name} exchange...`);
-          ExchangesRegistry.registerExchange(exchange);
-          return exchange.testConnection();
-        } else {
-          console.log(`⚠️ ${exchange.name} exchange is disabled, skipping connection`);
-          return Promise.resolve();
-        }
-      });
-    }, Promise.resolve());
+    await [extendedExchange, hyperliquidExchange, vestExchange, orderlyExchange, asterPerpExchange].reduce(
+      async (p, exchange) => {
+        p.then(async () => {
+          if (exchange.isEnabled) {
+            console.log(`🔗 Connecting to ${exchange.name} exchange...`);
+            ExchangesRegistry.registerExchange(exchange);
+            return exchange.testConnection();
+          } else {
+            console.log(`⚠️ ${exchange.name} exchange is disabled, skipping connection`);
+            return Promise.resolve();
+          }
+        });
+      },
+      Promise.resolve(),
+    );
 
     // Initialize WebSocket server
     console.log("🔌 Setting up WebSocket server...");

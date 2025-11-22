@@ -1,5 +1,13 @@
 {
   "exchanges": {
+    "asterperp": {
+      "enabled": true,
+      "fundingFrequency": 8,
+      "baseUrl": "https://fapi.asterdex.com",
+      "webSocketURL": "wss://ws.asterperp.com/ws",
+      "apiKey": "your-asterperp-api-key",
+      "secretKey": "your-asterperp-secret-key"
+    },
     "extended": {
       "enabled": true,
       "fundingFrequency": 1,
@@ -16,7 +24,7 @@
       "enabled": true,
       "fundingFrequency": 1,
       "baseUrl": "https://server-prod.hz.vestmarkets.com/v2",
-      "webSocketURL": "wss://ws.vest.exchange",
+      "webSocketURL": "wss://ws-prod.hz.vestmarkets.com/ws-api?version=1.0",
       "secretKey": "your-vest-secret-key"
     },
     "orderly": {

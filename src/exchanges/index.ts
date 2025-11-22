@@ -4,6 +4,7 @@ import { ExchangeConnector, ExchangeName } from "./ExchangeConnector";
 export { ExchangeConnector };
 
 // Export all exchange connectors
+export { AsterPerpExchange, asterPerpExchange } from "./AsterPerpExchange";
 export { ExtendedExchange, extendedExchange } from "./ExtendedExchange";
 export { HyperliquidExchange, hyperliquidExchange } from "./HyperliquidExchange";
 export { OrderlyExchange, orderlyExchange } from "./OrderlyExchange";

@@ -27,7 +27,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     super("hyperliquid");
 
     // Auto-connect WebSocket for real-time data
-    this.connectWebSocket((data) => console.log("Hyperliquid WS:", data));
+    // this.connectWebSocket((data) => console.log("Hyperliquid WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -428,7 +428,7 @@ export class HyperliquidExchange extends ExchangeConnector {
         console.log("✅ Hyperliquid WebSocket connected");
 
         // Subscribe to multiple topics and coins for comprehensive data
-        const tradingPairs = ["BTC", "ETH", "SOL", "ADA", "DOGE", "MATIC", "AVAX", "DOT", "LINK", "LTC"];
+        const tradingPairs: string[] = [];
         const subscriptionTypes = ["trades", "book", "candle", "fills"];
 
         let subscriptionId = 1;

@@ -68,7 +68,7 @@ export class ExtendedExchange extends ExchangeConnector {
     this.vaultId = this.config.get("vaultId");
 
     // Auto-connect WebSocket for real-time data
-    this.connectWebSocket((data) => console.log("Extended WS:", data));
+    // this.connectWebSocket((data) => console.log("Extended WS:", data));
   }
 
   public async testConnection(): Promise<number> {

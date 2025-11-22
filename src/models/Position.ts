@@ -109,7 +109,7 @@ Position.init(
       defaultValue: DataTypes.NOW,
     },
     exchange: {
-      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "paradex", "backpack", "hibachi"),
+      type: DataTypes.ENUM("vest", "hyperliquid", "orderly", "extended", "asterperp", "paradex", "backpack", "hibachi"),
       allowNull: false,
     },
     side: {

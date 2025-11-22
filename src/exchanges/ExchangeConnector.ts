@@ -4,7 +4,7 @@ import { FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "@/type
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { default as config, IConfig } from "config";
 
-export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "mock";
+export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "asterperp" | "mock";
 
 const _safeParseResponse = (data: unknown) => {
   if (!data || typeof data !== "string") {
@@ -33,8 +33,8 @@ export abstract class ExchangeConnector {
     this.name = name;
     this.config = config.get("exchanges." + name);
     this.isEnabled = this.config.has("enabled") ? this.config.get("enabled") : false;
-    this.baseUrl = this.config.has("baseUrl") ? this.config.get("baseUrl") : "";
-    this.wsUrl = this.config.has("webSocketURL") ? this.config.get("webSocketURL") : "";
+    this.baseUrl = this.config.get<string>("baseUrl");
+    this.wsUrl = this.config.has("webSocketURL") ? this.config.get<string>("webSocketURL") : "";
 
     this.axiosClient = axios.create({
       baseURL: this.baseUrl,
@@ -42,6 +42,7 @@ export abstract class ExchangeConnector {
       headers: {
         "Content-Type": "application/json",
         "X-Api-Key": this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
+        "X-MBX-APIKEY": this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
       },
       paramsSerializer: {
         indexes: null,

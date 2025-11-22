@@ -13,7 +13,7 @@
     },
     "vest": {
       "disabled-baseUrl": "https://server-dev.hz.vestmarkets.com/v2",
-      "webSocketURL": "wss://ws.vest.exchange"
+      "webSocketURL": "wss://ws-dev.hz.vestmarkets.com/ws-api?version=1.0"
     },
     "orderly": {
       "baseUrl": "https://testnet-api.orderly.org",

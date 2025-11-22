@@ -63,7 +63,7 @@ export class OrderlyExchange extends ExchangeConnector {
       return config;
     });
 
-    this.connectWebSocket(() => null);
+    this.connectWebSocket((data) => console.log("Orderly WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -420,6 +420,10 @@ export class OrderlyExchange extends ExchangeConnector {
               break;
             case "notifications":
               console.log(message.data);
+              break;
+            case "subscribe":
+              // NOP
+              break;
             default:
               onMessage(message);
           }
