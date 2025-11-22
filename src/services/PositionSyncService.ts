@@ -1,4 +1,5 @@
 import { PositionSide, PositionStatus } from "@/models/Position";
+import { TradeStatus } from "@/models/TradeHistory";
 import { default as config, IConfig } from "config";
 import { Op } from "sequelize";
 import { exchangesRegistry } from "../exchanges";
@@ -65,6 +66,22 @@ export class PositionSyncService {
             },
           },
         );
+
+        // Update all open trades
+        const trades = await TradeHistory.findAll({
+          where: {
+            status: { [Op.in]: [PositionStatus.OPENING, PositionStatus.OPEN, PositionStatus.CLOSING] },
+          },
+        });
+        for (const trade of trades) {
+          const legs = await Position.findAll({ where: { tradeId: trade.id } });
+          const oneError = legs.reduce((p, leg) => (leg.status == PositionStatus.ERROR ? true : p), false);
+          const allOpen = legs.reduce((p, leg) => (leg.status == PositionStatus.OPEN ? p : false), true);
+          const allClosed = legs.reduce((p, leg) => (leg.status == PositionStatus.CLOSED ? p : false), true);
+          if (oneError) trade.update({ status: TradeStatus.ERROR });
+          else if (allOpen) trade.update({ status: TradeStatus.OPEN });
+          else if (allClosed) trade.update({ status: TradeStatus.CLOSED });
+        }
 
         console.log(`✅ Syncied ${count} positions from ${exchange.name}`);
       } catch (exchangeError) {

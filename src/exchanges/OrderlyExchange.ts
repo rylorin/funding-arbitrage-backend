@@ -309,8 +309,17 @@ export class OrderlyExchange extends ExchangeConnector {
 
       if (response.data.success && response.data.data?.order_id) {
         const orderId = response.data.data.order_id;
-        // console.log(`✅ Orderly ${side} position opened: ${orderId}`);
-        return { ...order, orderId: orderId.toString(), size: order_quantity };
+        return {
+          exchange: order.exchange,
+          token: order.token,
+          price: order.price,
+          side: order.side,
+          leverage: order.leverage,
+          slippage: order.slippage,
+
+          orderId: orderId.toString(),
+          size: order_quantity,
+        };
       }
 
       console.error(response);

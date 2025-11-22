@@ -247,7 +247,17 @@ export class ExtendedExchange extends ExchangeConnector {
 
       const result = await this.placeOrder({ order: nativeOrder });
 
-      return { ...order, orderId: result.externalId, price: price.toNumber(), size: amountOfSynthetic.toNumber() };
+      return {
+        exchange: order.exchange,
+        token: order.token,
+        side: order.side,
+        leverage: order.leverage,
+        slippage: order.slippage,
+
+        orderId: result.externalId,
+        price: price.toNumber(),
+        size: amountOfSynthetic.toNumber(),
+      };
     } catch (error) {
       throw error;
     }

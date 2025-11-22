@@ -11,6 +11,7 @@ export enum PositionStatus {
   CLOSED = "CLOSED",
   ERROR = "ERROR",
 }
+
 // export const PositionStatus = {
 //   OPEN : "OPEN",
 //   CLOSING:"CLOSING",

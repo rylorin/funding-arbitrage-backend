@@ -453,7 +453,7 @@ export class VestExchange extends ExchangeConnector {
 
     if (response.data.positions) {
       return response.data.positions.map((pos: any) => {
-        console.log(pos);
+        // console.log(pos);
         return {
           id: "id",
           userId: "userId",

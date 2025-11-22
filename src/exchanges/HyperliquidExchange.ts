@@ -258,7 +258,12 @@ export class HyperliquidExchange extends ExchangeConnector {
       console.log(`✅ Hyperliquid ${side} position opened for ${token}: ${orderId}`);
 
       return {
-        ...order,
+        exchange: order.exchange,
+        token: order.token,
+        side: order.side,
+        leverage: order.leverage,
+        slippage: order.slippage,
+
         orderId,
         price: limitPrice,
         size,

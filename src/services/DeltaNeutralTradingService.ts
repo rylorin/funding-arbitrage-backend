@@ -492,6 +492,7 @@ export class DeltaNeutralTradingService {
         (p, result, index) => {
           if (result.status === "fulfilled") {
             const order = orders[index];
+            // console.log(result.value);
             const statusMsg = `✅ Opening ${result.value.side} position on ${result.value.exchange} for ${result.value.token} Size: ${result.value.size} at $${result.value.price} (Order ID: ${result.value.orderId})`;
             p.count += 1;
             p.orderIds.push(result.value);
@@ -561,13 +562,13 @@ export class DeltaNeutralTradingService {
               side,
               entryTimestamp: new Date(),
 
-              exchange: opportunity.longExchange.name,
+              exchange: side == PositionSide.LONG ? opportunity.longExchange.name : opportunity.shortExchange.name,
               size: size,
-              price: opportunity.longExchange.price,
+              price: PositionSide.LONG ? opportunity.longExchange.price : opportunity.shortExchange.price,
               leverage: settings.positionLeverage,
               slippage: settings.slippageTolerance,
 
-              cost: size * opportunity.longExchange.price,
+              cost: size * (opportunity.longExchange.price + opportunity.shortExchange.price),
             }).then((pos) => pos.update({ orderId: pos.id })),
         ),
       );
