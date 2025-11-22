@@ -1,6 +1,5 @@
 // API reference documation available at https://orderly.network/docs/build-on-omnichain/evm-api/
-import { Position } from "@/models";
-import { PositionSide, PositionStatus } from "@/models/Position";
+import { Position, PositionSide, PositionStatus } from "@/models";
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import bs58 from "bs58";
@@ -64,7 +63,7 @@ export class OrderlyExchange extends ExchangeConnector {
       return config;
     });
 
-    this.connectWebSocket((data) => console.log("ws:", data));
+    this.connectWebSocket(() => null);
   }
 
   public async testConnection(): Promise<number> {
@@ -388,12 +387,12 @@ export class OrderlyExchange extends ExchangeConnector {
         // Subscribe to all private topics after a short delay to ensure auth is processed
         setTimeout(() => {
           const topics = [
+            "notifications",
             "account",
             "balance",
             "executionreport",
             "liquidationsaccount",
             "liquidatorliquidations",
-            "notifications",
             "settle",
             "position",
             "wallet",
@@ -415,7 +414,15 @@ export class OrderlyExchange extends ExchangeConnector {
         try {
           const message = JSON.parse(data.toString());
           console.log("📨 Orderly WebSocket message received:", JSON.stringify(message, null, 2));
-          onMessage(message);
+          switch (message.event) {
+            case "ping":
+              this.ws?.send(JSON.stringify({ event: "pong", ts: message.ts }));
+              break;
+            case "notifications":
+              console.log(message.data);
+            default:
+              onMessage(message);
+          }
         } catch (error) {
           console.error("Error parsing Orderly WebSocket message:", error);
         }

@@ -331,7 +331,7 @@ export class DeltaNeutralTradingService {
         },
       });
 
-      if (legs.length == 0) await position.update({ status: TradeStatus.CLOSE });
+      if (legs.length == 0) await position.update({ status: TradeStatus.CLOSED });
     }
   }
 
@@ -402,14 +402,14 @@ export class DeltaNeutralTradingService {
       const activePositions = await TradeHistory.findAll({
         where: {
           userId: user.id,
-          status: "OPEN",
+          status: { [Op.in]: [TradeStatus.OPEN, TradeStatus.OPENING, TradeStatus.CLOSING] },
         },
       });
       let activePositionsCount = activePositions.length;
       const legs = await Position.findAll({
         where: {
           userId: user.id,
-          status: "OPEN",
+          status: { [Op.in]: [TradeStatus.OPEN, TradeStatus.OPENING, TradeStatus.CLOSING] },
         },
       });
 
@@ -529,97 +529,67 @@ export class DeltaNeutralTradingService {
       );
       const price = (opportunity.longExchange.price + opportunity.shortExchange.price) / 2;
       const size = settings.maxPositionSize / (price * 2);
-      const longOrder: OrderData = {
-        exchange: opportunity.longExchange.name,
+      // Enregistrer l'historique des trades
+      const trade = await TradeHistory.create({
+        userId: user.id,
+        exchange: `${opportunity.longExchange.name}/${opportunity.shortExchange.name}` as ExchangeName,
+        status: TradeStatus.OPENING,
         token: opportunity.token,
-        side: PositionSide.LONG,
-        price: opportunity.longExchange.price,
+        side: "DELTA_NEUTRAL",
         size,
-        leverage: settings.positionLeverage,
-        slippage: settings.slippageTolerance,
-      };
-      const shortOrder: OrderData = {
-        exchange: opportunity.shortExchange.name,
-        token: opportunity.token,
-        side: PositionSide.SHORT,
-        price: opportunity.shortExchange.price,
-        size,
-        leverage: settings.positionLeverage,
-        slippage: settings.slippageTolerance,
-      };
-      const result = await this.placeOrders([longOrder, shortOrder]);
-      result.status.forEach((s) => console.log(s));
-      if (result.count > 0) {
-        // Enregistrer l'historique des trades
-        const trade = await TradeHistory.create({
-          userId: user.id,
-          exchange: `${opportunity.longExchange.name}/${opportunity.shortExchange.name}` as ExchangeName,
-          status: TradeStatus.OPEN,
-          token: opportunity.token,
-          side: "DELTA_NEUTRAL",
-          size,
-          price,
+        price,
 
-          cost: size * price * 2,
-          currentPnL: 0,
-          currentApr: opportunity.spread.apr,
+        cost: size * price * 2,
+        currentPnL: 0,
+        currentApr: opportunity.spread.apr,
 
-          autoCloseEnabled: settings.autoCloseEnabled,
-          autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
-          autoClosePnLThreshold: -Math.abs(settings.autoClosePnLThreshold),
-          autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
+        autoCloseEnabled: settings.autoCloseEnabled,
+        autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
+        autoClosePnLThreshold: -Math.abs(settings.autoClosePnLThreshold),
+        autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
 
-          metadata: opportunity,
-        });
-
-        await result.orderIds.forEach(async (order, i) => {
-          if (order) {
+        metadata: opportunity,
+      });
+      const [longLeg, shortLeg] = await Promise.all(
+        [PositionSide.LONG, PositionSide.SHORT].map(
+          async (side) =>
             await Position.create({
-              userId: user.id,
+              userId: trade.userId,
               tradeId: trade.id,
               token: opportunity.token,
-              status: PositionStatus.OPEN,
-              side: i == 0 ? PositionSide.LONG : PositionSide.SHORT,
+              status: PositionStatus.OPENING,
+              side,
               entryTimestamp: new Date(),
 
-              exchange: order.exchange,
-              size: order.size,
-              price: order.price,
-              leverage: order.leverage,
-              slippage: order.slippage,
-              orderId: order.orderId,
+              exchange: opportunity.longExchange.name,
+              size: size,
+              price: opportunity.longExchange.price,
+              leverage: settings.positionLeverage,
+              slippage: settings.slippageTolerance,
 
-              cost: order.size * order.price,
-            });
-          }
-        });
-
-        if (!result.success) {
-          // cancel all openend orders
-          await result.orderIds
-            .filter((order) => order)
-            .forEach(async (order) => {
-              try {
-                return await this.cancelOrder(order!).then();
-              } catch (error) {
-                console.error(`❌ Failed to cancel order ${order?.orderId}: ${error}`);
-              }
-            });
-        }
-
-        return {
-          success: result.success,
-          opportunity,
-          positionId: trade.id,
-        };
-      } else {
-        // to be implemented: order cancellation logic here if one order succeeded and the other failed
+              cost: size * opportunity.longExchange.price,
+            }).then((pos) => pos.update({ orderId: pos.id })),
+        ),
+      );
+      const result = await this.placeOrders([longLeg, shortLeg]);
+      result.status.forEach((s) => console.log(s));
+      if (!result.success) {
         console.error("❌ Error placing orders for delta-neutral trade");
+        // cancel all openend orders
+        await result.orderIds
+          .filter((order) => order)
+          .forEach(async (order) => {
+            try {
+              return await this.cancelOrder(order!).then();
+            } catch (error) {
+              console.error(`❌ Failed to cancel order ${order?.orderId}: ${error}`);
+            }
+          });
       }
-
       return {
         success: result.success,
         opportunity,
+        positionId: trade.id,
       };
     } catch (error) {
       console.error("❌ Error executing delta-neutral trade:", error);

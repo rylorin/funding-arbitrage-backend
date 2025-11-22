@@ -17,8 +17,7 @@ const jestConfig: JestConfigWithTsJest = {
     "^@websocket/(.*)$": "<rootDir>/src/websocket/$1",
     "^@types/(.*)$": "<rootDir>/src/types/$1",
     "^@extended/(.*)$": "<rootDir>/src/extended/$1",
-    // "^@x10xchange/examples/(.*)$": "<rootDir>/x10xchange/examples/$1",
-    // "^@x10xchange/stark-crypto-wrapper-wasm$": "<rootDir>/src/__mocks__/@x10xchange/stark-crypto-wrapper-wasm.ts",
+    "^@hyperliquid/(.*)$": "<rootDir>/src/hyperliquid/$1",
   },
   transform: {
     // '^.+\\.[tj]sx?$' to process ts,js,tsx,jsx with `ts-jest`

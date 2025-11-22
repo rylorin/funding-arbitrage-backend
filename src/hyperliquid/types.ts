@@ -1,5 +1,5 @@
 /**
- * Hyperliquid API types
+ * Hyperliquid API types from https://github.com/nomeida/hyperliquid/blob/main/src/types/index.ts
  */
 
 export interface HyperliquidPosition {

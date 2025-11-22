@@ -4,9 +4,10 @@ import { ExchangeName, TokenSymbol } from "../types/index";
 import User from "./User";
 
 export enum TradeStatus {
+  OPENING = "OPENING",
   OPEN = "OPEN",
-  CLOSE = "CLOSE",
   CLOSING = "CLOSING",
+  CLOSED = "CLOSED",
   ERROR = "ERROR",
 }
 export type TradeSide = "long" | "short" | "close_long" | "close_short" | "DELTA_NEUTRAL" | "AUTO_CLOSE";

@@ -5,6 +5,7 @@ import TradeHistory from "./TradeHistory";
 import User from "./User";
 
 export enum PositionStatus {
+  OPENING = "OPENING",
   OPEN = "OPEN",
   CLOSING = "CLOSING",
   CLOSED = "CLOSED",
@@ -39,9 +40,10 @@ interface PositionAttributes extends PlacedOrderData {
   createdAt: Date;
 }
 
-interface PositionCreationAttributes extends Optional<PositionAttributes, "id" | "createdAt" | "updatedAt"> {}
+interface PositionCreationAttributes
+  extends Optional<PositionAttributes, "id" | "orderId" | "createdAt" | "updatedAt"> {}
 
-class Position extends Model<PositionAttributes, PositionCreationAttributes> implements PositionAttributes {
+export class Position extends Model<PositionAttributes, PositionCreationAttributes> implements PositionAttributes {
   declare public id: string;
   declare public userId: string;
   declare public tradeId: string;

@@ -1,8 +1,8 @@
-import { ethers } from "ethers";
-
 /**
- * Hyperliquid API signing utilities
+ * Hyperliquid API signing utilities from https://github.com/nomeida/hyperliquid/blob/main/src/utils/signing.ts
  */
+
+import { ethers } from "ethers";
 
 export interface HyperliquidAuthConfig {
   walletAddress: string;

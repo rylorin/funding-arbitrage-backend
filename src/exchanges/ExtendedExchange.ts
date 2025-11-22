@@ -1,4 +1,4 @@
-// https://api.docs.extended.exchange/#extended-api-documentation
+// API reference documation available at https://api.docs.extended.exchange/#extended-api-documentation
 import { FeesResponseSchema } from "@/extended/api/fees.schema";
 import { LeverageResponseSchema } from "@/extended/api/leverage.schema";
 import { Market, MarketsResponseSchema } from "@/extended/api/markets.schema";
@@ -66,6 +66,9 @@ export class ExtendedExchange extends ExchangeConnector {
 
     this.starkPrivateKey = this.config.get<HexString>("starkPrivateKey");
     this.vaultId = this.config.get("vaultId");
+
+    // Auto-connect WebSocket for real-time data
+    this.connectWebSocket((data) => console.log("Extended WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -313,24 +316,90 @@ export class ExtendedExchange extends ExchangeConnector {
 
   public connectWebSocket(onMessage: (data: any) => void): void {
     try {
+      console.log("🔌 Attempting to connect to Extended WebSocket:", this.wsUrl);
       this.ws = new WebSocket(this.wsUrl);
 
       this.ws.on("open", () => {
         console.log("✅ Extended WebSocket connected");
 
-        // Subscribe to market data updates (funding rates, prices)
-        const subscribeMessage = {
-          method: "SUBSCRIBE",
-          params: ["btcusdt@ticker", "ethusdt@ticker", "solusdt@ticker"],
-          id: 1,
-        };
+        // Subscribe to all relevant topics for Extended Exchange
+        const subscribeTopics = [
+          // Market data topics
+          "btcusdt@ticker",
+          "ethusdt@ticker",
+          "solusdt@ticker",
+          "adausdt@ticker",
+          "dogeusdt@ticker",
+          "maticusdt@ticker",
+          "avaxusdt@ticker",
+          "dotusdt@ticker",
+          "linkusdt@ticker",
+          "ltcusdt@ticker",
 
-        this.ws?.send(JSON.stringify(subscribeMessage));
+          // Market depth/orderbook
+          "btcusdt@depth5",
+          "ethusdt@depth5",
+          "solusdt@depth5",
+
+          // Trade data
+          "btcusdt@trades",
+          "ethusdt@trades",
+          "solusdt@trades",
+
+          // Funding rates
+          "btcusdt@fundingRate",
+          "ethusdt@fundingRate",
+          "solusdt@fundingRate",
+
+          // User-specific topics (if authenticated)
+          "orders",
+          "fills",
+          "positions",
+          "balance",
+          "account",
+        ];
+
+        // Subscribe to market data updates
+        subscribeTopics.forEach((topic, index) => {
+          if (topic.includes("@")) {
+            // Standard ticker/depth/funding topics
+            const subscribeMessage = {
+              method: "SUBSCRIBE",
+              params: [topic],
+              id: index + 1,
+            };
+            console.log(`📡 Subscribing to market topic: ${topic}`);
+            this.ws?.send(JSON.stringify(subscribeMessage));
+          } else {
+            // User-specific topics
+            const userSubscribeMessage = {
+              method: "SUBSCRIBE_PRIVATE",
+              params: [topic],
+              id: index + 100,
+            };
+            console.log(`📡 Subscribing to private topic: ${topic}`);
+            this.ws?.send(JSON.stringify(userSubscribeMessage));
+          }
+        });
+
+        // Send heartbeat to maintain connection
+        const heartbeatInterval = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            const pingMessage = {
+              method: "PING",
+              id: Date.now(),
+            };
+            this.ws.send(JSON.stringify(pingMessage));
+          } else {
+            clearInterval(heartbeatInterval);
+          }
+        }, 30000); // Ping every 30 seconds
       });
 
       this.ws.on("message", (data: WebSocket.Data) => {
         try {
           const message = JSON.parse(data.toString());
+          console.log("📨 Extended WebSocket message received:", JSON.stringify(message, null, 2));
           onMessage(message);
         } catch (error) {
           console.error("Error parsing Extended WebSocket message:", error);
@@ -341,10 +410,13 @@ export class ExtendedExchange extends ExchangeConnector {
         console.error("Extended WebSocket error:", error);
       });
 
-      this.ws.on("close", () => {
-        console.log("Extended WebSocket disconnected");
+      this.ws.on("close", (code, reason) => {
+        console.log("Extended WebSocket disconnected:", { code, reason: reason.toString() });
         // Auto-reconnect after 5 seconds
-        setTimeout(() => this.connectWebSocket(onMessage), 5000);
+        setTimeout(() => {
+          console.log("🔄 Attempting to reconnect to Extended WebSocket...");
+          this.connectWebSocket(onMessage);
+        }, 5000);
       });
     } catch (error) {
       console.error("Error connecting to Extended WebSocket:", error);
@@ -353,8 +425,11 @@ export class ExtendedExchange extends ExchangeConnector {
 
   public disconnect(): void {
     if (this.ws) {
-      this.ws.close();
+      console.log("🔌 Disconnecting Extended WebSocket...");
+      this.ws.close(1000, "Client disconnect");
       this.ws = null;
+      this.isConnected = false;
+      console.log("✅ Extended WebSocket disconnected");
     }
   }
 

@@ -1,5 +1,5 @@
 import FundingRate from "./FundingRate";
-import Position from "./Position";
+import { Position, PositionSide, PositionStatus } from "./Position";
 import TradeHistory from "./TradeHistory";
 import User, { UserSettings } from "./User";
 
@@ -12,5 +12,5 @@ TradeHistory.belongsTo(User, { foreignKey: "userId", as: "user" });
 TradeHistory.hasMany(Position, { foreignKey: "tradeId", as: "positions" });
 Position.belongsTo(TradeHistory, { foreignKey: "tradeId", as: "trade" });
 
-export { FundingRate, Position, TradeHistory, User };
+export { FundingRate, Position, PositionSide, PositionStatus, TradeHistory, User };
 export type { UserSettings };

@@ -34,11 +34,11 @@ export class PositionSyncService {
             where: {
               exchange: position.exchange,
               token: position.token,
-              status: { [Op.in]: [PositionStatus.OPEN, PositionStatus.CLOSING] },
+              status: { [Op.in]: [PositionStatus.OPENING, PositionStatus.OPEN, PositionStatus.CLOSING] },
             },
           });
           if (ref) {
-            console.log(position);
+            // console.log(position);
             await ref.update({
               status: position.status,
               side: position.side,
@@ -60,7 +60,7 @@ export class PositionSyncService {
           {
             where: {
               exchange: exchange.name,
-              status: { [Op.in]: [PositionStatus.OPEN, PositionStatus.CLOSING] },
+              status: { [Op.in]: [PositionStatus.OPENING, PositionStatus.OPEN, PositionStatus.CLOSING] },
               updatedAt: { [Op.lt]: now - this.config.get<number>("graceDelay") * 1_000 },
             },
           },

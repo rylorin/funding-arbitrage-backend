@@ -40,7 +40,8 @@
       "@jobs/*": ["jobs/*"],
       "@websocket/*": ["websocket/*"],
       "@types/*": ["types/*"],
-      "@extended/*": ["extended/*"]
+      "@extended/*": ["extended/*"],
+      "@hyperliquid/*": ["hyperliquid/*"]
     }
   },
   "include": ["src/**/*"],

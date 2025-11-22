@@ -1,6 +1,7 @@
+// API reference documation available at https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api
+import { createSignedPositionsRequest, HyperliquidAuthConfig, signHyperliquidRequest } from "@hyperliquid/signing";
 import WebSocket from "ws";
-import { createSignedPositionsRequest, HyperliquidAuthConfig } from "../hl/signing";
-import { HyperliquidPosition, HyperliquidPositionsResponse } from "../hl/types";
+import { HyperliquidPosition, HyperliquidPositionsResponse } from "../hyperliquid/types.js";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
@@ -24,6 +25,9 @@ export class HyperliquidExchange extends ExchangeConnector {
 
   constructor() {
     super("hyperliquid");
+
+    // Auto-connect WebSocket for real-time data
+    this.connectWebSocket((data) => console.log("Hyperliquid WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -167,15 +171,101 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
+  /**
+   * Place a new order on Hyperliquid exchange
+   * @param order description of order to place
+   */
   public async openPosition(order: OrderData): Promise<PlacedOrderData> {
-    const { token, side } = order;
+    const { token, side, size, price, leverage, slippage } = order;
     try {
-      // Note: This requires proper authentication with user's wallet and signing
-      // For now, throw an error indicating authentication is needed
-      throw new Error("Hyperliquid position opening requires wallet authentication and signing");
+      // Check if authentication credentials are available
+      const walletAddress = this.config.has("walletAddress") ? this.config.get<string>("walletAddress") : null;
+      const privateKey = this.config.has("privateKey") ? this.config.get<string>("privateKey") : null;
+
+      if (!walletAddress || !privateKey) {
+        throw new Error("Hyperliquid position opening requires walletAddress and privateKey configuration");
+      }
+
+      // Get current market price to calculate limit price with slippage
+      const prices = await this.getPrice([token]);
+      const currentPrice = prices[token];
+
+      if (!currentPrice) {
+        throw new Error(`Failed to get current price for ${token}`);
+      }
+
+      // Calculate limit price based on side and slippage
+      const isBuy = side === PositionSide.LONG;
+      const limitPrice = isBuy
+        ? currentPrice * (1 + slippage / 100) // For long, add slippage
+        : currentPrice * (1 - slippage / 100); // For short, subtract slippage
+
+      // Create order action for Hyperliquid
+      const orderAction = {
+        type: "order",
+        orders: [
+          {
+            a: token, // asset/coin
+            b: isBuy, // is buy
+            p: limitPrice.toFixed(5), // limit price
+            s: size.toFixed(4), // size
+            r: false, // reduce only
+            t: {
+              limit: {
+                tif: "Ioc", // time in force: Immediate or Cancel (market-like)
+              },
+            },
+          },
+        ],
+        grouping: "na",
+      };
+
+      // If leverage is specified, set it first
+      if (leverage) {
+        const leverageAction = {
+          type: "updateLeverage",
+          asset: token,
+          isCross: true,
+          leverage: leverage,
+        };
+
+        const nonce = Date.now();
+        const signedLeverageRequest = await signHyperliquidRequest(leverageAction, nonce, privateKey);
+
+        // Send leverage update request
+        await this.post("/exchange", signedLeverageRequest);
+      }
+
+      // Sign and send the order
+      const nonce = Date.now();
+      const signedRequest = await signHyperliquidRequest(orderAction, nonce, privateKey);
+
+      // Place the order
+      const response = await this.post("/exchange", signedRequest);
+
+      if (!response.data || response.data.status === "err") {
+        throw new Error(response.data?.response || "Failed to place order");
+      }
+
+      // Extract order ID from response
+      const orderResult = response.data.response?.data?.statuses?.[0];
+      if (!orderResult || !orderResult.resting) {
+        throw new Error("Order was not placed successfully");
+      }
+
+      const orderId = orderResult.resting.oid.toString();
+
+      console.log(`✅ Hyperliquid ${side} position opened for ${token}: ${orderId}`);
+
+      return {
+        ...order,
+        orderId,
+        price: limitPrice,
+        size,
+      };
     } catch (error) {
       console.error(`Error opening Hyperliquid ${side} position for ${token}:`, error);
-      throw new Error(`Failed to open ${side} position on Hyperliquid`);
+      throw error;
     }
   }
 
@@ -331,26 +421,73 @@ export class HyperliquidExchange extends ExchangeConnector {
 
   public connectWebSocket(onMessage: (data: any) => void): void {
     try {
+      console.log("🔌 Attempting to connect to Hyperliquid WebSocket:", this.wsUrl);
       this.ws = new WebSocket(this.wsUrl);
 
       this.ws.on("open", () => {
         console.log("✅ Hyperliquid WebSocket connected");
 
-        // Subscribe to funding rate updates
-        const subscribeMessage = {
-          method: "subscribe",
-          subscription: {
-            type: "trades",
-            coin: "BTC", // Can be expanded to multiple coins
-          },
-        };
+        // Subscribe to multiple topics and coins for comprehensive data
+        const tradingPairs = ["BTC", "ETH", "SOL", "ADA", "DOGE", "MATIC", "AVAX", "DOT", "LINK", "LTC"];
+        const subscriptionTypes = ["trades", "book", "candle", "fills"];
 
-        this.ws?.send(JSON.stringify(subscribeMessage));
+        let subscriptionId = 1;
+
+        // Subscribe to public market data for all trading pairs
+        tradingPairs.forEach((coin) => {
+          subscriptionTypes.forEach((type) => {
+            const subscribeMessage = {
+              method: "subscribe",
+              subscription: {
+                type: type,
+                coin: coin,
+                isPerp: true, // Hyperliquid primarily trades perpetuals
+              },
+              id: subscriptionId++,
+            };
+
+            console.log(`📡 Subscribing to ${type} for ${coin}`);
+            this.ws?.send(JSON.stringify(subscribeMessage));
+          });
+        });
+
+        // Subscribe to user-specific topics if wallet address is available
+        if (this.config.has("walletAddress")) {
+          const userTopics = ["userFills", "userFillsByTime", "openInterest", "fundingRates"];
+
+          userTopics.forEach((topic) => {
+            const userSubscribeMessage = {
+              method: "subscribe",
+              subscription: {
+                type: topic,
+                user: this.config.get("walletAddress"),
+              },
+              id: subscriptionId++,
+            };
+
+            console.log(`📡 Subscribing to user topic: ${topic}`);
+            this.ws?.send(JSON.stringify(userSubscribeMessage));
+          });
+        }
+
+        // Send ping every 30 seconds to maintain connection
+        const pingInterval = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            const pingMessage = {
+              method: "ping",
+              id: Date.now(),
+            };
+            this.ws.send(JSON.stringify(pingMessage));
+          } else {
+            clearInterval(pingInterval);
+          }
+        }, 30000);
       });
 
       this.ws.on("message", (data: WebSocket.Data) => {
         try {
           const message = JSON.parse(data.toString());
+          console.log("📨 Hyperliquid WebSocket message received:", JSON.stringify(message, null, 2));
           onMessage(message);
         } catch (error) {
           console.error("Error parsing Hyperliquid WebSocket message:", error);
@@ -361,10 +498,13 @@ export class HyperliquidExchange extends ExchangeConnector {
         console.error("Hyperliquid WebSocket error:", error);
       });
 
-      this.ws.on("close", () => {
-        console.log("Hyperliquid WebSocket disconnected");
+      this.ws.on("close", (code, reason) => {
+        console.log("Hyperliquid WebSocket disconnected:", { code, reason: reason.toString() });
         // Auto-reconnect after 5 seconds
-        setTimeout(() => this.connectWebSocket(onMessage), 5000);
+        setTimeout(() => {
+          console.log("🔄 Attempting to reconnect to Hyperliquid WebSocket...");
+          this.connectWebSocket(onMessage);
+        }, 5000);
       });
     } catch (error) {
       console.error("Error connecting to Hyperliquid WebSocket:", error);
@@ -373,10 +513,12 @@ export class HyperliquidExchange extends ExchangeConnector {
 
   public disconnect(): void {
     if (this.ws) {
-      this.ws.close();
+      console.log("🔌 Disconnecting Hyperliquid WebSocket...");
+      this.ws.close(1000, "Client disconnect");
       this.ws = null;
+      this.isConnected = false;
+      console.log("✅ Hyperliquid WebSocket disconnected");
     }
-    this.isConnected = false;
   }
 }
 

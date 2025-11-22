@@ -56,7 +56,6 @@ export abstract class ExchangeConnector {
         if (axios.isAxiosError(error)) {
           console.error(error.request?.method, error.request?.path, error.request?.data);
           console.error(error.response?.status, error.response?.statusText, error.response?.data);
-          console.error(JSON.stringify(error.response?.data));
           return Promise.reject({
             url: error.response?.config.url,
             status: error.response?.status,

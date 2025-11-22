@@ -1,4 +1,4 @@
-// https://docs.vestmarkets.com/vest-api
+// API reference documation available at https://docs.vestmarkets.com/vest-api
 import { Position } from "@/models";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import { generateCancelOrderSignature, generateOrderSignature } from "@/utils/vest";
@@ -23,6 +23,9 @@ export class VestExchange extends ExchangeConnector {
 
   constructor() {
     super("vest");
+
+    // Auto-connect WebSocket for real-time data
+    this.connectWebSocket((data) => console.log("Vest WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -321,24 +324,93 @@ export class VestExchange extends ExchangeConnector {
 
   public connectWebSocket(onMessage: (data: any) => void): void {
     try {
+      console.log("🔌 Attempting to connect to Vest WebSocket:", this.wsUrl);
       this.ws = new WebSocket(this.wsUrl);
 
       this.ws.on("open", () => {
         console.log("✅ Vest WebSocket connected");
 
-        // Subscribe to tickers for funding rate updates
-        const subscribeMessage = {
-          method: "subscribe",
-          stream: "tickers",
-          symbols: ["BTC-PERP", "ETH-PERP", "SOL-PERP"], // Add more as needed
-        };
+        // Subscribe to comprehensive market data for Vest Exchange
+        const tradingPairs = [
+          "BTC-PERP",
+          "ETH-PERP",
+          "SOL-PERP",
+          "ADA-PERP",
+          "DOGE-PERP",
+          "MATIC-PERP",
+          "AVAX-PERP",
+          "DOT-PERP",
+          "LINK-PERP",
+          "LTC-PERP",
+          "UNI-PERP",
+          "ATOM-PERP",
+          "XRP-PERP",
+          "FIL-PERP",
+          "TRX-PERP",
+        ];
 
-        this.ws?.send(JSON.stringify(subscribeMessage));
+        const streamTypes = [
+          { name: "tickers", description: "Price tickers with funding rates" },
+          { name: "orderbook", description: "Order book depth" },
+          { name: "trades", description: "Recent trades" },
+          { name: "candles", description: "OHLC candles" },
+        ];
+
+        let subscriptionId = 1;
+
+        // Subscribe to each stream type for each trading pair
+        streamTypes.forEach((streamType) => {
+          const subscribeMessage = {
+            method: "subscribe",
+            stream: streamType.name,
+            symbols: tradingPairs,
+            id: subscriptionId++,
+          };
+
+          console.log(`📡 Subscribing to ${streamType.name} for ${tradingPairs.length} pairs`);
+          this.ws?.send(JSON.stringify(subscribeMessage));
+        });
+
+        // Subscribe to user-specific streams if private key is available
+        if (this.config.has("privateKey")) {
+          const userStreams = [
+            { name: "positions", description: "User positions" },
+            { name: "orders", description: "User orders" },
+            { name: "fills", description: "User order fills" },
+            { name: "balance", description: "Account balance updates" },
+          ];
+
+          userStreams.forEach((userStream) => {
+            const userSubscribeMessage = {
+              method: "subscribe_private",
+              stream: userStream.name,
+              id: subscriptionId++,
+            };
+
+            console.log(`📡 Subscribing to private stream: ${userStream.name}`);
+            this.ws?.send(JSON.stringify(userSubscribeMessage));
+          });
+        }
+
+        // Send heartbeat every 30 seconds to maintain connection
+        const heartbeatInterval = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            const heartbeatMessage = {
+              method: "ping",
+              timestamp: Date.now(),
+              id: subscriptionId++,
+            };
+            this.ws.send(JSON.stringify(heartbeatMessage));
+          } else {
+            clearInterval(heartbeatInterval);
+          }
+        }, 30000);
       });
 
       this.ws.on("message", (data: WebSocket.Data) => {
         try {
           const message = JSON.parse(data.toString());
+          console.log("📨 Vest WebSocket message received:", JSON.stringify(message, null, 2));
           onMessage(message);
         } catch (error) {
           console.error("Error parsing Vest WebSocket message:", error);
@@ -349,10 +421,13 @@ export class VestExchange extends ExchangeConnector {
         console.error("Vest WebSocket error:", error);
       });
 
-      this.ws.on("close", () => {
-        console.log("Vest WebSocket disconnected");
+      this.ws.on("close", (code, reason) => {
+        console.log("Vest WebSocket disconnected:", { code, reason: reason.toString() });
         // Auto-reconnect after 5 seconds
-        setTimeout(() => this.connectWebSocket(onMessage), 5000);
+        setTimeout(() => {
+          console.log("🔄 Attempting to reconnect to Vest WebSocket...");
+          this.connectWebSocket(onMessage);
+        }, 5000);
       });
     } catch (error) {
       console.error("Error connecting to Vest WebSocket:", error);
@@ -361,10 +436,12 @@ export class VestExchange extends ExchangeConnector {
 
   public disconnect(): void {
     if (this.ws) {
-      this.ws.close();
+      console.log("🔌 Disconnecting Vest WebSocket...");
+      this.ws.close(1000, "Client disconnect");
       this.ws = null;
+      this.isConnected = false;
+      console.log("✅ Vest WebSocket disconnected");
     }
-    this.isConnected = false;
   }
 
   public async getAllPositions(): Promise<Position[]> {
