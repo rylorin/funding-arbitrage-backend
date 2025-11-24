@@ -16,8 +16,7 @@
       "webSocketURL": "wss://ws-dev.hz.vestmarkets.com/ws-api?version=1.0"
     },
     "orderly": {
-      "baseUrl": "https://testnet-api.orderly.org",
-      "webSocketURL": "wss://ws-evm.orderly.org"
+      "disabled-baseUrl": "https://testnet-api.orderly.org"
     }
   }
 }

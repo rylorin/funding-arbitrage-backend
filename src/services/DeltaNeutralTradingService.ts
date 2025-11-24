@@ -222,7 +222,7 @@ export class DeltaNeutralTradingService {
       // Récupérer les positions ouvertes avec auto-close activé
       const openPositions = await TradeHistory.findAll({
         where: {
-          status: "OPEN",
+          status: [TradeStatus.OPEN],
           autoCloseEnabled: true,
           createdAt: { [Op.lt]: startTime - this.config.get<number>("graceDelay") * 1_000 },
         },
@@ -286,7 +286,7 @@ export class DeltaNeutralTradingService {
         }
       }
 
-      await this.checkClosingTrades();
+      await this.checkOrphanLegs();
 
       const executionTime = Date.now() - startTime;
       const successfulCloses = closeResults.filter((r) => r.success).length;
@@ -317,22 +317,33 @@ export class DeltaNeutralTradingService {
       };
     }
   }
-  private async checkClosingTrades() {
-    const closingTrades = await TradeHistory.findAll({
+  private async checkOrphanLegs() {
+    const orphanLegs = await Position.findAll({
       where: {
-        status: "CLOSING",
+        status: PositionStatus.OPEN,
       },
-    });
-    for (const position of closingTrades) {
-      const legs = await Position.findAll({
-        where: {
-          tradeId: position.id,
-          status: PositionStatus.OPEN,
+      include: [
+        {
+          model: TradeHistory,
+          as: "trade",
+          where: {
+            status: [TradeStatus.CLOSED, TradeStatus.ERROR],
+          },
         },
-      });
-
-      if (legs.length == 0) await position.update({ status: TradeStatus.CLOSED });
-    }
+      ],
+    });
+    await orphanLegs.reduce(
+      (p, position) =>
+        p
+          .then(() => TradeHistory.findByPk(position.tradeId))
+          .then((trade) => {
+            console.warn(`⚠️ Closing trade #${trade!.id} with orphan legs`);
+            return trade;
+          })
+          .then((trade) => this.closePosition(trade!))
+          .then(() => {}),
+      Promise.resolve(),
+    );
   }
 
   /**
@@ -343,7 +354,7 @@ export class DeltaNeutralTradingService {
       const legs = await Position.findAll({
         where: {
           tradeId: position.id,
-          status: PositionStatus.OPEN,
+          status: [PositionStatus.OPENING, PositionStatus.OPEN],
         },
       });
       if (legs.length < 2) {
@@ -477,7 +488,7 @@ export class DeltaNeutralTradingService {
   }
 
   private async placeOrders(
-    orders: OrderData[],
+    orders: PlacedOrderData[],
   ): Promise<{ success: boolean; count: number; orderIds: (PlacedOrderData | undefined)[]; status: string[] }> {
     return await Promise.allSettled(
       orders.map((order) => {

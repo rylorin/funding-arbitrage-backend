@@ -120,7 +120,7 @@ export interface ArbitrageOpportunityData {
   timing: OpportunityTiming;
 }
 
-export { ExchangeConnector, ExchangeName } from "@/exchanges/ExchangeConnector";
+export { ExchangeConnector, type ExchangeName } from "@/exchanges/ExchangeConnector";
 
 export enum ServiceName {
   POSITION_SYNC = "position-sync",

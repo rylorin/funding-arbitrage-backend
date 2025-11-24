@@ -75,12 +75,15 @@ export class PositionSyncService {
         });
         for (const trade of trades) {
           const legs = await Position.findAll({ where: { tradeId: trade.id } });
-          const oneError = legs.reduce((p, leg) => (leg.status == PositionStatus.ERROR ? true : p), false);
+          // const oneError = legs.reduce((p, leg) => (leg.status == PositionStatus.ERROR ? true : p), false);
           const allOpen = legs.reduce((p, leg) => (leg.status == PositionStatus.OPEN ? p : false), true);
-          const allClosed = legs.reduce((p, leg) => (leg.status == PositionStatus.CLOSED ? p : false), true);
-          if (oneError) trade.update({ status: TradeStatus.ERROR });
-          else if (allOpen) trade.update({ status: TradeStatus.OPEN });
-          else if (allClosed) trade.update({ status: TradeStatus.CLOSED });
+          const allClosed = legs.reduce(
+            (p, leg) => (leg.status == PositionStatus.CLOSED || leg.status == PositionStatus.ERROR ? p : false),
+            true,
+          );
+          if (trade.status == TradeStatus.OPENING && legs.length == 2 && allOpen)
+            trade.update({ status: TradeStatus.OPEN });
+          if (trade.status == TradeStatus.CLOSING && allClosed) trade.update({ status: TradeStatus.CLOSED });
         }
 
         console.log(`✅ Syncied ${count} positions from ${exchange.name}`);

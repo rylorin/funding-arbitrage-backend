@@ -19,13 +19,10 @@ type TokenInfo = {
 };
 
 export class VestExchange extends ExchangeConnector {
-  private ws: WebSocket | null = null;
+  // private ws: WebSocket | null = null;
 
   constructor() {
     super("vest");
-
-    // Auto-connect WebSocket for real-time data
-    // this.connectWebSocket((data) => console.log("Vest WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -326,6 +323,7 @@ export class VestExchange extends ExchangeConnector {
     try {
       console.log("🔌 Attempting to connect to Vest WebSocket:", this.wsUrl);
       this.ws = new WebSocket(this.wsUrl);
+      this.isConnected = true;
 
       this.ws.on("open", () => {
         console.log("✅ Vest WebSocket connected");
@@ -424,23 +422,14 @@ export class VestExchange extends ExchangeConnector {
       this.ws.on("close", (code, reason) => {
         console.log("Vest WebSocket disconnected:", { code, reason: reason.toString() });
         // Auto-reconnect after 5 seconds
-        setTimeout(() => {
-          console.log("🔄 Attempting to reconnect to Vest WebSocket...");
-          this.connectWebSocket(onMessage);
-        }, 5000);
+        if (this.isConnected)
+          setTimeout(() => {
+            console.log("🔄 Attempting to reconnect to Vest WebSocket...");
+            this.connectWebSocket(onMessage);
+          }, 5000);
       });
     } catch (error) {
       console.error("Error connecting to Vest WebSocket:", error);
-    }
-  }
-
-  public disconnect(): void {
-    if (this.ws) {
-      console.log("🔌 Disconnecting Vest WebSocket...");
-      this.ws.close(1000, "Client disconnect");
-      this.ws = null;
-      this.isConnected = false;
-      console.log("✅ Vest WebSocket disconnected");
     }
   }
 

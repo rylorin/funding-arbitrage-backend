@@ -3,6 +3,7 @@ import { Position } from "@/models";
 import { FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "@/types";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { default as config, IConfig } from "config";
+import WebSocket from "ws";
 
 export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "asterperp" | "mock";
 
@@ -25,9 +26,13 @@ export abstract class ExchangeConnector {
   public isConnected: boolean = false;
 
   public readonly config: IConfig;
+
   protected readonly baseUrl: string;
   protected readonly axiosClient: AxiosInstance;
   protected readonly wsUrl: string;
+  protected ws: WebSocket | null = null;
+
+  private lastNonceTimestamp = 0;
 
   constructor(name: ExchangeName) {
     this.name = name;
@@ -47,7 +52,6 @@ export abstract class ExchangeConnector {
       paramsSerializer: {
         indexes: null,
       },
-      // transformResponse: [safeParseResponse],
     });
     this.axiosClient.interceptors.response.use(
       (response) => {
@@ -55,7 +59,8 @@ export abstract class ExchangeConnector {
       },
       (error) => {
         if (axios.isAxiosError(error)) {
-          console.error(error.request?.method, error.request?.path, error.request?.data);
+          // console.error(error);
+          console.error(error.response?.config.method, error.response?.config.url, error.response?.config.data);
           console.error(error.response?.status, error.response?.statusText, error.response?.data);
           return Promise.reject({
             url: error.response?.config.url,
@@ -69,6 +74,7 @@ export abstract class ExchangeConnector {
     );
   }
 
+  // Axios client proxy
   public get<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
     return this.axiosClient.get<T, R, D>(url, config);
   }
@@ -87,17 +93,47 @@ export abstract class ExchangeConnector {
     return this.axiosClient.patch<T, R, D>(url, data, config);
   }
   public delete<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
-    return this.axiosClient.delete<T, R, D>(url, {
-      ...config,
-      headers: {
-        "Content-Type": undefined,
-      },
-    });
+    return this.axiosClient.delete<T, R, D>(url, config);
   }
 
   public async testConnection(): Promise<number> {
     throw `${this.name} ExchangeConnector.testConnection() not implemented`;
   }
+
+  public connectWebSocket(_onMessage: (data: any) => void): void {
+    throw `${this.name} ExchangeConnector.connectWebSocket() not implemented`;
+  }
+
+  public disconnect(): void {
+    if (this.ws) {
+      console.log(`🔌 Disconnecting ${this.name} WebSocket...`);
+      this.isConnected = false;
+      this.ws.close(1000, "Client disconnect");
+      this.ws = null;
+      console.log(`✅ ${this.name} WebSocket disconnected`);
+    }
+  }
+
+  /**
+   * Generates a unique nonce by using the current timestamp in milliseconds
+   * If multiple calls happen in the same millisecond, it ensures the nonce is still increasing
+   * @returns A unique nonce value
+   */
+  protected generateUniqueNonce(): number {
+    const timestamp = Date.now();
+
+    // Ensure the nonce is always greater than the previous one
+    if (timestamp <= this.lastNonceTimestamp) {
+      // If we're in the same millisecond, increment by 1 from the last nonce
+      this.lastNonceTimestamp += 1;
+      return this.lastNonceTimestamp;
+    }
+
+    // Otherwise use the current timestamp
+    this.lastNonceTimestamp = timestamp;
+    return timestamp;
+  }
+
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     throw `${this.name} ExchangeConnector.getFundingRates not implemented`;
   }

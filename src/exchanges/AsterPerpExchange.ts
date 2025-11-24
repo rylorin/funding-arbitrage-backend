@@ -75,13 +75,10 @@ function calculateHmacSha256(data: string, secret: string): string {
 }
 
 export class AsterPerpExchange extends ExchangeConnector {
-  private ws: WebSocket | null = null;
+  // private ws: WebSocket | null = null;
 
   constructor() {
     super("asterperp");
-
-    // Auto-connect WebSocket for real-time data
-    // this.connectWebSocket((data) => console.log("Aster Perp WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -276,6 +273,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     try {
       console.log("🔌 Attempting to connect to Aster Perp WebSocket:", this.wsUrl);
       this.ws = new WebSocket(this.wsUrl);
+      this.isConnected = true;
 
       this.ws.on("open", () => {
         console.log("✅ Aster Perp WebSocket connected");
@@ -385,23 +383,14 @@ export class AsterPerpExchange extends ExchangeConnector {
       this.ws.on("close", (code, reason) => {
         console.log("Aster Perp WebSocket disconnected:", { code, reason: reason.toString() });
         // Auto-reconnect after 5 seconds
-        setTimeout(() => {
-          console.log("🔄 Attempting to reconnect to Aster Perp WebSocket...");
-          this.connectWebSocket(onMessage);
-        }, 5000);
+        if (this.isConnected)
+          setTimeout(() => {
+            console.log("🔄 Attempting to reconnect to Aster Perp WebSocket...");
+            this.connectWebSocket(onMessage);
+          }, 5000);
       });
     } catch (error) {
       console.error("Error connecting to Aster Perp WebSocket:", error);
-    }
-  }
-
-  public disconnect(): void {
-    if (this.ws) {
-      console.log("🔌 Disconnecting Aster Perp WebSocket...");
-      this.ws.close(1000, "Client disconnect");
-      this.ws = null;
-      this.isConnected = false;
-      console.log("✅ Aster Perp WebSocket disconnected");
     }
   }
 

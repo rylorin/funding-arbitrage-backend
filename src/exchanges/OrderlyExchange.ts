@@ -18,7 +18,7 @@ type TokenInfo = { base_min: number; base_max: number; base_tick: number };
 type TokenPrice = { mark_price: number; index_price: number };
 
 export class OrderlyExchange extends ExchangeConnector {
-  private ws: WebSocket | null = null;
+  // private ws: WebSocket | null = null;
 
   constructor() {
     super("orderly");
@@ -62,8 +62,6 @@ export class OrderlyExchange extends ExchangeConnector {
       }
       return config;
     });
-
-    this.connectWebSocket((data) => console.log("Orderly WS:", data));
   }
 
   public async testConnection(): Promise<number> {
@@ -331,13 +329,28 @@ export class OrderlyExchange extends ExchangeConnector {
   }
 
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
-    const { token, orderId: client_order_id } = order;
+    const { token, orderId } = order;
     const symbol = this.tokenToTicker(token);
-    const response = await this.delete(`/v1/client/order?client_order_id=${client_order_id}&symbol=${symbol}`).catch(
-      (reason: any) => {
-        throw new Error(reason.data.message || reason.message || "Unknown error #1");
-      },
-    );
+    // const response = await this.delete(`/v1/client/order?client_order_id=${orderId}&symbol=${symbol}`, {
+    const response = await this.delete(`/v1/client/order?order_id=${orderId}&symbol=${symbol}`, {
+      // transformRequest: [
+      //   (data, headers) => {
+      //     console.log(headers, data);
+      //     return data;
+      //   },
+      //   (data, headers) => {
+      //     delete headers["Content-Type"];
+      //     headers["Content-Type"] = "text/plain";
+      //     return data;
+      //   },
+      //   (data, headers) => {
+      //     console.log(headers, data);
+      //     return data;
+      //   },
+      // ],
+    }).catch((reason: any) => {
+      throw new Error(reason.data.message || reason.message || "Unknown error #1");
+    });
     return response.data.success;
   }
 
@@ -386,6 +399,7 @@ export class OrderlyExchange extends ExchangeConnector {
       // Create WebSocket connection first
       console.log("🔌 Attempting to connect to Orderly WebSocket:", wsUrl);
       this.ws = new WebSocket(wsUrl);
+      this.isConnected = true;
 
       this.ws.on("open", () => {
         console.log("✅ Orderly WebSocket connected");
@@ -448,7 +462,7 @@ export class OrderlyExchange extends ExchangeConnector {
       this.ws.on("close", () => {
         console.log("Orderly WebSocket disconnected");
         // Auto-reconnect after 5 seconds
-        setTimeout(() => this.connectWebSocket(onMessage), 5000);
+        if (this.isConnected) setTimeout(() => this.connectWebSocket(onMessage), 5000);
       });
     } catch (error) {
       console.error("Error connecting to Orderly WebSocket:", error);
@@ -489,14 +503,6 @@ export class OrderlyExchange extends ExchangeConnector {
     } catch (error) {
       console.error("Error authenticating Orderly WebSocket:", error);
     }
-  }
-
-  public disconnect(): void {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-    this.isConnected = false;
   }
 
   public async getAllPositions(): Promise<Position[]> {

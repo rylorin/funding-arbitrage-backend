@@ -18,7 +18,8 @@
       "enabled": true,
       "fundingFrequency": 1,
       "baseUrl": "https://api.hyperliquid.xyz",
-      "webSocketURL": "wss://api.hyperliquid.xyz/ws"
+      "webSocketURL": "wss://api.hyperliquid.xyz/ws",
+      "isMainNet": true
     },
     "vest": {
       "enabled": true,

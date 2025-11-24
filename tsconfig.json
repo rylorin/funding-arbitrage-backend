@@ -21,6 +21,7 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false,
     // "moduleResolution": "node",
+    "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
