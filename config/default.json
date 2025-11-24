@@ -45,11 +45,11 @@
   },
   "defaultUserSettings": {
     "enabled": false,
-    "minAPR": 30,
+    "minAPR": 40,
     "maxPositionSize": 1000,
     "maxSimultaneousPositions": 1,
     "riskTolerance": "medium",
-    "preferredExchanges": ["orderly", "extended", "vest"],
+    "preferredExchanges": ["orderly", "extended", "vest", "hyperliquid"],
     "autoCloseEnabled": true,
     "autoCloseAPRThreshold": 0,
     "autoCloseTimeoutHours": 0,

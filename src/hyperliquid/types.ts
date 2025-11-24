@@ -1183,23 +1183,26 @@ export interface NoopResponse {
 // === End of original file ===
 
 export interface HyperliquidPosition {
-  coin: string;
-  szi: string; // size
-  leverage: {
-    type: string;
-    value: number;
-  };
-  entryPx: string; // entry price
-  positionValue: string;
-  unrealizedPnl: string;
-  realizedPnl: string;
-  liquidationPx: string;
-  marginUsed: string;
-  maxLeverage: number;
-  cumFunding: {
-    allTime: string;
-    sinceOpen: string;
-    sinceChange: string;
+  type: "oneWay";
+  position: {
+    coin: string;
+    szi: string; // size
+    leverage: {
+      type: string;
+      value: number;
+    };
+    entryPx: string; // entry price
+    positionValue: string;
+    unrealizedPnl: string;
+    // realizedPnl: string;
+    liquidationPx: string;
+    marginUsed: string;
+    maxLeverage: number;
+    cumFunding: {
+      allTime: string;
+      sinceOpen: string;
+      sinceChange: string;
+    };
   };
 }
 

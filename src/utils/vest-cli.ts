@@ -55,8 +55,12 @@ async function main() {
       signerExpiry: expiry,
     };
 
-    // Create the typed data signature
-    const signature = await wallet.signTypedData(domain, types, proofArgs);
+    // Sign with the PRIMARY private key (not the signing key) to match Python behavior
+    if (!primaryPrivateKey) {
+      throw new Error("PRIVATE_KEY environment variable is required for signing");
+    }
+    const primaryWallet = new ethers.Wallet(primaryPrivateKey);
+    const signature = await primaryWallet.signTypedData(domain, types, proofArgs);
     // const signature =
     //   "308ad2ce04bea337dca6d973aa465b164cc35ad143cadb54ab2c581e27aa0d0f3dadf7cfad757c1b53c9a7da2b3ad8787fb9a539f612fc8bfcf873932e7f0c361b";
     console.log("✓ Created proof signature");

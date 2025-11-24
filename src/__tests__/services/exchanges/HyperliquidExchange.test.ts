@@ -11,7 +11,7 @@ describe("HyperliquidExchange", () => {
   beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
-    jest.spyOn(console, "log").mockImplementation(() => {});
+    // jest.spyOn(console, "log").mockImplementation(() => {});
 
     await exchange.testConnection();
   });
@@ -35,12 +35,18 @@ describe("HyperliquidExchange", () => {
       exchange: exchange.name,
       token: TOKEN,
       side: PositionSide.LONG,
-      size: 100,
+      size: 1,
       price: 0.12345678,
       leverage: 0,
       slippage: 0,
     };
     const result = await exchange.openPosition(sampleOrder);
     expect(result.orderId).toBeDefined();
+  });
+
+  test("Get Positions", async () => {
+    const result = await exchange.getAllPositions();
+    console.debug(result);
+    // expect(result.orderId).toBeDefined();
   });
 });

@@ -5,7 +5,9 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { default as config, IConfig } from "config";
 import WebSocket from "ws";
 
-export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "asterperp" | "mock";
+export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "asterperp";
+export const ExchangeType = { PERP: "perp", SPOT: "spot" } as const;
+export type ExchangeType = (typeof ExchangeType)[keyof typeof ExchangeType];
 
 const _safeParseResponse = (data: unknown) => {
   if (!data || typeof data !== "string") {
@@ -23,6 +25,7 @@ const _safeParseResponse = (data: unknown) => {
 export abstract class ExchangeConnector {
   public readonly name: ExchangeName;
   public readonly isEnabled: boolean = false;
+  private readonly _type: ExchangeType = ExchangeType.PERP;
   public isConnected: boolean = false;
 
   public readonly config: IConfig;
@@ -40,6 +43,7 @@ export abstract class ExchangeConnector {
     this.isEnabled = this.config.has("enabled") ? this.config.get("enabled") : false;
     this.baseUrl = this.config.get<string>("baseUrl");
     this.wsUrl = this.config.has("webSocketURL") ? this.config.get<string>("webSocketURL") : "";
+    if (this.config.has("type")) this._type = this.config.get<ExchangeType>("type");
 
     this.axiosClient = axios.create({
       baseURL: this.baseUrl,
@@ -72,6 +76,10 @@ export abstract class ExchangeConnector {
         return Promise.reject(error);
       },
     );
+  }
+
+  public get type(): ExchangeType {
+    return this._type;
   }
 
   // Axios client proxy
