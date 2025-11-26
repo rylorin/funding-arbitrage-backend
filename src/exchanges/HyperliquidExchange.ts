@@ -1,10 +1,16 @@
 // API reference documation available at https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api
-import { orderWireToAction } from "@/hyperliquid/signing";
+import { cancelOrderToAction, orderWireToAction } from "@/hyperliquid/signing";
 import { ENDPOINTS, ExchangeType, InfoType } from "@hyperliquid/constants";
 import { orderToWire, signL1Action } from "@hyperliquid/signing";
 import { ethers } from "ethers";
 import WebSocket from "ws";
-import { HyperliquidClearinghouseState, HyperliquidPosition, Meta, OrderRequest } from "../hyperliquid/types";
+import {
+  CancelOrderRequest,
+  HyperliquidClearinghouseState,
+  HyperliquidPosition,
+  Meta,
+  OrderRequest,
+} from "../hyperliquid/types";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
@@ -79,15 +85,13 @@ export class HyperliquidExchange extends ExchangeConnector {
     }, [] as TokenSymbol[]);
   }
 
-  public async getPrice(tokens?: TokenSymbol[]): Promise<{ [token: string]: number }> {
+  public async getPrices(tokens?: TokenSymbol[]): Promise<{ [token: TokenSymbol]: number }> {
     try {
       const prices: { [token: string]: number } = {};
 
-      const response = await this.post(ENDPOINTS.INFO, {
+      const allMids = await this.post<{ [token: TokenSymbol]: number }>(ENDPOINTS.INFO, {
         type: InfoType.ALL_MIDS,
-      });
-
-      const allMids = response.data as { [token: TokenSymbol]: number };
+      }).then((response) => response.data);
 
       const tokensToProcess = tokens || (Object.keys(allMids) as TokenSymbol[]);
 
@@ -104,11 +108,16 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
+  public async getPrice(token: TokenSymbol): Promise<number> {
+    const allPrices = await this.getPrices([token]);
+    return allPrices[token];
+  }
+
   public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
 
-      const prices = await this.getPrice(tokens);
+      const prices = await this.getPrices(tokens);
 
       // Get predicted funding rates for current period
       const predictedResponse = await this.post(ENDPOINTS.INFO, {
@@ -302,7 +311,7 @@ export class HyperliquidExchange extends ExchangeConnector {
    * @param order description of order to place
    */
   public async openPosition(order: OrderData): Promise<PlacedOrderData> {
-    const { token, side, size, price, leverage, slippage } = order;
+    const { token, side, size, leverage, slippage } = order;
     try {
       if (!this.wallet) {
         throw new Error("Hyperliquid position opening requires walletAddress and privateKey configuration");
@@ -310,11 +319,13 @@ export class HyperliquidExchange extends ExchangeConnector {
 
       await this.getMeta();
 
-      // Get current market price to calculate limit price with slippage
-      const prices = await this.getPrice([token]);
-      const currentPrice = prices[token];
+      // If leverage is specified, set it first
+      if (leverage) this.setLeverage(token, leverage);
 
-      if (!currentPrice) {
+      // Get current market price to calculate limit price with slippage
+      const price = await this.getPrice(token);
+
+      if (!price) {
         throw new Error(`Failed to get current price for ${token}`);
       }
 
@@ -322,8 +333,8 @@ export class HyperliquidExchange extends ExchangeConnector {
       const szDecimals = this.universe[token].szDecimals;
       const is_buy = side === PositionSide.LONG;
       const limitPrice = is_buy
-        ? currentPrice * (1 + slippage / 100) // For long, add slippage
-        : currentPrice * (1 - slippage / 100); // For short, subtract slippage
+        ? price * (1 + slippage / 100) // For long, add slippage
+        : price * (1 - slippage / 100); // For short, subtract slippage
       const sz = size.toFixed(szDecimals);
       const limit_px = this.formatPriceForHyperliquid(limitPrice, true); // true for perps
 
@@ -337,9 +348,6 @@ export class HyperliquidExchange extends ExchangeConnector {
         reduce_only: false,
         //        cloid: order.orderId, not working :(
       };
-
-      // If leverage is specified, set it first
-      if (leverage) this.setLeverage(token, leverage);
 
       const response = await this.placeOrder(orderRequest);
       // console.log(response);
@@ -415,14 +423,16 @@ export class HyperliquidExchange extends ExchangeConnector {
         exchange: this.name,
         side: parseFloat(hlPosition.position.szi) > 0 ? PositionSide.LONG : PositionSide.SHORT,
         size: Math.abs(parseFloat(hlPosition.position.szi)),
-        price: parseFloat(hlPosition.position.entryPx),
+        price: parseFloat(hlPosition.position.positionValue) / Math.abs(parseFloat(hlPosition.position.szi)),
         leverage: hlPosition.position.leverage.value,
         // slippage: 0,
         // orderId: "orderId", // Not available in this endpoint
 
-        cost: parseFloat(hlPosition.position.positionValue),
+        cost: Math.abs(parseFloat(hlPosition.position.szi)) * parseFloat(hlPosition.position.entryPx),
         unrealizedPnL: parseFloat(hlPosition.position.unrealizedPnl),
-        realizedPnL: parseFloat(hlPosition.position.cumFunding.allTime),
+        realizedPnL: -parseFloat(hlPosition.position.cumFunding.sinceOpen),
+
+        positionValue: parseFloat(hlPosition.position.positionValue),
       })) as unknown as Position[];
     } catch (error) {
       console.error("Error fetching Hyperliquid positions:", error);
@@ -532,6 +542,48 @@ export class HyperliquidExchange extends ExchangeConnector {
       });
     } catch (error) {
       console.error("Error connecting to Hyperliquid WebSocket:", error);
+    }
+  }
+
+  public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
+    const { token, orderId } = order;
+
+    if (!this.wallet) {
+      throw new Error("Hyperliquid cancel order requires walletAddress and privateKey configuration");
+    }
+
+    await this.getMeta();
+
+    // Validate that the token exists in the universe
+    if (!this.universe[token]) {
+      throw new Error(`Token ${token} not found in Hyperliquid universe`);
+    }
+
+    // Create cancel request
+    const cancelRequest: CancelOrderRequest = {
+      a: this.universe[token].index,
+      o: parseInt(orderId), // Convert order ID string to number
+    };
+
+    // Convert to action format
+    const action = cancelOrderToAction(cancelRequest);
+    const nonce = this.generateUniqueNonce();
+    const signature = await signL1Action(this.wallet, action, null, nonce, this.IS_MAINNET);
+    const payload = { action, nonce, signature, vaultAddress: null };
+
+    try {
+      console.log(payload);
+      const response = await this.post(ENDPOINTS.EXCHANGE, payload);
+
+      if (response.data.status === "ok") {
+        console.log(`✅ Hyperliquid order ${orderId} for ${token} cancelled successfully`);
+        return true;
+      } else {
+        throw new Error(`Cancel order failed: ${JSON.stringify(response.data)}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error cancelling Hyperliquid order ${orderId} for ${token}:`, error);
+      throw error;
     }
   }
 }

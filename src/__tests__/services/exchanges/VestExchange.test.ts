@@ -1,5 +1,5 @@
-import { OrderData, PositionSide } from "../../../services/exchanges/ExchangeConnector";
-import { VestExchange as Exchange, vestExchange as exchange } from "../../../services/exchanges/VestExchange";
+import { sampleOrder, samplePlacedOrder } from "@/__tests__/data/orders";
+import { VestExchange as Exchange, vestExchange as exchange } from "../../../exchanges/VestExchange";
 
 const TOKEN = "DOGE";
 
@@ -7,6 +7,7 @@ describe("VestExchange", () => {
   beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
+    jest.spyOn(console, "log").mockImplementation(() => {});
 
     await exchange.testConnection();
   });
@@ -20,22 +21,34 @@ describe("VestExchange", () => {
     expect(exchange).toBeInstanceOf(Exchange);
   });
 
+  test("Get Price", async () => {
+    const result = await exchange.getPrice(sampleOrder.token);
+    console.debug(result);
+    expect(result).toBeGreaterThan(0);
+  });
+
   test("Set leverage", async () => {
-    const result = await exchange.setLeverage(TOKEN, 1);
+    const result = await exchange.setLeverage(sampleOrder.token, 1);
+    console.debug(result);
     expect(result).toBeDefined();
   });
 
   test("Place Order", async () => {
-    const sampleOrder: OrderData = {
-      exchange: exchange.name,
-      token: TOKEN,
-      side: PositionSide.LONG,
-      size: 10,
-      price: 0.1,
-      leverage: 0,
-      slippage: 0.1,
-    };
-    // const orderId = await exchange.openPosition(sampleOrder);
-    // expect(orderId).toBe("extended-order-123");
+    const result = await exchange.openPosition(sampleOrder);
+    console.debug(result);
+    expect(result.orderId).toBeDefined();
+    samplePlacedOrder.orderId = result.orderId;
+    samplePlacedOrder.price = result.price;
+  });
+
+  test("Cancel Order", async () => {
+    const result = await exchange.cancelOrder(samplePlacedOrder);
+    console.debug(result);
+  });
+
+  test("Get Positions", async () => {
+    const result = await exchange.getAllPositions();
+    console.debug(result);
+    // expect(result.orderId).toBeDefined();
   });
 });

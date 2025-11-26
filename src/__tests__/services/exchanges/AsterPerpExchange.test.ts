@@ -1,17 +1,20 @@
 import { sampleOrder, samplePlacedOrder } from "@/__tests__/data/orders";
-import { OrderlyExchange as Exchange, orderlyExchange as exchange } from "../../../exchanges/OrderlyExchange";
+import { AsterPerpExchange as Exchange, asterPerpExchange as exchange } from "../../../exchanges/AsterPerpExchange";
 
 const TOKEN = "DOGE";
 
-describe("OrderlyExchange", () => {
-  beforeEach(() => {
+describe("AsterPerpExchange", () => {
+  beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
+    jest.spyOn(console, "log").mockImplementation(() => {});
+
+    await exchange.testConnection();
   });
 
   it("should initialize correctly", () => {
     expect(exchange).toBeDefined();
-    expect(exchange.name).toBe("orderly");
+    expect(exchange.name).toBe("asterperp");
   });
 
   it("should have proper base class structure", () => {

@@ -392,7 +392,7 @@ export interface OrderWire {
 }
 
 export interface CancelOrderRequest {
-  coin: string;
+  a: number;
   o: number;
 }
 
@@ -1221,8 +1221,4 @@ export interface HyperliquidClearinghouseState {
     totalMarginUsed: string;
   };
   withdrawable: string;
-}
-
-export interface HyperliquidPositionsResponse {
-  [userAddress: string]: HyperliquidClearinghouseState;
 }

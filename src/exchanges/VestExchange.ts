@@ -150,24 +150,60 @@ export class VestExchange extends ExchangeConnector {
     throw new Error(`Failed to open position: ${response?.data.detail.msg || "Unknown error #3"}`);
   }
 
+  public async getPrice(token: TokenSymbol): Promise<number> {
+    try {
+      const symbol = this.tokenToTicker(token);
+
+      // Get latest ticker data to find the current price
+      const response = await this.get("/ticker/latest");
+      const tickerData = response.data.tickers;
+
+      // Find the ticker for this specific token
+      const tokenTicker = tickerData.find((ticker: any) => ticker.symbol === symbol);
+
+      if (!tokenTicker) {
+        throw new Error(`Ticker not found for token: ${token}`);
+      }
+
+      // Use markPrice as the primary price source, fallback to indexPrice
+      const price = tokenTicker.markPrice
+        ? parseFloat(tokenTicker.markPrice)
+        : tokenTicker.indexPrice
+          ? parseFloat(tokenTicker.indexPrice)
+          : null;
+
+      if (price === null || isNaN(price)) {
+        throw new Error(`Price data not available for token: ${token}`);
+      }
+
+      return price;
+    } catch (error) {
+      console.error(`❌ Failed to retrieve price for ${token}:`, error);
+      throw new Error(`Failed to fetch price from Vest for ${token}`);
+    }
+  }
+
   public async openPosition(orderData: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
-    const { token, side, price, size, slippage, leverage } = orderData;
+    const { token, side, size, slippage, leverage } = orderData;
     try {
       if (leverage) await this.setLeverage(token, leverage);
+
+      const info = await this.getTokenInfo(token);
+      const price = await this.getPrice(token);
 
       const symbol = this.tokenToTicker(token);
       const isBuy = side === PositionSide.LONG;
       const time = Date.now();
+      const nonce = this.generateUniqueNonce();
 
-      const info = await this.getTokenInfo(token);
+      const quantity = size.toFixed(info.sizeDecimals);
       const limitPrice = (isBuy ? price * (1 + slippage / 100) : price * (1 - slippage / 100)).toFixed(
         info.priceDecimals,
       );
-      const quantity = size.toFixed(info.sizeDecimals);
 
       const order = {
         time,
-        nonce: time,
+        nonce,
         symbol,
         isBuy,
         size: quantity,
@@ -177,19 +213,6 @@ export class VestExchange extends ExchangeConnector {
         timeInForce: "GTC",
       };
 
-      // const privateKey: string = this.config.get<string>("privateKey");
-      // const signature = generateOrderSignature(order, privateKey);
-
-      // const response = await this.axiosClient.post("/orders", { order, signature }).catch((reason: any) => {
-      //   console.error(order, reason);
-      //   throw new Error(reason.data.detail.msg || "Unknown error #2");
-      // });
-
-      // if (response.data.orderId || response.data.id) {
-      //   const orderId = response.data.orderId || response.data.id;
-      //   // console.log(`✅ Vest ${side} position opened: ${orderId}`);
-      //   return { ...orderData, id: orderId.toString(), size: parseFloat(quantity), price: parseFloat(limitPrice) };
-      // }
       const orderId = await this.placeOrder(order);
       return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
     } catch (error) {
@@ -221,53 +244,6 @@ export class VestExchange extends ExchangeConnector {
     console.error(response);
     throw new Error(`Failed to cancel order: ${response?.data.detail.msg || "Unknown error #3"}`);
   }
-
-  // public async closePosition(orderData: OrderData): Promise<PlacedOrderData> {
-  //   const { token, side, price, size, slippage, leverage } = orderData;
-  //   try {
-  //     const symbol = this.tokenToTicker(token);
-  //     const isBuy = side === PositionSide.LONG;
-  //     const time = Date.now();
-
-  //     const info = await this.getTokenInfo(token);
-  //     const limitPrice = (isBuy ? price * (1 + slippage / 100) : price * (1 - slippage / 100)).toFixed(
-  //       info.priceDecimals,
-  //     );
-  //     const quantity = size.toFixed(info.sizeDecimals);
-
-  //     if (leverage) await this.setLeverage(token, leverage);
-
-  //     const order = {
-  //       time,
-  //       nonce: time,
-  //       symbol,
-  //       isBuy,
-  //       size: quantity,
-  //       orderType: "MARKET",
-  //       limitPrice,
-  //       reduceOnly: true,
-  //       timeInForce: "GTC",
-  //     };
-
-  //     // const privateKey: string = this.config.get<string>("privateKey");
-  //     // const signature = generateOrderSignature(order, privateKey);
-
-  //     // const response = await this.axiosClient.post("/orders", { order, signature }).catch((reason: any) => {
-  //     //   console.error(order, reason);
-  //     //   throw new Error(reason.data.detail.msg || "Unknown error #2");
-  //     // });
-
-  //     // if (response.data.orderId || response.data.id) {
-  //     //   const orderId = response.data.orderId || response.data.id;
-  //     //   // console.log(`✅ Vest ${side} position opened: ${orderId}`);
-  //     //   return { ...orderData, id: orderId.toString(), size: parseFloat(quantity), price: parseFloat(limitPrice) };
-  //     // }
-  //     const orderId = await this.placeOrder(order);
-  //     return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // }
 
   protected tokenFromTicker(symbol: string): TokenSymbol | null {
     const token = symbol.replace("-PERP", "");

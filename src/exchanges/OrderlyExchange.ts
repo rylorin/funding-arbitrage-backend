@@ -290,8 +290,8 @@ export class OrderlyExchange extends ExchangeConnector {
           `Order size ${order_quantity} out of bounds for ${token} on Orderly: min ${infos[token].base_min}, max ${infos[token].base_max}`,
         );
 
-      const order_amount = order_quantity * order.price;
-      if (order_amount < 10) throw new Error(`The order value ${order_amount} should be greater or equal to 10`);
+      // const order_amount = order_quantity * price;
+      // if (order_amount < 10) throw new Error(`The order value ${order_amount} should be greater or equal to 10`);
 
       const payload = {
         symbol: this.tokenToTicker(token),
@@ -310,13 +310,13 @@ export class OrderlyExchange extends ExchangeConnector {
         return {
           exchange: order.exchange,
           token: order.token,
-          price: order.price,
           side: order.side,
           leverage: order.leverage,
           slippage: order.slippage,
 
           orderId: orderId.toString(),
-          size: order_quantity,
+          size: response.data.data.order_quantity,
+          price: response.data.data.order_price,
         };
       }
 

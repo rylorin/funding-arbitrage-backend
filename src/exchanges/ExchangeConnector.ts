@@ -163,6 +163,9 @@ export abstract class ExchangeConnector {
   protected tokenToTicker(token: TokenSymbol): string {
     throw `${this.name} ExchangeConnector.tokenToTicker(${token}) not implemented`;
   }
+  public async getPrice(token: TokenSymbol): Promise<number> {
+    throw `${this.name} ExchangeConnector.getPrice(${token}) not implemented`;
+  }
 
   public getAccountBalance(): Promise<Record<string, number>> {
     throw `${this.name} ExchangeConnector.getAccountBalance not implemented`;

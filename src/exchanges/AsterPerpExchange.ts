@@ -1,8 +1,8 @@
 // API reference: https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md
-import { Position } from "@/models";
-import { PositionSide, PositionStatus } from "@/models/Position";
+import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { createHmac } from "crypto";
 import WebSocket from "ws";
+import Position, { PositionSide, PositionStatus } from "../models/Position";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
 interface AsterMarket {
@@ -75,10 +75,31 @@ function calculateHmacSha256(data: string, secret: string): string {
 }
 
 export class AsterPerpExchange extends ExchangeConnector {
-  // private ws: WebSocket | null = null;
+  secretKey: string;
 
   constructor() {
     super("asterperp");
+    this.secretKey = this.config.get<string>("secretKey");
+  }
+
+  public post<T = any, R = AxiosResponse<T>, D = any>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig<D>,
+  ): Promise<R> {
+    return super
+      .post<T, R, D>(url, data, {
+        transformRequest: [
+          (data, headers) => {
+            delete headers["Content-Type"];
+            return data;
+          },
+        ],
+        ...config,
+      })
+      .catch((reason) => {
+        throw Error(reason.data.msg);
+      });
   }
 
   public async testConnection(): Promise<number> {
@@ -176,43 +197,35 @@ export class AsterPerpExchange extends ExchangeConnector {
 
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
     const symbol = this.tokenToTicker(token);
-    const response = await this.post("/fapi/v1/leverage", {
-      symbol,
-      leverage,
-    }).catch((reason: any) => {
-      throw new Error(reason.data?.msg || "Unknown error");
-    });
+    const payload = `symbol=${symbol}&leverage=${leverage}&timestamp=${Date.now()}`;
+    const signature = calculateHmacSha256(payload, this.secretKey);
+    const response = await this.post("/fapi/v1/leverage", `${payload}&signature=${signature}`).then(
+      (response) => response.data,
+    );
 
     return response.data?.success || response.status === 200;
   }
 
-  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
-    const { token, side, price, size, slippage } = order;
+  public async openPosition(order: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {
+    const { token, side, size, leverage } = order;
     try {
       const symbol = this.tokenToTicker(token);
       const sideParam = side === PositionSide.LONG ? "BUY" : "SELL";
 
-      const orderPayload = {
-        symbol,
-        side: sideParam,
-        type: "LIMIT",
-        quantity: size.toString(),
-        price: price.toString(),
-        timeInForce: "GTC",
-        reduceOnly: reduceOnly,
-        timestamp: Date.now(),
-      };
+      if (leverage) this.setLeverage(token, leverage);
 
-      const response = await this.post("/fapi/v1/order", orderPayload).catch((reason: any) => {
-        throw new Error(reason.data?.msg || "Unknown error");
-      });
+      const payload = `symbol=${symbol}&side=${sideParam}&type=MARKET&quantity=${size}&timestamp=${Date.now()}`;
+      const signature = calculateHmacSha256(payload, this.secretKey);
+      const response = await this.post("/fapi/v1/order", `${payload}&signature=${signature}`).then(
+        (response) => response.data,
+      );
 
-      if (response.data.orderId) {
+      if (response.orderId) {
         return {
           ...order,
-          orderId: response.data.orderId.toString(),
-          size: parseFloat(response.data.origQty),
-          price: parseFloat(response.data.price),
+          orderId: response.orderId.toString(),
+          size: parseFloat(response.origQty),
+          price: parseFloat(response.price),
         };
       }
 
@@ -227,16 +240,13 @@ export class AsterPerpExchange extends ExchangeConnector {
     const { token, orderId } = order;
     const symbol = this.tokenToTicker(token);
 
-    const response = await this.delete("/fapi/v1/order", {
-      params: {
-        symbol,
-        orderId: orderId,
-      },
-    }).catch((reason: any) => {
-      throw new Error(reason.data?.msg || "Unknown error");
-    });
-
-    return response.data?.status === "FILLED" || response.data?.orderId === orderId;
+    const payload = `symbol=${symbol}&orderId=${orderId}&timestamp=${Date.now()}`;
+    const signature = calculateHmacSha256(payload, this.secretKey);
+    const response = await this.delete(`/fapi/v1/order?${payload}&signature=${signature}`).then(
+      (response) => response.data,
+    );
+    console.log(response);
+    return true;
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {
@@ -398,8 +408,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     try {
       const timestamp = Date.now();
       const payload = `timestamp=${timestamp}`;
-      const secretKey = this.config.get<string>("secretKey");
-      const signature = calculateHmacSha256(payload, secretKey);
+      const signature = calculateHmacSha256(payload, this.secretKey);
       const response = await this.get(`/fapi/v2/positionRisk?${payload}&signature=${signature}`);
       const positions: Position[] = [];
 
@@ -442,5 +451,5 @@ export class AsterPerpExchange extends ExchangeConnector {
   }
 }
 
-export const asterPerpExchange = new AsterPerpExchange();
+export const asterPerpExchange: AsterPerpExchange = new AsterPerpExchange();
 export default asterPerpExchange;

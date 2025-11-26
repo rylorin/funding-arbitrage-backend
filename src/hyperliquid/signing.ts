@@ -5,6 +5,7 @@
 import { encode } from "@msgpack/msgpack";
 import { ethers, getBytes, HDNodeWallet, keccak256, type Wallet } from "ethers";
 
+import { ExchangeType } from "./constants";
 import type {
   Builder,
   CancelOrderRequest,
@@ -241,7 +242,7 @@ export function orderToWire(order: Order | OrderRequest, asset: number): OrderWi
 
 export function orderWireToAction(orders: OrderWire[], grouping: Grouping = "na", builder?: Builder): any {
   return {
-    type: "order",
+    type: ExchangeType.ORDER,
     orders: orders,
     grouping: grouping,
     ...(builder !== undefined
@@ -310,7 +311,7 @@ export interface CancelOrderResponse {
 
 export function cancelOrderToAction(cancelRequest: CancelOrderRequest): any {
   return {
-    type: "cancel",
+    type: ExchangeType.CANCEL,
     cancels: [cancelRequest],
   };
 }

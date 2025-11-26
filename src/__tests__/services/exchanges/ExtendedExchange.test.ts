@@ -1,3 +1,4 @@
+import { sampleOrder, samplePlacedOrder } from "@/__tests__/data/orders";
 import { getFees } from "@extended/api/fees";
 import { getMarket } from "@extended/api/markets";
 import { getStarknetDomain } from "@extended/api/starknet";
@@ -6,8 +7,7 @@ import { Order } from "@extended/models//order";
 import { createOrderContext } from "@extended/utils/create-order-context";
 import { Decimal } from "@extended/utils/number";
 import { roundToMinChange } from "@extended/utils/round-to-min-change";
-import { OrderData, PositionSide } from "../../../services/exchanges/ExchangeConnector";
-import { extendedExchange as exchange } from "../../../services/exchanges/ExtendedExchange";
+import { extendedExchange as exchange } from "../../../exchanges/ExtendedExchange";
 
 const TOKEN = "DOGE";
 const MARKET_NAME = `${TOKEN}-USD`;
@@ -53,25 +53,37 @@ describe("ExtendedExchange", () => {
     //   const result = await placeOrder({ order });
     // expect(result).toBeDefined();
 
-    //   console.log("Order placed: %o", result);
+    //   console.debug("Order placed: %o", result);
+  });
+
+  test("Get Price", async () => {
+    const result = await exchange.getPrice(sampleOrder.token);
+    console.debug(result);
+    expect(result).toBeGreaterThan(0);
   });
 
   test("Set leverage", async () => {
-    const result = await exchange.setLeverage(TOKEN, 1);
+    const result = await exchange.setLeverage(sampleOrder.token, 1);
+    console.debug(result);
     expect(result).toBeDefined();
   });
 
   test("Place Order", async () => {
-    const sampleOrder: OrderData = {
-      exchange: exchange.name,
-      token: TOKEN,
-      side: PositionSide.LONG,
-      size: 100,
-      price: 0.075,
-      leverage: 0,
-      slippage: SLIPPAGE,
-    };
-    // const result = await exchange.openPosition(sampleOrder);
-    // expect(result).toBeDefined();
+    const result = await exchange.openPosition(sampleOrder);
+    console.debug(result);
+    expect(result.orderId).toBeDefined();
+    samplePlacedOrder.orderId = result.orderId;
+    samplePlacedOrder.price = result.price;
+  });
+
+  test("Cancel Order", async () => {
+    const result = await exchange.cancelOrder(samplePlacedOrder);
+    console.debug(result);
+  });
+
+  test("Get Positions", async () => {
+    const result = await exchange.getAllPositions();
+    console.debug(result);
+    // expect(result.orderId).toBeDefined();
   });
 });

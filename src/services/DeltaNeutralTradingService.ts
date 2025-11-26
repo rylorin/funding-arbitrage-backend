@@ -402,7 +402,7 @@ export class DeltaNeutralTradingService {
    * Exécute le trading pour un utilisateur spécifique
    */
   private async executeUserTrading(
-    user: any,
+    user: User,
     opportunities: ArbitrageOpportunityData[],
     settings: UserSettings,
   ): Promise<TradingResult[]> {
@@ -531,7 +531,7 @@ export class DeltaNeutralTradingService {
    * Exécute un trade delta-neutral
    */
   private async executeTrade(
-    user: any,
+    user: User,
     opportunity: ArbitrageOpportunityData,
     settings: UserSettings,
   ): Promise<TradingResult> {

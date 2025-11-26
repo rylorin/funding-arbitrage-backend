@@ -1,9 +1,8 @@
+import { sampleOrder, samplePlacedOrder } from "@/__tests__/data/orders";
 import {
   HyperliquidExchange as Exchange,
   hyperliquidExchange as exchange,
 } from "../../../exchanges/HyperliquidExchange";
-import { PositionSide } from "../../../models";
-import { OrderData } from "../../../types";
 
 const TOKEN = "DOGE";
 
@@ -25,23 +24,29 @@ describe("HyperliquidExchange", () => {
     expect(exchange).toBeInstanceOf(Exchange);
   });
 
+  test("Get Price", async () => {
+    const result = await exchange.getPrice(sampleOrder.token);
+    console.debug(result);
+    expect(result).toBeGreaterThan(0);
+  });
+
   test("Set leverage", async () => {
-    const result = await exchange.setLeverage(TOKEN, 1);
+    const result = await exchange.setLeverage(sampleOrder.token, 1);
+    console.debug(result);
     expect(result).toBeDefined();
   });
 
   test("Place Order", async () => {
-    const sampleOrder: OrderData = {
-      exchange: exchange.name,
-      token: TOKEN,
-      side: PositionSide.LONG,
-      size: 1,
-      price: 0.12345678,
-      leverage: 0,
-      slippage: 0,
-    };
     const result = await exchange.openPosition(sampleOrder);
+    console.debug(result);
     expect(result.orderId).toBeDefined();
+    samplePlacedOrder.orderId = result.orderId;
+    samplePlacedOrder.price = result.price;
+  });
+
+  test("Cancel Order", async () => {
+    const result = await exchange.cancelOrder(samplePlacedOrder);
+    console.debug(result);
   });
 
   test("Get Positions", async () => {
