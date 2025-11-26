@@ -1,6 +1,5 @@
 // API reference documation available at https://api.docs.extended.exchange/#extended-api-documentation
 import { FeesResponseSchema } from "@/extended/api/fees.schema";
-import { LeverageResponseSchema } from "@/extended/api/leverage.schema";
 import { Market, MarketsResponseSchema } from "@/extended/api/markets.schema";
 import { PlacedOrderResponseSchema } from "@/extended/api/orders.schema";
 import { UserPositionsResponseSchema } from "@/extended/api/positions.schema";
@@ -176,7 +175,7 @@ export class ExtendedExchange extends ExchangeConnector {
     return market;
   }
 
-  public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ market: string; leverage: number }> {
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
     const payload = { market: this.tokenToTicker(token), leverage };
     const { data } = await this.patch<GenericResponse<unknown>>("/api/v1/user/leverage", payload).catch(
       (reason: any) => {
@@ -186,7 +185,7 @@ export class ExtendedExchange extends ExchangeConnector {
     );
     // console.log(data);
     // returs payload if status is OK as response does not conform to documentation (empty data object returned)
-    return data.status == "OK" ? payload : LeverageResponseSchema.parse(data).data;
+    return data.status == "OK";
   }
 
   public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {

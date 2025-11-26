@@ -41,9 +41,9 @@ export class HyperliquidExchange extends ExchangeConnector {
       onlyIsolated?: boolean;
     }
   > = {};
-  privateKey: string | null;
-  wallet: ethers.Wallet | null;
-  primaryAddress: string | null;
+  private readonly privateKey: string | null;
+  private readonly wallet: ethers.Wallet | null;
+  private readonly primaryAddress: string | null;
 
   constructor() {
     super("hyperliquid");
@@ -58,8 +58,10 @@ export class HyperliquidExchange extends ExchangeConnector {
 
   private async getMeta(force: boolean = false): Promise<number> {
     if (force || !this.universe["BTC"]) {
-      const response = (await this.post(ENDPOINTS.INFO, { type: InfoType.META })).data as Meta;
-      response.universe.forEach((item, index) => (this.universe[item.name] = { ...item, index }));
+      const response = await this.post<Meta>(ENDPOINTS.INFO, { type: InfoType.META }).then(
+        (response) => response.data.universe,
+      );
+      response.forEach((item, index) => (this.universe[item.name] = { ...item, index }));
     }
     const count = Object.keys(this.universe).length;
     return count;
@@ -89,7 +91,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     try {
       const prices: { [token: string]: number } = {};
 
-      const allMids = await this.post<{ [token: TokenSymbol]: number }>(ENDPOINTS.INFO, {
+      const allMids = await this.post<{ [token: TokenSymbol]: string }>(ENDPOINTS.INFO, {
         type: InfoType.ALL_MIDS,
       }).then((response) => response.data);
 
@@ -97,7 +99,7 @@ export class HyperliquidExchange extends ExchangeConnector {
 
       for (const token of tokensToProcess) {
         if (allMids[token] !== undefined) {
-          prices[token] = allMids[token];
+          prices[token] = parseFloat(allMids[token]);
         }
       }
 
@@ -204,11 +206,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
-  public async setLeverage(
-    asset: TokenSymbol,
-    leverage: number,
-    leverageMode: string = "isolated",
-  ): Promise<{ market: string; leverage: number }> {
+  public async setLeverage(asset: TokenSymbol, leverage: number, leverageMode: string = "isolated"): Promise<boolean> {
     if (!this.wallet) {
       throw new Error("Hyperliquid set leverage requires walletAddress and privateKey configuration");
     }
@@ -229,9 +227,10 @@ export class HyperliquidExchange extends ExchangeConnector {
     // console.log("updateLeverage payload", payload);
 
     // Send leverage update request
-    await this.post(ENDPOINTS.EXCHANGE, payload);
+    const response = await this.post(ENDPOINTS.EXCHANGE, payload).then((response) => response.data);
+    console.log(response);
 
-    return { market: asset, leverage };
+    return true;
   }
 
   private getVaultAddress() {
@@ -310,7 +309,7 @@ export class HyperliquidExchange extends ExchangeConnector {
    * Place a new order on Hyperliquid exchange
    * @param order description of order to place
    */
-  public async openPosition(order: OrderData): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduce_only = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage, slippage } = order;
     try {
       if (!this.wallet) {
@@ -320,7 +319,7 @@ export class HyperliquidExchange extends ExchangeConnector {
       await this.getMeta();
 
       // If leverage is specified, set it first
-      if (leverage) this.setLeverage(token, leverage);
+      if (leverage && !reduce_only) this.setLeverage(token, leverage);
 
       // Get current market price to calculate limit price with slippage
       const price = await this.getPrice(token);
@@ -345,7 +344,7 @@ export class HyperliquidExchange extends ExchangeConnector {
         sz, // size
         limit_px, // limit price
         order_type: { limit: { tif: "Gtc" } },
-        reduce_only: false,
+        reduce_only,
         //        cloid: order.orderId, not working :(
       };
 
@@ -363,7 +362,7 @@ export class HyperliquidExchange extends ExchangeConnector {
       const orderResult = response.response.data.statuses?.[0];
       const orderId = orderResult.filled?.oid || orderResult.resting.oid;
 
-      console.log(`✅ Hyperliquid ${side} position opened for ${token}: ${orderId}`);
+      console.log(`✅ Hyperliquid ${side} position ${reduce_only ? "closed" : "opened"} for ${token}: ${orderId}`);
 
       return {
         exchange: order.exchange,
@@ -380,10 +379,6 @@ export class HyperliquidExchange extends ExchangeConnector {
       console.error(`❌ Error opening Hyperliquid ${side} position for ${token}:`, error);
       throw error;
     }
-  }
-
-  public async closePosition(_orderData: OrderData): Promise<PlacedOrderData> {
-    throw new Error("Hyperliquid position closing requires wallet authentication and signing");
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {
@@ -572,7 +567,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     const payload = { action, nonce, signature, vaultAddress: null };
 
     try {
-      console.log(payload);
+      // console.log(payload);
       const response = await this.post(ENDPOINTS.EXCHANGE, payload);
 
       if (response.data.status === "ok") {

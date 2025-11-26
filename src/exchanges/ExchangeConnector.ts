@@ -1,5 +1,5 @@
 import { parseJsonWithBigNumber } from "@/extended/utils/json";
-import { Position } from "@/models";
+import { Position, PositionSide } from "@/models";
 import { FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "@/types";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { default as config, IConfig } from "config";
@@ -142,34 +142,44 @@ export abstract class ExchangeConnector {
     return timestamp;
   }
 
-  public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
-    throw `${this.name} ExchangeConnector.getFundingRates not implemented`;
-  }
-  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
-    throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
-  }
-  public async closePosition(order: OrderData): Promise<PlacedOrderData> {
-    return this.openPosition(order, true);
-  }
-  public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
-    throw `${this.name} ExchangeConnector.cancelOrder(${order.orderId}) not implemented`;
-  }
-  public async getAllPositions(): Promise<Position[]> {
-    throw `${this.name} ExchangeConnector.getAllPositions not implemented`;
-  }
   protected tokenFromTicker(symbol: string): TokenSymbol | null {
     throw `${this.name} ExchangeConnector.tokenFromTicker(${symbol}) not implemented`;
   }
   protected tokenToTicker(token: TokenSymbol): string {
     throw `${this.name} ExchangeConnector.tokenToTicker(${token}) not implemented`;
   }
+  protected async setLeverage(asset: TokenSymbol, leverage: number): Promise<boolean> {
+    throw `${this.name} ExchangeConnector.setLeverage(${asset}, ${leverage}) not implemented`;
+  }
+
+  public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
+    throw `${this.name} ExchangeConnector.getFundingRates not implemented`;
+  }
+  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+    throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
+  }
+  public async getAllPositions(): Promise<Position[]> {
+    throw `${this.name} ExchangeConnector.getAllPositions not implemented`;
+  }
+  public async closePosition(order: OrderData): Promise<string> {
+    console.warn(`${this.name} ExchangeConnector.closePosition(${order.token}) not implemented), using fallback`);
+    return this.openPosition(
+      { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG },
+      true,
+    ).then((response) => response.orderId);
+  }
+  public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
+    throw `${this.name} ExchangeConnector.cancelOrder(${order.orderId}) not implemented`;
+  }
   public async getPrice(token: TokenSymbol): Promise<number> {
     throw `${this.name} ExchangeConnector.getPrice(${token}) not implemented`;
   }
 
+  // Not implemented yet
   public getAccountBalance(): Promise<Record<string, number>> {
     throw `${this.name} ExchangeConnector.getAccountBalance not implemented`;
   }
+  // Not implemented yet
   public getPositionPnL(positionId: string): Promise<number> {
     throw `${this.name} ExchangeConnector.getPositionPnL(${positionId}) not implemented`;
   }

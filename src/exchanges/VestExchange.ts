@@ -19,10 +19,11 @@ type TokenInfo = {
 };
 
 export class VestExchange extends ExchangeConnector {
-  // private ws: WebSocket | null = null;
+  private readonly privateKey: string;
 
   constructor() {
     super("vest");
+    this.privateKey = this.config.get<string>("privateKey");
   }
 
   public async testConnection(): Promise<number> {
@@ -116,7 +117,7 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async setLeverage(token: TokenSymbol, leverage: number): Promise<{ symbol: string; value: number }> {
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
     const time = Date.now();
     const payload = { time, symbol: this.tokenToTicker(token), value: leverage };
     const response = await this.post("/account/leverage", payload).catch((reason: any) => {
@@ -128,7 +129,7 @@ export class VestExchange extends ExchangeConnector {
           "Unknown error #1",
       );
     });
-    return response.data as { symbol: string; value: number };
+    return response.data.symbol == payload.symbol && response.data.value == leverage;
   }
 
   private async placeOrder(order: any): Promise<string> {
@@ -229,20 +230,12 @@ export class VestExchange extends ExchangeConnector {
       id: orderId,
     };
 
-    const privateKey: string = this.config.get<string>("privateKey");
-    const signature = generateCancelOrderSignature(order, privateKey);
+    const signature = generateCancelOrderSignature(order, this.privateKey);
 
     const response = await this.post("/orders/cancel", { order, signature }).catch((reason: any) => {
-      console.error(order, reason);
-      throw new Error(reason.data.detail.msg || "Unknown error #2");
+      console.warn(reason.data.detail.msg, order.id);
     });
-
-    if (response.data.id) {
-      return true;
-    }
-
-    console.error(response);
-    throw new Error(`Failed to cancel order: ${response?.data.detail.msg || "Unknown error #3"}`);
+    return true;
   }
 
   protected tokenFromTicker(symbol: string): TokenSymbol | null {

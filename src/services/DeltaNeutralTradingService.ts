@@ -449,6 +449,10 @@ export class DeltaNeutralTradingService {
         return results;
       }
 
+      if (activePositionsCount) {
+        console.log(`Actives positions for user ${user.id}:`);
+        activePositions.forEach((item) => console.log(`${item.token}: ${item.exchange} ${item.status}`));
+      }
       // Exécuter les trades pour les opportunités filtrées
       for (const opportunity of filteredOpportunities) {
         try {

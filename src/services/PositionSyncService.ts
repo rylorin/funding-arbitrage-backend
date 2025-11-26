@@ -107,7 +107,7 @@ export class PositionSyncService {
 
       // Récupérer tous les (delta neutral) trades ouverts
       const openPositions = await TradeHistory.findAll({
-        where: { status: "OPEN", side: "DELTA_NEUTRAL" },
+        where: { status: TradeStatus.OPEN, side: "DELTA_NEUTRAL" },
         include: [
           {
             model: User,

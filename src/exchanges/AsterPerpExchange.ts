@@ -75,7 +75,15 @@ function calculateHmacSha256(data: string, secret: string): string {
 }
 
 export class AsterPerpExchange extends ExchangeConnector {
-  secretKey: string;
+  private readonly secretKey: string;
+  private readonly universe: Record<
+    TokenSymbol,
+    {
+      symbol: string;
+      pricePrecision: number;
+      quantityPrecision: number;
+    }
+  > = {};
 
   constructor() {
     super("asterperp");
@@ -102,12 +110,20 @@ export class AsterPerpExchange extends ExchangeConnector {
       });
   }
 
+  private async getExchangeInfo(force: boolean = false): Promise<number> {
+    if (force || !this.universe["BTC"]) {
+      const response = await this.get("/fapi/v1/exchangeInfo").then((response) => response.data.symbols);
+      response
+        .filter((m: any) => m.contractType === "PERPETUAL" && m.status === "TRADING")
+        .forEach((item: any) => (this.universe[this.tokenFromTicker(item.symbol)!] = item));
+    }
+    const count = Object.keys(this.universe).length;
+    return count;
+  }
+
   public async testConnection(): Promise<number> {
     try {
-      const response = await this.get("/fapi/v1/exchangeInfo");
-      const markets = response.data.symbols;
-      const count = markets.filter((m: any) => m.contractType === "PERPETUAL" && m.status === "TRADING").length;
-
+      const count = await this.getExchangeInfo(true);
       console.log(`✅ Aster Perp Exchange connected: ${count} perpetual markets available`);
       return count;
     } catch (error) {
@@ -121,12 +137,12 @@ export class AsterPerpExchange extends ExchangeConnector {
     return token && token.length > 0 ? (token as TokenSymbol) : null;
   }
 
-  private extractTokensFromMarkets(marketsResponse: any[]): TokenSymbol[] {
-    const tokens = marketsResponse
-      .map((market) => this.tokenFromTicker(market.symbol))
-      .filter((token) => token !== null);
-    return tokens as TokenSymbol[];
-  }
+  // private extractTokensFromMarkets(marketsResponse: any[]): TokenSymbol[] {
+  //   const tokens = marketsResponse
+  //     .map((market) => this.tokenFromTicker(market.symbol))
+  //     .filter((token) => token !== null);
+  //   return tokens as TokenSymbol[];
+  // }
 
   protected tokenToTicker(token: TokenSymbol): string {
     return `${token}USDT`;
@@ -202,19 +218,23 @@ export class AsterPerpExchange extends ExchangeConnector {
     const response = await this.post("/fapi/v1/leverage", `${payload}&signature=${signature}`).then(
       (response) => response.data,
     );
-
-    return response.data?.success || response.status === 200;
+    // console.log(response);
+    return response.symbol == symbol && response.leverage == leverage;
   }
 
   public async openPosition(order: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage } = order;
     try {
+      await this.getExchangeInfo();
+      // console.log(this.universe[token]);
+
       const symbol = this.tokenToTicker(token);
       const sideParam = side === PositionSide.LONG ? "BUY" : "SELL";
+      const quantity = size.toFixed(this.universe[token].quantityPrecision);
 
       if (leverage) this.setLeverage(token, leverage);
 
-      const payload = `symbol=${symbol}&side=${sideParam}&type=MARKET&quantity=${size}&timestamp=${Date.now()}`;
+      const payload = `symbol=${symbol}&side=${sideParam}&type=MARKET&quantity=${quantity}&timestamp=${Date.now()}`;
       const signature = calculateHmacSha256(payload, this.secretKey);
       const response = await this.post("/fapi/v1/order", `${payload}&signature=${signature}`).then(
         (response) => response.data,
@@ -225,7 +245,7 @@ export class AsterPerpExchange extends ExchangeConnector {
           ...order,
           orderId: response.orderId.toString(),
           size: parseFloat(response.origQty),
-          price: parseFloat(response.price),
+          price: parseFloat(response.avgPrice),
         };
       }
 
@@ -242,10 +262,15 @@ export class AsterPerpExchange extends ExchangeConnector {
 
     const payload = `symbol=${symbol}&orderId=${orderId}&timestamp=${Date.now()}`;
     const signature = calculateHmacSha256(payload, this.secretKey);
-    const response = await this.delete(`/fapi/v1/order?${payload}&signature=${signature}`).then(
-      (response) => response.data,
-    );
-    console.log(response);
+    try {
+      const response = await this.delete(`/fapi/v1/order?${payload}&signature=${signature}`).then(
+        (response) => response.data,
+      );
+      console.log(response);
+    } catch (error) {
+      console.error(`${this.name}: failed to cancel order:`, error);
+      return false;
+    }
     return true;
   }
 

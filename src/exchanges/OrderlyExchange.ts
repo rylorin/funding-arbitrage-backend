@@ -93,7 +93,7 @@ export class OrderlyExchange extends ExchangeConnector {
     return `PERP_${token}_USDC`;
   }
 
-  public async getTokenPrice(tokens?: TokenSymbol[]): Promise<Record<TokenSymbol, TokenPrice>> {
+  public async getPrices(tokens?: TokenSymbol[]): Promise<Record<TokenSymbol, TokenPrice>> {
     try {
       const result: Record<TokenSymbol, TokenPrice> = {};
 
@@ -176,7 +176,7 @@ export class OrderlyExchange extends ExchangeConnector {
     try {
       const fundingRates: FundingRateData[] = [];
 
-      const prices = await this.getTokenPrice(tokens);
+      const prices = await this.getPrices(tokens);
 
       // Get all predicted funding rates
       const response = await this.get("/v1/public/funding_rates");
@@ -333,21 +333,21 @@ export class OrderlyExchange extends ExchangeConnector {
     const symbol = this.tokenToTicker(token);
     // const response = await this.delete(`/v1/client/order?client_order_id=${orderId}&symbol=${symbol}`, {
     const response = await this.delete(`/v1/client/order?order_id=${orderId}&symbol=${symbol}`, {
-      // transformRequest: [
-      //   (data, headers) => {
-      //     console.log(headers, data);
-      //     return data;
-      //   },
-      //   (data, headers) => {
-      //     delete headers["Content-Type"];
-      //     headers["Content-Type"] = "text/plain";
-      //     return data;
-      //   },
-      //   (data, headers) => {
-      //     console.log(headers, data);
-      //     return data;
-      //   },
-      // ],
+      transformRequest: [
+        (data, headers) => {
+          console.debug(headers, data);
+          return data;
+        },
+        (data, headers) => {
+          delete headers["Content-Type"];
+          // headers["Content-Type"] = "text/plain";
+          return data;
+        },
+        (data, headers) => {
+          console.debug(headers, data);
+          return data;
+        },
+      ],
     }).catch((reason: any) => {
       throw new Error(reason.data.message || reason.message || "Unknown error #1");
     });
@@ -550,6 +550,29 @@ export class OrderlyExchange extends ExchangeConnector {
 
     console.error(response);
     throw new Error(`Failed to open position: ${response.data.message || "Unknown error #3"}`);
+  }
+
+  public async getPrice(token: TokenSymbol): Promise<number> {
+    try {
+      // Use the existing getTokenPrice method to get price data for this specific token
+      const tokenPrices = await this.getPrices([token]);
+
+      const priceData = tokenPrices[token];
+      if (!priceData) {
+        throw new Error(`Price data not available for token: ${token}`);
+      }
+
+      // Return mark_price as primary, fallback to index_price
+      const price = priceData.mark_price || priceData.index_price;
+      if (!price || isNaN(price)) {
+        throw new Error(`Invalid price data for token: ${token}`);
+      }
+
+      return price;
+    } catch (error) {
+      console.error(`❌ Failed to retrieve price for ${token}:`, error);
+      throw new Error(`Failed to fetch price from Orderly for ${token}`);
+    }
   }
 }
 
