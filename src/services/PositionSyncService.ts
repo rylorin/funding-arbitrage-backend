@@ -3,9 +3,8 @@ import { TradeStatus } from "@/models/TradeHistory";
 import { default as config, IConfig } from "config";
 import { Op } from "sequelize";
 import { exchangesRegistry } from "../exchanges";
-import { FundingRate, Position, TradeHistory, User } from "../models/index";
-import { JobResult, PositionPnL, ServiceName } from "../types/index";
-import { getWebSocketHandlers } from "../websocket/handlers";
+import { FundingRate, Position, TradeHistory } from "../models";
+import { JobResult, Service, ServiceName } from "../types";
 import { OpportunityDetectionService } from "./OpportunityDetectionService";
 
 export type PositionMetrics = {
@@ -15,7 +14,7 @@ export type PositionMetrics = {
   hoursOpen: number;
 };
 
-export class PositionSyncService {
+export class PositionSyncService implements Service {
   public readonly name: ServiceName = ServiceName.POSITION_SYNC;
   public readonly config: IConfig;
 
@@ -23,74 +22,124 @@ export class PositionSyncService {
     this.config = config.get("services." + this.name);
   }
 
-  private async syncAllExchangesPositions(): Promise<void> {
+  // Fetching positions from all exchanges
+  private async fetchAllExchangesPositions(): Promise<Position[]> {
+    let positions: Position[] = [];
+
     for (const exchange of exchangesRegistry.getAllExchanges()) {
       try {
-        const now = Date.now();
-        let count = 0;
-
+        console.debug(`ℹ️ Fetching positions from ${exchange.name}`);
         const exchangePos = await exchange.getAllPositions();
-        for (const position of exchangePos) {
-          const ref = await Position.findOne({
+        positions = positions.concat(exchangePos);
+        console.log(`✅ Received ${exchangePos.length} positions from ${exchange.name}`);
+      } catch (error) {
+        console.error(`❌ Error fetching positions from ${exchange.name}`, error);
+      }
+    }
+
+    return positions;
+  }
+
+  // Update single legs positions from DB using exchanges positions
+  private async unpdateDbLegs(
+    positions: Position[],
+  ): Promise<{ syncedPositions: TradeHistory[]; failedPositions: TradeHistory[] }> {
+    const now = Date.now();
+    const syncedPositions: TradeHistory[] = [];
+    const failedPositions: TradeHistory[] = [];
+
+    const trades = await TradeHistory.findAll({
+      where: {
+        status: { [Op.in]: [TradeStatus.OPENING, TradeStatus.OPEN, TradeStatus.CLOSING] },
+      },
+    });
+    await trades.reduce(
+      (p, trade) =>
+        p.then(async () => {
+          const legs = await Position.findAll({
             where: {
-              exchange: position.exchange,
-              token: position.token,
-              status: { [Op.in]: [PositionStatus.OPENING, PositionStatus.OPEN, PositionStatus.CLOSING] },
+              tradeId: trade.id,
             },
           });
-          if (ref) {
-            // console.log(position);
-            await ref.update({
-              status: position.status,
-              side: position.side,
-              size: position.size,
-              price: position.price,
-              leverage: position.leverage,
-              cost: position.cost || undefined,
-              unrealizedPnL: position.unrealizedPnL,
-              realizedPnL: position.realizedPnL,
-              entryTimestamp: position.entryTimestamp || undefined,
-            });
-            count += 1;
+          // Update single legs
+          for (const leg of legs) {
+            // Find corresponding exchange position
+            const update = positions.find((pos) => pos.exchange == leg.exchange && pos.token == leg.token);
+            if (update) {
+              // position existing in exchange, update DB from it
+              await leg.update({
+                status: update.status,
+                side: update.side,
+                size: update.size,
+                price: update.price,
+                leverage: update.leverage,
+                cost: update.cost || undefined,
+                unrealizedPnL: update.unrealizedPnL,
+                realizedPnL: update.realizedPnL,
+                entryTimestamp: update.entryTimestamp || undefined,
+              });
+            } else {
+              // position not found on exchange
+              switch (leg.status) {
+                case PositionStatus.OPENING:
+                  if (now > leg.createdAt.getTime() + this.config.get<number>("graceDelay") * 1_000) {
+                    // Something went wrong
+                    await leg.update({
+                      status: PositionStatus.ERROR,
+                    });
+                  }
+                  break;
+                case PositionStatus.OPEN:
+                  // Something wrong happened
+                  await leg.update({
+                    status: PositionStatus.ERROR,
+                  });
+                  break;
+                case PositionStatus.CLOSING:
+                  // Ok, position finally closed
+                  await leg.update({
+                    status: PositionStatus.CLOSED,
+                  });
+                  break;
+              }
+            }
           }
-        }
 
-        // Flag all non updated positions with ERROR status
-        await Position.update(
-          { status: PositionStatus.ERROR },
-          {
-            where: {
-              exchange: exchange.name,
-              status: { [Op.in]: [PositionStatus.OPENING, PositionStatus.OPEN, PositionStatus.CLOSING] },
-              updatedAt: { [Op.lt]: now - this.config.get<number>("graceDelay") * 1_000 },
-            },
-          },
-        );
-
-        // Update all open trades
-        const trades = await TradeHistory.findAll({
-          where: {
-            status: { [Op.in]: [PositionStatus.OPENING, PositionStatus.OPEN, PositionStatus.CLOSING] },
-          },
-        });
-        for (const trade of trades) {
-          const legs = await Position.findAll({ where: { tradeId: trade.id } });
-          // const oneError = legs.reduce((p, leg) => (leg.status == PositionStatus.ERROR ? true : p), false);
+          // Update trade status
           const allOpen = legs.reduce((p, leg) => (leg.status == PositionStatus.OPEN ? p : false), true);
           const allClosed = legs.reduce(
             (p, leg) => (leg.status == PositionStatus.CLOSED || leg.status == PositionStatus.ERROR ? p : false),
             true,
           );
-          if (trade.status == TradeStatus.OPENING && legs.length == 2 && allOpen)
-            trade.update({ status: TradeStatus.OPEN });
-          if (trade.status == TradeStatus.CLOSING && allClosed) trade.update({ status: TradeStatus.CLOSED });
-        }
-
-        console.log(`✅ Syncied ${count} positions from ${exchange.name}`);
-      } catch (exchangeError) {
-        console.error(`Error fetching ${exchange.name} positions:`, exchangeError);
-      }
-    }
+          switch (trade.status) {
+            case TradeStatus.OPENING:
+              if (allOpen) {
+                await trade.update({ status: TradeStatus.OPEN });
+              }
+              break;
+            case TradeStatus.OPEN:
+              {
+                const metrics = await this.getPositionMetrics(trade);
+                if (metrics) {
+                  // Mettre à jour la position en DB
+                  await trade.update({
+                    cost: metrics.cost,
+                    currentPnL: metrics.currentPnL,
+                    currentApr: metrics.currentApr,
+                  });
+                }
+              }
+              syncedPositions.push(trade);
+              break;
+            case TradeStatus.CLOSING:
+              if (allClosed) {
+                await trade.update({ status: TradeStatus.CLOSED });
+              }
+          }
+        }),
+      Promise.resolve(),
+    );
+    return { syncedPositions, failedPositions };
   }
 
   /**
@@ -102,89 +151,30 @@ export class PositionSyncService {
     try {
       console.log("🔄 Starting position synchronization...");
 
-      // Mettre à jour chaque exchange
-      await this.syncAllExchangesPositions();
+      // Fetching positions from all exchanges
+      const positions = await this.fetchAllExchangesPositions();
 
-      // Récupérer tous les (delta neutral) trades ouverts
-      const openPositions = await TradeHistory.findAll({
-        where: { status: TradeStatus.OPEN, side: "DELTA_NEUTRAL" },
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "walletAddress"],
-          },
-        ],
-      });
-
-      if (openPositions.length === 0) {
-        console.log("✅ No open trade to sync");
-        return {
-          success: true,
-          message: "No open trade to sync",
-          executionTime: Date.now() - startTime,
-        };
-      }
-
-      console.log(`📊 Syncing ${openPositions.length} open positions...`);
-
-      const syncedPositions: string[] = [];
-      const failedPositions: { id: string; error: string }[] = [];
-      const pnlUpdates: { userId: string; positionPnL: PositionPnL }[] = [];
-
-      // Traiter chaque position
-      for (const position of openPositions) {
-        try {
-          const metrics = await this.getPositionMetrics(position);
-          if (metrics) {
-            // Mettre à jour la position en DB
-            await position.update({
-              cost: metrics.cost,
-              currentPnL: metrics.currentPnL,
-              currentApr: metrics.currentApr,
-            });
-
-            syncedPositions.push(position.id);
-
-            // Préparer la mise à jour WebSocket
-            const positionPnL: PositionPnL = {
-              positionId: position.id,
-              cost: metrics.cost,
-              currentPnL: metrics.currentPnL,
-              currentApr: metrics.currentApr,
-              hoursOpen: metrics.hoursOpen,
-            };
-
-            pnlUpdates.push({
-              userId: position.userId,
-              positionPnL,
-            });
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "Unknown error";
-          console.error(`Error syncing position ${position.id}:`, error);
-          failedPositions.push({ id: position.id, error: errorMessage });
-        }
-      }
+      // Update DB
+      const { syncedPositions, failedPositions } = await this.unpdateDbLegs(positions);
 
       // Broadcast des mises à jour PnL via WebSocket
-      if (pnlUpdates.length > 0) {
-        const wsHandlers = getWebSocketHandlers();
-        if (wsHandlers && "handlePositionPnLUpdate" in wsHandlers) {
-          pnlUpdates.forEach(({ userId, positionPnL }) => {
-            (wsHandlers as any).handlePositionPnLUpdate(userId, positionPnL);
-          });
-        }
-      }
+      // if (pnlUpdates.length > 0) {
+      //   const wsHandlers = getWebSocketHandlers();
+      //   if (wsHandlers && "handlePositionPnLUpdate" in wsHandlers) {
+      //     pnlUpdates.forEach(({ userId, positionPnL }) => {
+      //       (wsHandlers as any).handlePositionPnLUpdate(userId, positionPnL);
+      //     });
+      //   }
+      // }
 
       const executionTime = Date.now() - startTime;
       const result: JobResult = {
-        success: syncedPositions.length > 0,
+        success: failedPositions.length === 0,
         message: `Synced ${syncedPositions.length} positions, ${failedPositions.length} failed`,
         data: {
           syncedPositions: syncedPositions.length,
           failedPositions: failedPositions.length,
-          totalPositions: openPositions.length,
+          totalPositions: syncedPositions.length + failedPositions.length,
           failures: failedPositions,
         },
         executionTime,

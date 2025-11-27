@@ -11,8 +11,9 @@ import {
   JobResult,
   OrderData,
   PlacedOrderData,
+  Service,
   ServiceName,
-} from "../types/index";
+} from "../types";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
@@ -24,7 +25,7 @@ interface TradingResult {
   opportunity: any;
 }
 
-export class DeltaNeutralTradingService {
+export class DeltaNeutralTradingService implements Service {
   public readonly name: ServiceName = ServiceName.DELTA_NEUTRAL;
   public readonly config: IConfig;
   private isRunning = false;

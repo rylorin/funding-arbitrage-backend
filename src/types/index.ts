@@ -126,3 +126,7 @@ export enum ServiceName {
   POSITION_SYNC = "position-sync",
   DELTA_NEUTRAL = "delta-neutral",
 }
+
+export interface Service {
+  readonly name: ServiceName;
+}
