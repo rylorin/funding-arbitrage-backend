@@ -211,6 +211,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     }
   }
 
+  // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#change-initial-leverage-trade
   public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
     const symbol = this.tokenToTicker(token);
     const payload = `symbol=${symbol}&leverage=${leverage}&timestamp=${Date.now()}`;
@@ -222,7 +223,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     return response.symbol == symbol && response.leverage == leverage;
   }
 
-  public async openPosition(order: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage } = order;
     try {
       await this.getExchangeInfo();
@@ -234,7 +235,7 @@ export class AsterPerpExchange extends ExchangeConnector {
 
       if (leverage) this.setLeverage(token, leverage);
 
-      const payload = `symbol=${symbol}&side=${sideParam}&type=MARKET&quantity=${quantity}&timestamp=${Date.now()}`;
+      const payload = `symbol=${symbol}&side=${sideParam}&type=MARKET&quantity=${quantity}&reduceOnly=${reduceOnly}&timestamp=${Date.now()}`;
       const signature = calculateHmacSha256(payload, this.secretKey);
       const response = await this.post("/fapi/v1/order", `${payload}&signature=${signature}`).then(
         (response) => response.data,

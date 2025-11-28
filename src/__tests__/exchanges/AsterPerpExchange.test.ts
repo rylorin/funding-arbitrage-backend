@@ -1,5 +1,5 @@
 import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder } from "@/__tests__/data/orders";
-import { AsterPerpExchange as Exchange, asterPerpExchange as exchange } from "../../../exchanges/AsterPerpExchange";
+import { AsterPerpExchange as Exchange, asterPerpExchange as exchange } from "@exchanges/AsterPerpExchange";
 
 const TOKEN = "DOGE";
 

@@ -1,12 +1,41 @@
 {
   "exchanges": {
+    "apexperp": {
+      "enabled": true,
+      "fundingFrequency": 8,
+      "baseUrl": "https://omni.apex.exchange/api/",
+      "webSocketURL": "wss://ws-pro.apex.exchange",
+      "apiKeyHeader": "APEX-API-KEY",
+      "apiKey": "your-apex-api-key",
+      "passphrase": "your-apex-passphrase",
+      "secretKey": "your-apex-secret-key",
+      "type": "perp"
+    },
+    "apexspot": {
+      "enabled": true,
+      "baseUrl": "https://omni.apex.exchange/api/",
+      "webSocketURL": "wss://ws-pro.apex.exchange",
+      "apiKey": "your-apex-api-key",
+      "secretKey": "your-apex-secret-key",
+      "passphrase": "your-apex-passphrase",
+      "type": "spot"
+    },
     "asterperp": {
       "enabled": true,
       "fundingFrequency": 8,
       "baseUrl": "https://fapi.asterdex.com",
       "webSocketURL": "wss://ws.asterperp.com/ws",
+      "apiKeyHeader": "X-MBX-APIKEY",
       "apiKey": "your-asterperp-api-key",
       "secretKey": "your-asterperp-secret-key"
+    },
+    "asterspot": {
+      "enabled": true,
+      "baseUrl": "https://api.asterdex.com",
+      "webSocketURL": "wss://ws.asterperp.com/ws",
+      "apiKey": "your-asterspot-api-key",
+      "secretKey": "your-asterperp-secret-key",
+      "type": "spot"
     },
     "extended": {
       "enabled": true,
@@ -49,7 +78,16 @@
     "maxPositionSize": 1000,
     "maxSimultaneousPositions": 1,
     "riskTolerance": "medium",
-    "preferredExchanges": ["orderly", "extended", "vest", "hyperliquid", "asterperp"],
+    "preferredExchanges": [
+      "orderly",
+      "extended",
+      "vest",
+      "hyperliquid",
+      "asterperp",
+      "apexperp",
+      "apexspot",
+      "asterspot"
+    ],
     "autoCloseEnabled": true,
     "autoCloseAPRThreshold": 0,
     "autoCloseTimeoutHours": 0,

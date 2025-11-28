@@ -223,7 +223,7 @@ export class DeltaNeutralTradingService implements Service {
       // Récupérer les positions ouvertes avec auto-close activé
       const openPositions = await TradeHistory.findAll({
         where: {
-          status: [TradeStatus.OPEN],
+          status: [TradeStatus.OPEN, TradeStatus.OPENING],
           autoCloseEnabled: true,
           createdAt: { [Op.lt]: startTime - this.config.get<number>("graceDelay") * 1_000 },
         },

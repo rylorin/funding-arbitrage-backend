@@ -1,5 +1,5 @@
 import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder } from "@/__tests__/data/orders";
-import { OrderlyExchange as Exchange, orderlyExchange as exchange } from "../../../exchanges/OrderlyExchange";
+import { OrderlyExchange as Exchange, orderlyExchange as exchange } from "@exchanges/OrderlyExchange";
 
 const TOKEN = "DOGE";
 

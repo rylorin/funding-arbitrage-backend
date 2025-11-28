@@ -38,6 +38,12 @@ export class OrderlyExchange extends ExchangeConnector {
         const requestPath = config.url || "";
         const body = config.data ? JSON.stringify(config.data) : "";
 
+        // console.log("🔍 [DEBUG] Interceptor - method:", method);
+        // console.log("🔍 [DEBUG] Interceptor - requestPath:", requestPath);
+        // console.log("🔍 [DEBUG] Interceptor - config.data:", config.data);
+        // console.log("🔍 [DEBUG] Interceptor - body (for signature):", body);
+        // console.log("🔍 [DEBUG] Interceptor - body length:", body.length);
+
         const secretKey = bs58.decode(this.config.get("secretKey") as string);
         // Ensure key is 32 bytes (ed25519 private key length)
         if (secretKey.length !== 32) {
@@ -48,6 +54,8 @@ export class OrderlyExchange extends ExchangeConnector {
 
         // Generate signature using ed25519 algorithm
         const message = `${timestamp}${method}${requestPath}${body}`;
+        // console.log("🔍 [DEBUG] Interceptor - signature message:", message);
+
         const signatureBuffer = Buffer.from(ed.sign(new TextEncoder().encode(message), secretKey));
 
         // Encode signature in base64 url-safe format
@@ -59,6 +67,9 @@ export class OrderlyExchange extends ExchangeConnector {
         (config.headers as any)["orderly-timestamp"] = timestamp;
         (config.headers as any)["orderly-signature"] = signature;
         (config.headers as any)["message"] = message;
+
+        // console.log("🔍 [DEBUG] Interceptor - Final headers:", JSON.stringify(config.headers, null, 2));
+        // console.log("🔍 [DEBUG] Interceptor - Content-Type in headers:", config.headers["Content-Type"]);
       }
       return config;
     });
@@ -255,7 +266,7 @@ export class OrderlyExchange extends ExchangeConnector {
     return response.data.success;
   }
 
-  public async openPosition(order: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
     const { token, side, size } = order;
     try {
       if (order.leverage) await this.setLeverage(order.token, order.leverage);
@@ -299,6 +310,7 @@ export class OrderlyExchange extends ExchangeConnector {
         side: side === PositionSide.LONG ? "BUY" : "SELL",
         order_quantity,
         slippage: order.slippage / 100,
+        reduce_only: reduceOnly,
       };
       const response = await this.post("/v1/order", payload).catch((reason: any) => {
         // console.error(payload, reason.data);
@@ -328,30 +340,43 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
+  // https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/cancel-order
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     const { token, orderId } = order;
-    const symbol = this.tokenToTicker(token);
-    // const response = await this.delete(`/v1/client/order?client_order_id=${orderId}&symbol=${symbol}`, {
-    const response = await this.delete(`/v1/client/order?order_id=${orderId}&symbol=${symbol}`, {
-      transformRequest: [
-        (data, headers) => {
-          console.debug(headers, data);
-          return data;
+    try {
+      const symbol = this.tokenToTicker(token);
+
+      // console.log("🔍 [DEBUG] cancelOrder - Starting request");
+      // console.log("🔍 [DEBUG] cancelOrder - orderId:", orderId);
+      // console.log("🔍 [DEBUG] cancelOrder - symbol:", symbol);
+
+      const response = await this.delete(`/v1/order?order_id=${orderId}&symbol=${symbol}`, {
+        // Explicitly set data to undefined to prevent any body
+        data: undefined,
+        headers: {
+          // Orderly API requires Content-Type even for DELETE requests
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        (data, headers) => {
-          delete headers["Content-Type"];
-          // headers["Content-Type"] = "text/plain";
-          return data;
-        },
-        (data, headers) => {
-          console.debug(headers, data);
-          return data;
-        },
-      ],
-    }).catch((reason: any) => {
-      throw new Error(reason.data.message || reason.message || "Unknown error #1");
-    });
-    return response.data.success;
+        // transformRequest: [
+        //   (data, headers) => {
+        //     console.log("🔍 [DEBUG] transformRequest #1 - headers:", JSON.stringify(headers, null, 2));
+        //     console.log("🔍 [DEBUG] transformRequest #1 - data:", data);
+        //     console.log("🔍 [DEBUG] transformRequest #1 - data type:", typeof data);
+        //     return data;
+        //   },
+        //   (data, headers) => {
+        //     console.log("🔍 [DEBUG] transformRequest #2 - Final headers:", JSON.stringify(headers, null, 2));
+        //     console.log("🔍 [DEBUG] transformRequest #2 - Final data:", data);
+        //     return data;
+        //   },
+        // ],
+      });
+      console.debug("✅ [DEBUG] cancelOrder - Success:", response.data);
+      return response.data.success;
+    } catch (error: any) {
+      console.warn(`❌ cancelOrder failed: ${error.data.message}`);
+      return false;
+    }
   }
 
   public async getPositionPnL(positionId: string): Promise<number> {

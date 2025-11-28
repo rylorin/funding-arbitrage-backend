@@ -5,6 +5,7 @@ import {
   sampleToken,
   shortOrder,
 } from "@/__tests__/data/orders";
+import { extendedExchange as exchange } from "@exchanges/ExtendedExchange";
 import { getFees } from "@extended/api/fees";
 import { getMarket } from "@extended/api/markets";
 import { getStarknetDomain } from "@extended/api/starknet";
@@ -13,7 +14,6 @@ import { Order } from "@extended/models//order";
 import { createOrderContext } from "@extended/utils/create-order-context";
 import { Decimal } from "@extended/utils/number";
 import { roundToMinChange } from "@extended/utils/round-to-min-change";
-import { extendedExchange as exchange } from "../../../exchanges/ExtendedExchange";
 
 // const TOKEN = "DOGE";
 const MARKET_NAME = `${sampleToken}-USD`;

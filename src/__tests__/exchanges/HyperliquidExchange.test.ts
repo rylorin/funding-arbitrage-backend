@@ -1,8 +1,5 @@
 import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder } from "@/__tests__/data/orders";
-import {
-  HyperliquidExchange as Exchange,
-  hyperliquidExchange as exchange,
-} from "../../../exchanges/HyperliquidExchange";
+import { HyperliquidExchange as Exchange, hyperliquidExchange as exchange } from "@exchanges/HyperliquidExchange";
 
 describe("HyperliquidExchange", () => {
   beforeEach(async () => {

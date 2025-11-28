@@ -97,9 +97,8 @@ async function main() {
     console.log("\n" + "=".repeat(60));
     console.log("GENERATED SIGNING CREDENTIALS");
     console.log("=".repeat(60));
-    console.log(`apiKey: "${result.apiKey}"`);
-    console.log(`Signing Address: ${signingPublicKey}`);
-    console.log(`Signing Private Key: ${signingPrivateKey}`);
+    console.log(`"apiKey": "${result.apiKey}",`);
+    console.log(`"privateKey": "${signingPrivateKey}"`);
     console.log("\n⚠️  IMPORTANT: Keep the signing private key secure and never share it!");
     console.log("=".repeat(60));
   } catch (error) {

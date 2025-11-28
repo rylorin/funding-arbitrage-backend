@@ -4,7 +4,10 @@ import { ExchangeConnector, ExchangeName } from "./ExchangeConnector";
 export { ExchangeConnector };
 
 // Export all exchange connectors
+export { ApexPerpExchange, apexPerpExchange } from "./ApexPerpExchange";
+export { ApexSpotExchange, apexSpotExchange } from "./ApexSpotExchange";
 export { AsterPerpExchange, asterPerpExchange } from "./AsterPerpExchange";
+export { AsterSpotExchange, asterSpotExchange } from "./AsterSpotExchange";
 export { ExtendedExchange, extendedExchange } from "./ExtendedExchange";
 export { HyperliquidExchange, hyperliquidExchange } from "./HyperliquidExchange";
 export { OrderlyExchange, orderlyExchange } from "./OrderlyExchange";

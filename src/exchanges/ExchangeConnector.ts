@@ -5,7 +5,15 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { default as config, IConfig } from "config";
 import WebSocket from "ws";
 
-export type ExchangeName = "vest" | "hyperliquid" | "orderly" | "extended" | "asterperp";
+export type ExchangeName =
+  | "vest"
+  | "hyperliquid"
+  | "orderly"
+  | "extended"
+  | "asterperp"
+  | "apexperp"
+  | "apexspot"
+  | "asterspot";
 export const ExchangeType = { PERP: "perp", SPOT: "spot" } as const;
 export type ExchangeType = (typeof ExchangeType)[keyof typeof ExchangeType];
 
@@ -45,13 +53,13 @@ export abstract class ExchangeConnector {
     this.wsUrl = this.config.has("webSocketURL") ? this.config.get<string>("webSocketURL") : "";
     if (this.config.has("type")) this._type = this.config.get<ExchangeType>("type");
 
+    const apiKeyHeader = this.config.has("apiKeyHeader") ? this.config.get("apiKeyHeader") : "X-Api-Key";
     this.axiosClient = axios.create({
       baseURL: this.baseUrl,
       timeout: 10_000,
       headers: {
         "Content-Type": "application/json",
-        "X-Api-Key": this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
-        "X-MBX-APIKEY": this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
+        apiKeyHeader: this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
       },
       paramsSerializer: {
         indexes: null,
@@ -164,7 +172,7 @@ export abstract class ExchangeConnector {
   public async closePosition(order: OrderData): Promise<string> {
     console.warn(`${this.name} ExchangeConnector.closePosition(${order.token}) not implemented), using fallback`);
     return this.openPosition(
-      { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG },
+      { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG, leverage: 0 },
       true,
     ).then((response) => response.orderId);
   }

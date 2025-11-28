@@ -1,5 +1,5 @@
 import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder } from "@/__tests__/data/orders";
-import { VestExchange as Exchange, vestExchange as exchange } from "../../../exchanges/VestExchange";
+import { VestExchange as Exchange, vestExchange as exchange } from "@exchanges/VestExchange";
 
 const TOKEN = "DOGE";
 
