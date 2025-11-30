@@ -1,20 +1,21 @@
 import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder } from "@/__tests__/data/orders";
 import { ExchangeType } from "@/exchanges/ExchangeConnector";
-import { HyperliquidExchange as Exchange, hyperliquidExchange as exchange } from "@exchanges/HyperliquidExchange";
+import { AsterSpotExchange as Exchange, asterSpotExchange as exchange } from "@exchanges/AsterSpotExchange";
 
-describe("HyperliquidExchange", () => {
+const TOKEN = "DOGE";
+
+describe("AsterSpotExchange", () => {
   beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "debug").mockImplementation(() => {});
+    // jest.spyOn(console, "log").mockImplementation(() => {});
 
     await exchange.testConnection();
   });
 
   it("should initialize correctly", () => {
     expect(exchange).toBeDefined();
-    expect(exchange.name).toBe("hyperliquid");
+    expect(exchange.name).toBe("asterspot");
   });
 
   it("should have proper base class structure", () => {

@@ -117,7 +117,7 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<number> {
     const time = Date.now();
     const payload = { time, symbol: this.tokenToTicker(token), value: leverage };
     const response = await this.post("/account/leverage", payload).catch((reason: any) => {
@@ -129,7 +129,7 @@ export class VestExchange extends ExchangeConnector {
           "Unknown error #1",
       );
     });
-    return response.data.symbol == payload.symbol && response.data.value == leverage;
+    return response.data.value;
   }
 
   private async placeOrder(order: any): Promise<string> {

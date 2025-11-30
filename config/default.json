@@ -31,8 +31,9 @@
     },
     "asterspot": {
       "enabled": true,
-      "baseUrl": "https://api.asterdex.com",
+      "baseUrl": "https://sapi.asterdex.com",
       "webSocketURL": "wss://ws.asterperp.com/ws",
+      "apiKeyHeader": "X-MBX-APIKEY",
       "apiKey": "your-asterspot-api-key",
       "secretKey": "your-asterperp-secret-key",
       "type": "spot"
@@ -55,6 +56,7 @@
       "fundingFrequency": 1,
       "baseUrl": "https://server-prod.hz.vestmarkets.com/v2",
       "webSocketURL": "wss://ws-prod.hz.vestmarkets.com/ws-api?version=1.0",
+      "apiKey": "your-vest-api-key",
       "secretKey": "your-vest-secret-key"
     },
     "orderly": {
@@ -78,16 +80,7 @@
     "maxPositionSize": 1000,
     "maxSimultaneousPositions": 1,
     "riskTolerance": "medium",
-    "preferredExchanges": [
-      "orderly",
-      "extended",
-      "vest",
-      "hyperliquid",
-      "asterperp",
-      "apexperp",
-      "apexspot",
-      "asterspot"
-    ],
+    "preferredExchanges": ["orderly", "extended", "vest", "hyperliquid"],
     "autoCloseEnabled": true,
     "autoCloseAPRThreshold": 0,
     "autoCloseTimeoutHours": 0,

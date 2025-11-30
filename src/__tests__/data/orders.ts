@@ -7,10 +7,10 @@ export const sampleOrder: OrderData = {
   exchange: "exchange.name" as ExchangeName,
   token: sampleToken,
   side: PositionSide.LONG,
-  size: 70,
+  size: sampleToken == "DOGE" ? 70 : 0.00012,
   price: 0,
   leverage: 0,
-  slippage: 0.3,
+  slippage: 0,
 };
 
 export const samplePlacedOrder: PlacedOrderData = {
@@ -26,5 +26,5 @@ export const shortOrder: OrderData = {
 
 export const highPrecisionQuantityOrder: OrderData = {
   ...sampleOrder,
-  size: 70.60461268699378097,
+  size: sampleToken == "DOGE" ? 70.01234567890123456789 : 0.0001201234567890123456789,
 };

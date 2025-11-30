@@ -49,7 +49,6 @@ export class ApexSpotExchange extends ExchangeConnector {
     const passphrase = this.config.get<string>("passphrase");
 
     return {
-      "APEX-API-KEY": apiKey,
       "APEX-SIGNATURE": signature,
       "APEX-TIMESTAMP": timestamp,
       "APEX-PASSPHRASE": passphrase,
@@ -127,12 +126,6 @@ export class ApexSpotExchange extends ExchangeConnector {
       console.error("Error fetching Apex Spot account balance:", error);
       throw new Error("Failed to fetch account balance from Apex Spot");
     }
-  }
-
-  // Note: Leverage is not applicable for spot trading
-  public async setLeverage(_token: TokenSymbol, _leverage: number): Promise<boolean> {
-    console.warn("⚠️ Leverage setting not applicable for spot trading");
-    return true;
   }
 
   public async openPosition(orderData: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {

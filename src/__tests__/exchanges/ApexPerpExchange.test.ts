@@ -14,7 +14,7 @@ describe("ApexPerpExchange", () => {
 
   it("should initialize correctly", () => {
     expect(exchange).toBeDefined();
-    expect(exchange.name).toBe("asterperp");
+    expect(exchange.name).toBe("apexperp");
   });
 
   it("should have proper base class structure", () => {

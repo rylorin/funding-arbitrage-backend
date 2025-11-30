@@ -53,18 +53,19 @@ export abstract class ExchangeConnector {
     this.wsUrl = this.config.has("webSocketURL") ? this.config.get<string>("webSocketURL") : "";
     if (this.config.has("type")) this._type = this.config.get<ExchangeType>("type");
 
-    const apiKeyHeader = this.config.has("apiKeyHeader") ? this.config.get("apiKeyHeader") : "X-Api-Key";
-    this.axiosClient = axios.create({
+    const apiKeyHeader = this.config.has("apiKeyHeader") ? this.config.get<string>("apiKeyHeader") : "X-Api-Key";
+    const axiosConfig = {
       baseURL: this.baseUrl,
       timeout: 10_000,
       headers: {
         "Content-Type": "application/json",
-        apiKeyHeader: this.config.has("apiKey") ? this.config.get("apiKey") : undefined,
+        [apiKeyHeader]: this.config.has("apiKey") ? this.config.get<string>("apiKey") : undefined,
       },
       paramsSerializer: {
         indexes: null,
       },
-    });
+    };
+    this.axiosClient = axios.create(axiosConfig);
     this.axiosClient.interceptors.response.use(
       (response) => {
         return response;
@@ -156,8 +157,9 @@ export abstract class ExchangeConnector {
   protected tokenToTicker(token: TokenSymbol): string {
     throw `${this.name} ExchangeConnector.tokenToTicker(${token}) not implemented`;
   }
-  protected async setLeverage(asset: TokenSymbol, leverage: number): Promise<boolean> {
-    throw `${this.name} ExchangeConnector.setLeverage(${asset}, ${leverage}) not implemented`;
+  public async setLeverage(asset: TokenSymbol, leverage: number): Promise<number> {
+    if (this.type == ExchangeType.SPOT) throw "❌ Leverage setting not applicable for spot trading exchanges";
+    else throw `${this.name} ExchangeConnector.setLeverage(${asset}, ${leverage}) not implemented`;
   }
 
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {

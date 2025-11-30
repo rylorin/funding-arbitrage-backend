@@ -175,7 +175,7 @@ export class ExtendedExchange extends ExchangeConnector {
     return market;
   }
 
-  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<number> {
     const payload = { market: this.tokenToTicker(token), leverage };
     const { data } = await this.patch<GenericResponse<unknown>>("/api/v1/user/leverage", payload).catch(
       (reason: any) => {
@@ -185,7 +185,7 @@ export class ExtendedExchange extends ExchangeConnector {
     );
     // console.log(data);
     // returs payload if status is OK as response does not conform to documentation (empty data object returned)
-    return data.status == "OK";
+    return leverage;
   }
 
   public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {

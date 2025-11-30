@@ -107,7 +107,8 @@ export class AsterSpotExchange extends ExchangeConnector {
       .post<T, R, D>(url, data, {
         transformRequest: [
           (data, headers) => {
-            delete headers["Content-Type"];
+            headers["Content-Type"] = "application/x-www-form-urlencoded";
+            // delete headers["Content-Type"];
             return data;
           },
         ],
@@ -120,22 +121,27 @@ export class AsterSpotExchange extends ExchangeConnector {
 
   private async getExchangeInfo(force: boolean = false): Promise<number> {
     if (force || !this.universe["BTC"]) {
-      const response = await this.get("/api/v3/exchangeInfo").then((response) => response.data.symbols);
+      const response = await this.get("/api/v1/exchangeInfo").then((response) => response.data.symbols);
       response
-        .filter((m: any) => m.status === "TRADING" && m.isSpotTradingAllowed)
+        // .map((m: AsterSpotMarket) => {
+        //   console.log(m);
+        //   return m;
+        // })
+        .filter(
+          (m: AsterSpotMarket) =>
+            m.status === "TRADING" && m.quoteAsset == "USDT" && m.baseAsset.startsWith("TEST") === false,
+        )
         .forEach((item: any) => {
-          const token = this.tokenFromTicker(item.symbol);
-          if (token) {
-            this.universe[token] = {
-              symbol: item.symbol,
-              pricePrecision: item.quotePrecision,
-              quantityPrecision: item.basePrecision,
-              stepSize: item.filters?.find((f: any) => f.filterType === "LOT_SIZE")?.stepSize || "0.00000001",
-              tickSize: item.filters?.find((f: any) => f.filterType === "PRICE_FILTER")?.tickSize || "0.00000001",
-              minQty: item.filters?.find((f: any) => f.filterType === "LOT_SIZE")?.minQty || "0.00000001",
-              maxQty: item.filters?.find((f: any) => f.filterType === "LOT_SIZE")?.maxQty || "9000.00000000",
-            };
-          }
+          // console.debug(item);
+          this.universe[item.baseAsset] = {
+            symbol: item.baseAsset,
+            pricePrecision: item.quotePrecision,
+            quantityPrecision: item.quantityPrecision,
+            stepSize: item.filters?.find((f: any) => f.filterType === "LOT_SIZE")?.stepSize || "0.00000001",
+            tickSize: item.filters?.find((f: any) => f.filterType === "PRICE_FILTER")?.tickSize || "0.00000001",
+            minQty: item.filters?.find((f: any) => f.filterType === "LOT_SIZE")?.minQty || "0.00000001",
+            maxQty: item.filters?.find((f: any) => f.filterType === "LOT_SIZE")?.maxQty || "9000.00000000",
+          };
         });
     }
     const count = Object.keys(this.universe).length;
@@ -172,7 +178,7 @@ export class AsterSpotExchange extends ExchangeConnector {
   public async getPrice(token: TokenSymbol): Promise<number> {
     try {
       const symbol = this.tokenToTicker(token);
-      const response = await this.get(`/api/v3/ticker/price?symbol=${symbol}`);
+      const response = await this.get(`/api/v1/ticker/price?symbol=${symbol}`);
 
       const price = parseFloat(response.data.price);
       if (!price || isNaN(price)) {
@@ -192,7 +198,7 @@ export class AsterSpotExchange extends ExchangeConnector {
       const payload = `timestamp=${timestamp}`;
       const signature = calculateHmacSha256(payload, this.secretKey);
 
-      const response = await this.get(`/api/v3/account?${payload}&signature=${signature}`);
+      const response = await this.get(`/api/v1/account?${payload}&signature=${signature}`);
       const balances: { [token: string]: number } = {};
 
       if (response.data.balances) {
@@ -209,12 +215,6 @@ export class AsterSpotExchange extends ExchangeConnector {
       console.error("Error fetching Aster Spot account balance:", error);
       throw new Error("Failed to fetch account balance from Aster Spot");
     }
-  }
-
-  // Note: Leverage is not applicable for spot trading
-  public async setLeverage(_token: TokenSymbol, _leverage: number): Promise<boolean> {
-    console.warn("⚠️ Leverage setting not applicable for spot trading");
-    return true;
   }
 
   private quantizeQuantity(token: TokenSymbol, quantity: number): string {
@@ -245,48 +245,48 @@ export class AsterSpotExchange extends ExchangeConnector {
     return price.toFixed(universe.pricePrecision);
   }
 
-  public async openPosition(orderData: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {
-    const { token, side, size, slippage } = orderData;
+  public async openPosition(orderData: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+    const { token, side, size, leverage, slippage } = orderData;
 
-    try {
-      await this.getExchangeInfo();
-
-      const symbol = this.tokenToTicker(token);
-      const isBuy = side === PositionSide.LONG;
-
-      // Get current price for slippage calculation
-      const currentPrice = await this.getPrice(token);
-      const limitPrice = isBuy ? currentPrice * (1 + slippage / 100) : currentPrice * (1 - slippage / 100);
-
-      // Quantize the quantity and price
-      const quantity = this.quantizeQuantity(token, size);
-      const price = this.quantizePrice(token, limitPrice);
-
-      // Build the payload for signing
-      const timestamp = Date.now();
-      const sideParam = isBuy ? "BUY" : "SELL";
-      const payload = `symbol=${symbol}&side=${sideParam}&type=MARKET&quantity=${quantity}&timestamp=${timestamp}`;
-      const signature = calculateHmacSha256(payload, this.secretKey);
-
-      const response = await this.post(`/api/v3/order?${payload}&signature=${signature}`);
-      const order: AsterSpotOrder = response.data;
-
-      if (!order.orderId) {
-        throw new Error("Failed to place order: No order ID returned");
-      }
-
-      console.log(`✅ Aster Spot ${isBuy ? "BUY" : "SELL"} order placed: ${order.orderId}`);
-
-      return {
-        ...orderData,
-        orderId: order.orderId.toString(),
-        size: parseFloat(order.executedQty || quantity),
-        price: parseFloat(order.price) || limitPrice,
-      };
-    } catch (error) {
-      console.error(`Error placing Aster Spot order for ${token}:`, error);
-      throw error;
+    if (side == PositionSide.SHORT && !reduceOnly) {
+      throw new Error("❌ Short positions not applicable on spot trading exchanges");
     }
+
+    await this.getExchangeInfo();
+
+    const symbol = this.tokenToTicker(token);
+    const isBuy = side === PositionSide.LONG;
+
+    // Get current price for slippage calculation
+    const currentPrice = await this.getPrice(token);
+    const limitPrice = isBuy ? currentPrice * (1 + slippage / 100) : currentPrice * (1 - slippage / 100);
+
+    // Quantize the quantity and price
+    const quantity = this.quantizeQuantity(token, size * (leverage || 1));
+    const price = this.quantizePrice(token, limitPrice);
+
+    // Build the payload for signing
+    const timestamp = Date.now();
+    const sideParam = isBuy ? "BUY" : "SELL";
+    const payload = `symbol=${symbol}&side=${sideParam}&type=MARKET&quantity=${quantity}&timestamp=${timestamp}`;
+    const signature = calculateHmacSha256(payload, this.secretKey);
+
+    const order = await this.post<AsterSpotOrder>(`/api/v1/order?${payload}&signature=${signature}`).then(
+      (response) => response.data,
+    );
+
+    if (!order.orderId) {
+      throw new Error("Failed to place order: No order ID returned");
+    }
+
+    console.log(`✅ Aster Spot ${isBuy ? "BUY" : "SELL"} order placed: ${order.orderId}`);
+
+    return {
+      ...orderData,
+      orderId: order.orderId.toString(),
+      size: parseFloat(quantity),
+      price: parseFloat(price),
+    };
   }
 
   public async cancelOrder(orderData: PlacedOrderData): Promise<boolean> {
@@ -299,10 +299,10 @@ export class AsterSpotExchange extends ExchangeConnector {
       const signature = calculateHmacSha256(payload, this.secretKey);
 
       try {
-        const response = await this.delete(`/api/v3/order?${payload}&signature=${signature}`);
+        const response = await this.delete(`/api/v1/order?${payload}&signature=${signature}`);
         return response.data.status === "FILLED";
       } catch (error: any) {
-        if (error.message.includes("Order does not exist")) {
+        if (error.data.msg.includes("Order does not exist")) {
           // Order might already be filled or cancelled
           return true;
         }
@@ -320,7 +320,7 @@ export class AsterSpotExchange extends ExchangeConnector {
       const payload = `timestamp=${timestamp}`;
       const signature = calculateHmacSha256(payload, this.secretKey);
 
-      const response = await this.get(`/api/v3/account?${payload}&signature=${signature}`);
+      const response = await this.get(`/api/v1/account?${payload}&signature=${signature}`);
 
       const positions: Position[] = [];
 
@@ -464,7 +464,7 @@ export class AsterSpotExchange extends ExchangeConnector {
       const payload = `timestamp=${timestamp}`;
       const signature = calculateHmacSha256(payload, this.secretKey);
 
-      const response = await this.post(`/api/v3/userDataStream?${payload}&signature=${signature}`);
+      const response = await this.post(`/api/v1/userDataStream?${payload}&signature=${signature}`);
       return response.data.listenKey;
     } catch (error) {
       console.error("Error generating listen key:", error);

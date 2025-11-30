@@ -258,12 +258,12 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
-  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<number> {
     const payload = { symbol: this.tokenToTicker(token), leverage };
     const response = await this.post("/v1/client/leverage", payload).catch((reason: any) => {
       throw new Error(reason.data.message || reason.message || "Unknown error #1");
     });
-    return response.data.success;
+    return leverage;
   }
 
   public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {

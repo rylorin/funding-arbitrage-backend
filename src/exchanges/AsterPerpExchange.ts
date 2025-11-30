@@ -99,7 +99,7 @@ export class AsterPerpExchange extends ExchangeConnector {
       .post<T, R, D>(url, data, {
         transformRequest: [
           (data, headers) => {
-            delete headers["Content-Type"];
+            /*            delete */ headers["Content-Type"] = "application/x-www-form-urlencoded";
             return data;
           },
         ],
@@ -190,6 +190,13 @@ export class AsterPerpExchange extends ExchangeConnector {
     }
   }
 
+  public async getPrice(token: TokenSymbol): Promise<number> {
+    const response = await this.get("/fapi/v1/premiumIndex", {
+      params: { symbol: this.tokenToTicker(token) },
+    }).then((response) => response.data);
+    return parseFloat(response.markPrice);
+  }
+
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
       const response = await this.get("/fapi/v2/account");
@@ -212,7 +219,7 @@ export class AsterPerpExchange extends ExchangeConnector {
   }
 
   // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#change-initial-leverage-trade
-  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<number> {
     const symbol = this.tokenToTicker(token);
     const payload = `symbol=${symbol}&leverage=${leverage}&timestamp=${Date.now()}`;
     const signature = calculateHmacSha256(payload, this.secretKey);
@@ -220,7 +227,7 @@ export class AsterPerpExchange extends ExchangeConnector {
       (response) => response.data,
     );
     // console.log(response);
-    return response.symbol == symbol && response.leverage == leverage;
+    return response.leverage;
   }
 
   public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {

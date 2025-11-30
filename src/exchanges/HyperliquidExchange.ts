@@ -206,7 +206,7 @@ export class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
-  public async setLeverage(asset: TokenSymbol, leverage: number, leverageMode: string = "isolated"): Promise<boolean> {
+  public async setLeverage(asset: TokenSymbol, leverage: number, leverageMode: string = "isolated"): Promise<number> {
     if (!this.wallet) {
       throw new Error("Hyperliquid set leverage requires walletAddress and privateKey configuration");
     }
@@ -228,9 +228,9 @@ export class HyperliquidExchange extends ExchangeConnector {
 
     // Send leverage update request
     const response = await this.post(ENDPOINTS.EXCHANGE, payload).then((response) => response.data);
-    console.log(response);
+    // console.log(response);
 
-    return true;
+    return leverage;
   }
 
   private getVaultAddress() {

@@ -188,10 +188,10 @@ export class ApexPerpExchange extends ExchangeConnector {
     try {
       const symbol = this.tokenToTicker(token);
       const requestPath = "/v3/set-initial-margin-rate";
-      const body = JSON.stringify({ symbol, leverage });
+      const body = JSON.stringify({ leverage, symbol });
       const headers = this.addAuthHeaders("POST", requestPath, body);
 
-      const response = await this.post(requestPath, { symbol, leverage }, { headers });
+      const response = await this.post(requestPath, body, { headers });
       console.debug(response);
       return response.data?.success === true;
     } catch (error) {
