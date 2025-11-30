@@ -1,13 +1,16 @@
 import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder } from "@/__tests__/data/orders";
 import { ExchangeType } from "@/exchanges/ExchangeConnector";
-import { HyperliquidExchange as Exchange, hyperliquidExchange as exchange } from "@exchanges/HyperliquidExchange";
+import {
+  HyperliquidPerpExchange as Exchange,
+  hyperliquidPerpExchange as exchange,
+} from "@exchanges/HyperliquidPerpExchange";
 
 describe("HyperliquidExchange", () => {
   beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "debug").mockImplementation(() => {});
+    // jest.spyOn(console, "log").mockImplementation(() => {});
+    // jest.spyOn(console, "debug").mockImplementation(() => {});
 
     await exchange.testConnection();
   });

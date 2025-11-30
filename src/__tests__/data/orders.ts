@@ -1,7 +1,7 @@
 import { PositionSide } from "@/models";
 import { ExchangeName, OrderData, PlacedOrderData, TokenSymbol } from "@/types";
 
-export const sampleToken: TokenSymbol = "DOGE";
+export const sampleToken: TokenSymbol = "BTC";
 
 export const sampleOrder: OrderData = {
   exchange: "exchange.name" as ExchangeName,
@@ -10,7 +10,7 @@ export const sampleOrder: OrderData = {
   size: sampleToken == "DOGE" ? 70 : 0.00012,
   price: 0,
   leverage: 0,
-  slippage: 0,
+  slippage: -10,
 };
 
 export const samplePlacedOrder: PlacedOrderData = {

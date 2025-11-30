@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Joi from "joi";
-import { extendedExchange, hyperliquidExchange, orderlyExchange, vestExchange } from "../exchanges";
+import { extendedExchange, hyperliquidPerpExchange, orderlyExchange, vestExchange } from "../exchanges";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { FundingRate } from "../models/index";
 import { TokenSymbol } from "../types/index";
@@ -197,7 +197,7 @@ export const getExchangeStatus = async (_req: Request, res: Response): Promise<v
       },
       {
         name: "hyperliquid",
-        isConnected: hyperliquidExchange.isConnected,
+        isConnected: hyperliquidPerpExchange.isConnected,
         lastUpdate: new Date(),
         // supportedTokens: ['BTC', 'ETH', 'SOL', 'AVAX', 'ARB'],
       },
@@ -271,9 +271,9 @@ export const refreshFundingRates = async (_req: AuthenticatedRequest, res: Respo
     }
 
     // Update Hyperliquid rates
-    if (hyperliquidExchange.isConnected) {
+    if (hyperliquidPerpExchange.isConnected) {
       try {
-        const hyperliquidRates = await hyperliquidExchange.getFundingRates(tokensToUpdate);
+        const hyperliquidRates = await hyperliquidPerpExchange.getFundingRates(tokensToUpdate);
         for (const rate of hyperliquidRates) {
           const upsertData: any = {
             exchange: rate.exchange as any,

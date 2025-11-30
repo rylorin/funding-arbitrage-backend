@@ -184,7 +184,7 @@ export class ApexPerpExchange extends ExchangeConnector {
     }
   }
 
-  public async setLeverage(token: TokenSymbol, leverage: number): Promise<boolean> {
+  public async setLeverage(token: TokenSymbol, leverage: number): Promise<number> {
     try {
       const symbol = this.tokenToTicker(token);
       const requestPath = "/v3/set-initial-margin-rate";
@@ -193,7 +193,7 @@ export class ApexPerpExchange extends ExchangeConnector {
 
       const response = await this.post(requestPath, body, { headers });
       console.debug(response);
-      return response.data?.success === true;
+      return leverage;
     } catch (error) {
       console.error(`Error setting leverage for ${token}:`, error);
       throw new Error(`Failed to set leverage for ${token} on Apex Perp`);

@@ -15,9 +15,10 @@ import healthService from "./services/HealthService";
 import { default as config, IConfig } from "config";
 import {
   asterPerpExchange,
+  asterSpotExchange,
   ExchangesRegistry,
   extendedExchange,
-  hyperliquidExchange,
+  hyperliquidPerpExchange,
   orderlyExchange,
   vestExchange,
 } from "./exchanges";
@@ -143,10 +144,11 @@ async function startServer(_config: IConfig): Promise<void> {
     console.log("🔌 Setting up exchanges connections...");
     await [
       extendedExchange,
-      hyperliquidExchange,
+      hyperliquidPerpExchange,
       vestExchange,
       orderlyExchange,
       asterPerpExchange,
+      asterSpotExchange,
       // apexPerpExchange,
     ].reduce(async (p, exchange) => {
       p.then(async () => {

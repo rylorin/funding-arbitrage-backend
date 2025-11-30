@@ -465,7 +465,7 @@ export class AsterPerpExchange extends ExchangeConnector {
               slippage: 0,
               orderId: "orderId",
 
-              cost: parseFloat(pos.notional),
+              cost: Math.abs(parseFloat(pos.notional)),
               unrealizedPnL: parseFloat(pos.unRealizedProfit),
               realizedPnL: 0,
 

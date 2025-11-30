@@ -9,7 +9,9 @@ export { ApexSpotExchange, apexSpotExchange } from "./ApexSpotExchange";
 export { AsterPerpExchange, asterPerpExchange } from "./AsterPerpExchange";
 export { AsterSpotExchange, asterSpotExchange } from "./AsterSpotExchange";
 export { ExtendedExchange, extendedExchange } from "./ExtendedExchange";
-export { HyperliquidExchange, hyperliquidExchange } from "./HyperliquidExchange";
+export { HyperliquidExchange } from "./HyperliquidExchange";
+export { HyperliquidPerpExchange, hyperliquidPerpExchange } from "./HyperliquidPerpExchange";
+export { HyperliquidSpotExchange, hyperliquidSpotExchange } from "./HyperliquidSpotExchange";
 export { OrderlyExchange, orderlyExchange } from "./OrderlyExchange";
 export { VestExchange, vestExchange } from "./VestExchange";
 

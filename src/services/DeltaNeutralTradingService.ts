@@ -5,15 +5,7 @@ import { default as config, IConfig } from "config";
 import { Op } from "sequelize";
 import { ExchangesRegistry, exchangesRegistry } from "../exchanges";
 import { Position, TradeHistory, User } from "../models/index";
-import {
-  ArbitrageOpportunityData,
-  ExchangeName,
-  JobResult,
-  OrderData,
-  PlacedOrderData,
-  Service,
-  ServiceName,
-} from "../types";
+import { ArbitrageOpportunityData, ExchangeName, JobResult, PlacedOrderData, Service, ServiceName } from "../types";
 import { getWebSocketHandlers } from "../websocket/handlers";
 import { opportunityDetectionService } from "./OpportunityDetectionService";
 import { positionSyncService } from "./PositionSyncService";
@@ -152,7 +144,7 @@ export class DeltaNeutralTradingService implements Service {
    */
   public async closePosition(position: TradeHistory, reason = "Manual close"): Promise<boolean> {
     try {
-      console.log(`🔒 Closing position ${position.id}: ${reason}`);
+      console.log(`🔒 Closing position ${position.token} ${position.id} ${reason}`);
 
       const legs = await Position.findAll({
         where: {
@@ -174,17 +166,17 @@ export class DeltaNeutralTradingService implements Service {
           p.then((success) => {
             const exchange = ExchangesRegistry.getExchange(leg.exchange);
             if (exchange) {
-              const orderData: OrderData = {
-                exchange: exchange.name,
-                token: leg.token,
-                side: leg.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG,
-                size: leg.size,
-                price: leg.price,
-                leverage: 0,
-                slippage: userSettings.slippageTolerance,
-              };
+              // const orderData: OrderData = {
+              //   exchange: exchange.name,
+              //   token: leg.token,
+              //   side: leg.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG,
+              //   size: leg.size,
+              //   price: leg.price,
+              //   leverage: 0,
+              //   slippage: userSettings.slippageTolerance,
+              // };
               return exchange
-                .closePosition(orderData)
+                .closePosition(leg)
                 .then(() => leg.update({ status: PositionStatus.CLOSING }))
                 .then(() => success)
                 .catch((_reason) => false);

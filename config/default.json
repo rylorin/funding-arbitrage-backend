@@ -49,7 +49,10 @@
       "fundingFrequency": 1,
       "baseUrl": "https://api.hyperliquid.xyz",
       "webSocketURL": "wss://api.hyperliquid.xyz/ws",
-      "isMainNet": true
+      "isMainNet": true,
+      "privateKey": "your-hyperliquid-private-key",
+      "walletAddress": "your-hyperliquid-wallet-address",
+      "primaryAddress": "your-primary-wallet-address"
     },
     "vest": {
       "enabled": true,
@@ -80,7 +83,7 @@
     "maxPositionSize": 1000,
     "maxSimultaneousPositions": 1,
     "riskTolerance": "medium",
-    "preferredExchanges": ["orderly", "extended", "vest", "hyperliquid"],
+    "preferredExchanges": ["orderly", "extended", "vest", "hyperliquid", "asterperp"],
     "autoCloseEnabled": true,
     "autoCloseAPRThreshold": 0,
     "autoCloseTimeoutHours": 0,

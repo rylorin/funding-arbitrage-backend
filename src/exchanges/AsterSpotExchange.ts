@@ -171,8 +171,16 @@ export class AsterSpotExchange extends ExchangeConnector {
 
   // Note: Spot exchanges typically don't have funding rates since they're not derivatives
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
-    console.warn("⚠️ Funding rates not applicable for spot trading");
-    return [];
+    const now = new Date();
+    await this.getExchangeInfo(true);
+    return Object.keys(this.universe).map((token) => ({
+      exchange: this.name,
+      token,
+      fundingRate: 0,
+      fundingFrequency: 1,
+      updatedAt: now,
+      nextFunding: new Date(2026, 1, 1),
+    }));
   }
 
   public async getPrice(token: TokenSymbol): Promise<number> {
@@ -286,6 +294,7 @@ export class AsterSpotExchange extends ExchangeConnector {
       orderId: order.orderId.toString(),
       size: parseFloat(quantity),
       price: parseFloat(price),
+      leverage: 0, // Spot trading doesn't use leverage
     };
   }
 
