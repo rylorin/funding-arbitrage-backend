@@ -189,9 +189,9 @@ export class ExtendedExchange extends ExchangeConnector {
   }
 
   public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
-    const { token, side, size } = order;
+    const { token, side, size, leverage, slippage } = order;
     try {
-      if (order.leverage) await this.setLeverage(order.token, order.leverage);
+      if (leverage) await this.setLeverage(token, leverage);
 
       // Extended uses format like BTC-USD, ETH-USD, SOL-USD
       const marketName = this.tokenToTicker(token);
@@ -211,15 +211,14 @@ export class ExtendedExchange extends ExchangeConnector {
       );
 
       const orderPrice =
-        order.side == PositionSide.LONG
-          ? market.marketStats.askPrice.times(1 + order.slippage / 100)
-          : market.marketStats.bidPrice.times(1 - order.slippage / 100);
+        side == PositionSide.LONG
+          ? market.marketStats.askPrice.times(1 + slippage / 100)
+          : market.marketStats.bidPrice.times(1 - slippage / 100);
       const price = roundToMinChange(
         orderPrice,
         market.tradingConfig.minPriceChange,
         PositionSide.LONG ? Decimal.ROUND_UP : Decimal.ROUND_DOWN,
       );
-      // console.log(market.marketStats.askPrice, market.marketStats.bidPrice, price);
 
       const ctx = createOrderContext({
         market,
@@ -242,13 +241,16 @@ export class ExtendedExchange extends ExchangeConnector {
       });
 
       const result = await this.placeOrder({ order: nativeOrder });
+      console.log(
+        `✅ Extended ${side} position ${reduceOnly ? "closed" : "opened"} for ${token}: ${result.externalId}`,
+      );
 
       return {
         exchange: order.exchange,
-        token: order.token,
-        side: order.side,
-        leverage: order.leverage,
-        slippage: order.slippage,
+        token,
+        side,
+        leverage,
+        slippage,
 
         orderId: result.externalId,
         price: price.toNumber(),

@@ -12,7 +12,7 @@ export enum TradeStatus {
 }
 export type TradeSide = "long" | "short" | "close_long" | "close_short" | "DELTA_NEUTRAL" | "AUTO_CLOSE";
 
-interface TradeHistoryAttributes {
+export interface TradeHistoryAttributes {
   id: string;
   userId: string;
   exchange: ExchangeName;
@@ -41,7 +41,7 @@ interface TradeHistoryAttributes {
 interface TradeHistoryCreationAttributes
   extends Optional<TradeHistoryAttributes, "id" | "closedAt" | "closedReason" | "createdAt" | "updatedAt"> {}
 
-class TradeHistory
+export class TradeHistory
   extends Model<TradeHistoryAttributes, TradeHistoryCreationAttributes>
   implements TradeHistoryAttributes
 {

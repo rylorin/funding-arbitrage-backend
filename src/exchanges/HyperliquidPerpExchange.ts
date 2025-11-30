@@ -222,7 +222,10 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
         size,
       };
     } catch (error) {
-      console.error(`❌ Error opening Hyperliquid ${side} position for ${token}:`, error);
+      console.error(
+        `❌ Error ${reduce_only ? "closing" : "opening"} Hyperliquid ${side} position for ${token}:`,
+        error,
+      );
       throw error;
     }
   }

@@ -2,8 +2,6 @@ import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder 
 import { ExchangeType } from "@/exchanges/ExchangeConnector";
 import { OrderlyExchange as Exchange, orderlyExchange as exchange } from "@exchanges/OrderlyExchange";
 
-const TOKEN = "DOGE";
-
 describe("OrderlyExchange", () => {
   beforeEach(() => {
     // Reset mocks

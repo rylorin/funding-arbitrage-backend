@@ -31,7 +31,7 @@ export interface UserSettings {
   positionLeverage: number;
 }
 
-interface UserAttributes {
+export interface UserAttributes {
   id: string;
   walletAddress: string;
   settings: UserSettings;
@@ -41,7 +41,7 @@ interface UserAttributes {
 
 interface UserCreationAttributes extends Optional<UserAttributes, "id" | "createdAt" | "updatedAt"> {}
 
-class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
+export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare public id: string;
   declare public walletAddress: string;
   declare public settings: UserSettings;
