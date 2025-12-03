@@ -10,7 +10,7 @@ export const sampleOrder: OrderData = {
   size: sampleToken == "DOGE" ? 70 : 0.00012,
   price: 0,
   leverage: 0,
-  slippage: -10,
+  slippage: 0.05, // in percentage
 };
 
 export const samplePlacedOrder: PlacedOrderData = {

@@ -8,6 +8,7 @@ import WebSocket from "ws";
 export type ExchangeName =
   | "vest"
   | "hyperliquid"
+  | "hyperliquidspot"
   | "orderly"
   | "extended"
   | "asterperp"
@@ -31,9 +32,9 @@ const _safeParseResponse = (data: unknown) => {
 };
 
 export abstract class ExchangeConnector {
-  public readonly name: ExchangeName;
+  private readonly _name: ExchangeName;
   public readonly isEnabled: boolean = false;
-  private readonly _type: ExchangeType = ExchangeType.PERP;
+  // private readonly _type: ExchangeType = ExchangeType.PERP;
   public isConnected: boolean = false;
 
   public readonly config: IConfig;
@@ -46,12 +47,12 @@ export abstract class ExchangeConnector {
   private lastNonceTimestamp = 0;
 
   constructor(name: ExchangeName) {
-    this.name = name;
+    this._name = name;
     this.config = config.get("exchanges." + name);
     this.isEnabled = this.config.has("enabled") ? this.config.get("enabled") : false;
     this.baseUrl = this.config.get<string>("baseUrl");
     this.wsUrl = this.config.has("webSocketURL") ? this.config.get<string>("webSocketURL") : "";
-    if (this.config.has("type")) this._type = this.config.get<ExchangeType>("type");
+    // if (this.config.has("type")) this._type = this.config.get<ExchangeType>("type");
 
     const apiKeyHeader = this.config.has("apiKeyHeader") ? this.config.get<string>("apiKeyHeader") : "X-Api-Key";
     const axiosConfig = {
@@ -87,8 +88,13 @@ export abstract class ExchangeConnector {
     );
   }
 
+  // Default type is PERP
   public get type(): ExchangeType {
-    return this._type;
+    return ExchangeType.PERP;
+  }
+
+  public get name(): ExchangeName {
+    return this._name;
   }
 
   // Axios client proxy
@@ -174,7 +180,7 @@ export abstract class ExchangeConnector {
   public async closePosition(order: OrderData): Promise<string> {
     console.warn(`${this.name} ExchangeConnector.closePosition(${order.token}) not implemented), using fallback`);
     return this.openPosition(
-      { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG, leverage: 0 },
+      { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG },
       true,
     ).then((response) => response.orderId);
   }

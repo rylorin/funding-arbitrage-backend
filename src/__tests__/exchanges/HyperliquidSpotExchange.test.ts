@@ -17,7 +17,7 @@ describe("HyperliquidExchange", () => {
 
   it("should initialize correctly", () => {
     expect(exchange).toBeDefined();
-    expect(exchange.name).toBe("hyperliquid");
+    expect(exchange.name).toBe("hyperliquidspot");
   });
 
   it("should have proper base class structure", () => {
@@ -59,8 +59,9 @@ describe("HyperliquidExchange", () => {
 
   test("Get positions", async () => {
     const result = await exchange.getAllPositions();
-    console.debug(result);
-    expect(result.length).toBeGreaterThanOrEqual(1);
+    const pos = result.filter((p) => p.token === sampleOrder.token && p.side === sampleOrder.side);
+    console.debug(result, pos);
+    expect(pos.length).toBeGreaterThanOrEqual(1);
   });
 
   test("Cancel order", async () => {
@@ -96,9 +97,10 @@ describe("HyperliquidExchange", () => {
     const placedOrder = await exchange.openPosition(highPrecisionQuantityOrder);
     console.debug(placedOrder);
     expect(placedOrder.orderId).toBeDefined();
-    await exchange.cancelOrder(placedOrder);
-    const result = await exchange.closePosition(placedOrder);
-    console.debug(result);
-    expect(result).toBeDefined();
+    const canceled = await exchange.cancelOrder(placedOrder);
+    if (!canceled) {
+      const result = await exchange.closePosition(placedOrder);
+      console.debug(result);
+    }
   });
 });

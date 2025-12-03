@@ -1,5 +1,5 @@
 import { UserSettings } from "@/models";
-import { UserAttributes } from "@/models/User";
+import { UserCreationAttributes } from "@/models/User";
 import { RiskLevel } from "@/types";
 
 export const sampleSettings: UserSettings = {
@@ -22,10 +22,8 @@ export const sampleSettings: UserSettings = {
   },
 };
 
-export const sampleUser: UserAttributes = {
+export const sampleUser: UserCreationAttributes = {
   id: "1",
   walletAddress: "0xSampleWalletAddress",
   settings: sampleSettings,
-  createdAt: new Date(),
-  updatedAt: new Date(),
 };

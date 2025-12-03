@@ -2,32 +2,10 @@ import { ENDPOINTS, InfoType } from "@hyperliquid/constants";
 import { SpotClearinghouseState, Tif } from "../hyperliquid/types";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
 import { FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
-import { ExchangeType } from "./ExchangeConnector";
+import { ExchangeName, ExchangeType } from "./ExchangeConnector";
 import { HyperliquidExchange } from "./HyperliquidExchange";
 
 export class HyperliquidSpotExchange extends HyperliquidExchange {
-  //   private universe: Record<
-  //     string,
-  //     {
-  //       name: string;
-  //       index: number;
-  //       szDecimals: number;
-  //       weiDecimals: number;
-  //       tokenId: string;
-  //       isCanonical: boolean;
-  //       maxLeverage: 1;
-  //     }
-  //   > = {};
-  //   private spotMarkets: Record<
-  //     string,
-  //     {
-  //       name: string;
-  //       tokens: [number, number]; // Indices of base and quote tokens
-  //       index: number;
-  //       isCanonical: boolean;
-  //     }
-  //   > = {};
-
   constructor() {
     super("hyperliquid");
   }
@@ -35,6 +13,10 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
   // Override type to SPOT for this exchange
   public get type(): ExchangeType {
     return ExchangeType.SPOT;
+  }
+
+  public get name(): ExchangeName {
+    return "hyperliquidspot";
   }
 
   private async getSpotMeta(force: boolean = false): Promise<number> {
@@ -118,7 +100,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
         type: InfoType.SPOT_CLEARINGHOUSE_STATE,
         user: this.primaryAddress,
       }).then((response) => response.data);
-      console.debug("Spot Clearinghouse State:", spotState);
+      // console.debug("Spot Clearinghouse State:", spotState);
 
       const balances: { [token: string]: number } = {};
 
@@ -286,8 +268,17 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
 
   // Override funding rates - spot markets don't have funding rates
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
+    const updatedAt = new Date();
+    const nextFunding = new Date(2027, 0, 1); // Placeholder dates
     // Spot markets don't have funding rates
-    return [];
+    return Object.entries(this.universe).map(([token, _data]) => ({
+      exchange: this.name,
+      token: token as TokenSymbol,
+      fundingRate: 0,
+      fundingFrequency: 1, // in hours
+      nextFunding,
+      updatedAt,
+    }));
   }
 }
 

@@ -52,8 +52,9 @@ describe("OrderlyExchange", () => {
 
   test("Get positions", async () => {
     const result = await exchange.getAllPositions();
-    console.debug(result);
-    expect(result.length).toBeGreaterThanOrEqual(1);
+    const pos = result.filter((p) => p.token === sampleOrder.token && p.side === sampleOrder.side);
+    console.debug(result, pos);
+    expect(pos.length).toBeGreaterThanOrEqual(1);
   });
 
   test("Cancel order", async () => {
@@ -89,9 +90,10 @@ describe("OrderlyExchange", () => {
     const placedOrder = await exchange.openPosition(highPrecisionQuantityOrder);
     console.debug(placedOrder);
     expect(placedOrder.orderId).toBeDefined();
-    await exchange.cancelOrder(placedOrder);
-    const result = await exchange.closePosition(placedOrder);
-    console.debug(result);
-    expect(result).toBeDefined();
+    const canceled = await exchange.cancelOrder(placedOrder);
+    if (!canceled) {
+      const result = await exchange.closePosition(placedOrder);
+      console.debug(result);
+    }
   });
 });

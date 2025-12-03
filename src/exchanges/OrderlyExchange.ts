@@ -266,12 +266,14 @@ export class OrderlyExchange extends ExchangeConnector {
     return leverage;
   }
 
+  // https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
   public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
-    const { token, side, size } = order;
+    const { exchange, token, side, size, leverage } = order;
     try {
-      if (order.leverage) await this.setLeverage(order.token, order.leverage);
+      if (leverage) await this.setLeverage(token, leverage);
 
       const infos = await this.getTokenInfo([token]);
+      const price = await this.getPrice(token);
 
       // (size - infos[token].base_min) % infos[token].base_tick should equal to zero
       const min = infos[token].base_min;
@@ -293,23 +295,25 @@ export class OrderlyExchange extends ExchangeConnector {
       const roundedDiffInt = Math.floor(diffInt / tickInt) * tickInt;
       const orderQuantityInt = minInt + roundedDiffInt;
 
-      // Convert back to decimal
       const order_quantity = orderQuantityInt / multiplier;
+      const order_amount = order_quantity * price;
+      // const order_slippage = price * (order.slippage / 100);
+      const order_slippage = order.slippage / 100;
 
+      // Convert back to decimal
       if (order_quantity < infos[token].base_min || order_quantity > infos[token].base_max)
         throw new Error(
           `Order size ${order_quantity} out of bounds for ${token} on Orderly: min ${infos[token].base_min}, max ${infos[token].base_max}`,
         );
 
-      // const order_amount = order_quantity * price;
-      // if (order_amount < 10) throw new Error(`The order value ${order_amount} should be greater or equal to 10`);
+      if (order_amount < 10) throw new Error(`The order value ${order_amount} should be greater or equal to 10`);
 
       const payload = {
         symbol: this.tokenToTicker(token),
         order_type: "MARKET",
         side: side === PositionSide.LONG ? "BUY" : "SELL",
         order_quantity,
-        slippage: order.slippage / 100,
+        slippage: order_slippage,
         reduce_only: reduceOnly,
       };
       const response = await this.post("/v1/order", payload).catch((reason: any) => {
@@ -320,15 +324,17 @@ export class OrderlyExchange extends ExchangeConnector {
       if (response.data.success && response.data.data?.order_id) {
         const orderId = response.data.data.order_id;
         return {
-          exchange: order.exchange,
-          token: order.token,
-          side: order.side,
-          leverage: order.leverage,
+          ...response.data.data,
+
+          exchange,
+          token,
+          side,
+          leverage,
           slippage: order.slippage,
 
           orderId: orderId.toString(),
           size: response.data.data.order_quantity,
-          price: response.data.data.order_price,
+          price: response.data.data.order_price || price,
         };
       }
 
@@ -537,6 +543,10 @@ export class OrderlyExchange extends ExchangeConnector {
 
     if (response.data.success && response.data.data?.rows) {
       return response.data.data.rows.map((pos: any) => ({
+        ...pos,
+        timestamp: new Date(pos.timestamp),
+        updated_time: new Date(pos.updated_time),
+
         id: "id",
         userId: "userId",
         tradeId: "tradeId",
@@ -546,7 +556,7 @@ export class OrderlyExchange extends ExchangeConnector {
 
         exchange: this.name,
         side: pos.position_qty > 0 ? PositionSide.LONG : PositionSide.SHORT,
-        size: Math.abs(pos.position_qty),
+        size: Math.abs(pos.position_qty + pos.pending_long_qty + pos.pending_short_qty),
         price: pos.mark_price,
         leverage: parseInt(pos.leverage),
         orderId: "orderId",
@@ -554,22 +564,6 @@ export class OrderlyExchange extends ExchangeConnector {
         cost: Math.abs(pos.cost_position),
         unrealizedPnL: pos.unsettled_pnl,
         realizedPnL: 0,
-
-        IMR_withdraw_orders: pos.IMR_withdraw_orders,
-        MMR_with_orders: pos.MMR_with_orders,
-        average_open_price: pos.average_open_price,
-        est_liq_price: pos.est_liq_price,
-        fee_24_h: pos.fee_24_h,
-        imr: pos.imr,
-        last_sum_unitary_funding: pos.last_sum_unitary_funding,
-        mmr: pos.mmr,
-        pending_long_qty: pos.pending_long_qty,
-        pending_short_qty: pos.pending_short_qty,
-        pnl_24_h: pos.pnl_24_h,
-        settle_price: pos.settle_price,
-        seq: pos.seq,
-        timestamp: new Date(pos.timestamp),
-        updated_time: new Date(pos.updated_time),
       }));
     }
 

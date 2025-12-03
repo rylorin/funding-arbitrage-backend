@@ -38,8 +38,11 @@ export interface TradeHistoryAttributes {
   createdAt: Date;
 }
 
-interface TradeHistoryCreationAttributes
-  extends Optional<TradeHistoryAttributes, "id" | "closedAt" | "closedReason" | "createdAt" | "updatedAt"> {}
+export interface TradeHistoryCreationAttributes
+  extends Optional<
+    TradeHistoryAttributes,
+    "id" | "currentPnL" | "currentApr" | "closedAt" | "closedReason" | "createdAt" | "updatedAt"
+  > {}
 
 export class TradeHistory
   extends Model<TradeHistoryAttributes, TradeHistoryCreationAttributes>

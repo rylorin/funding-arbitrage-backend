@@ -29,6 +29,7 @@ interface PositionAttributes extends PlacedOrderData {
   id: string;
   userId: string;
   tradeId: string;
+
   token: TokenSymbol;
   status: PositionStatus;
   entryTimestamp: Date;

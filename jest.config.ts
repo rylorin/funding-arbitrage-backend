@@ -30,7 +30,7 @@ const jestConfig: JestConfigWithTsJest = {
       },
     ],
   },
-  transformIgnorePatterns: ["node_modules/(?!(?:@noble/.*|lodash-es|@x10xchange))"],
+  transformIgnorePatterns: ["node_modules/(?!(?:@noble/.*|lodash-es))"],
 };
 
 export default jestConfig;

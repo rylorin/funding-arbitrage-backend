@@ -1,4 +1,6 @@
 import { FundingRateAttributes } from "@/models/FundingRate";
+import { ExchangeType } from "../exchanges/ExchangeConnector";
+import { exchangesRegistry } from "../exchanges/index";
 import { FundingRate } from "../models/index";
 import { ArbitrageOpportunityData, ExchangeName, RiskLevel, TokenSymbol } from "../types/index";
 
@@ -32,6 +34,22 @@ function getNextFundingTime(opportunity: any): string {
 function getTokenIcon(token: string): string {
   // Return token icon URL or path
   return `/icons/${token.toLowerCase()}.png`;
+}
+
+/**
+ * Vérifie si un exchange est de type spot
+ */
+function isSpotExchange(exchangeName: string): boolean {
+  const exchange = exchangesRegistry.getExchange(exchangeName as ExchangeName);
+  return exchange ? exchange.type === ExchangeType.SPOT : false;
+}
+
+/**
+ * Vérifie si un exchange supporte les positions short
+ * Les exchanges spot ne supportent pas les short positions
+ */
+function supportsShortPositions(exchangeName: string): boolean {
+  return !isSpotExchange(exchangeName);
 }
 
 export class OpportunityDetectionService {
@@ -73,6 +91,12 @@ export class OpportunityDetectionService {
             // Éviter la même exchange
             if (longRate.exchange === shortRate.exchange) continue;
 
+            // Vérifier que l'exchange short supporte les positions short
+            // Les exchanges spot ne supportent pas les short positions
+            if (!supportsShortPositions(shortRate.exchange)) {
+              continue;
+            }
+
             // Filtrer par exchanges autorisés
             if (
               allowedExchanges &&
@@ -81,8 +105,14 @@ export class OpportunityDetectionService {
             )
               continue;
 
-            // Calculer l'APR du spread
-            const spreadAPR = OpportunityDetectionService.calculateSpreadAPR(longRate, shortRate);
+            // Calculer l'APR du spread en tenant compte des exchanges spot
+            // Les exchanges spot ont des funding fees nulles, donc on les considère comme 0
+            const effectiveLongRate = isSpotExchange(longRate.exchange) ? { ...longRate, fundingRate: 0 } : longRate;
+            const effectiveShortRate = isSpotExchange(shortRate.exchange)
+              ? { ...shortRate, fundingRate: 0 }
+              : shortRate;
+
+            const spreadAPR = OpportunityDetectionService.calculateSpreadAPR(effectiveLongRate, effectiveShortRate);
             // if (token === "KAITO")
             //   console.log(
             //     `Token: ${token}, Long: ${longRate.exchange} (${longRate.fundingRate}), Short: ${shortRate.exchange} (${shortRate.fundingRate}), Spread APR: ${spreadAPR.toFixed(2)}%`,
@@ -261,11 +291,23 @@ export class OpportunityDetectionService {
     // Impact du spread trop faible (risque de disparition rapide)
     if (spread < 0.0001) score -= 20;
 
-    // Bonus pour exchanges établis
-    const establishedExchanges = ["vest", "hyperliquid"];
-    const exchangeReliability =
-      establishedExchanges.includes(longRate.exchange) && establishedExchanges.includes(shortRate.exchange) ? 1.0 : 0.5;
-    score += (exchangeReliability - 0.5) * 20; // +10 pour exchanges établis
+    // Bonus pour exchanges établis et spot (plus sûrs)
+    const establishedExchanges = ["vest", "hyperliquid", "hyperliquidspot"];
+    const isLongSpot = isSpotExchange(longRate.exchange);
+    const isShortSpot = isSpotExchange(shortRate.exchange);
+
+    let exchangeReliability = 0.5; // Base reliability
+
+    // Higher reliability for established exchanges
+    if (establishedExchanges.includes(longRate.exchange) && establishedExchanges.includes(shortRate.exchange)) {
+      exchangeReliability = 1.0;
+    }
+    // Extra bonus for spot exchanges (no liquidation risk)
+    else if (isLongSpot || isShortSpot) {
+      exchangeReliability = 0.8;
+    }
+
+    score += (exchangeReliability - 0.5) * 20;
 
     // Clamp score entre 0 et 100
     score = Math.max(0, Math.min(100, score));

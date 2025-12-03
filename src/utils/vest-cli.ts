@@ -97,8 +97,14 @@ async function main() {
     console.log("\n" + "=".repeat(60));
     console.log("GENERATED SIGNING CREDENTIALS");
     console.log("=".repeat(60));
-    console.log(`"apiKey": "${result.apiKey}",`);
-    console.log(`"privateKey": "${signingPrivateKey}"`);
+    console.log(`
+    "vest": {
+      "apiKey": "${result.apiKey}",
+      "privateKey": "${signingPrivateKey}"
+    },
+`);
+    // console.log(`"apiKey": "${result.apiKey}",`);
+    // console.log(`"privateKey": "${signingPrivateKey}"`);
     console.log("\n⚠️  IMPORTANT: Keep the signing private key secure and never share it!");
     console.log("=".repeat(60));
   } catch (error) {

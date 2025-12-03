@@ -147,6 +147,53 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
+  public async getPrices(tokens?: TokenSymbol[]): Promise<{ [token: string]: number }> {
+    try {
+      const prices: { [token: string]: number } = {};
+
+      // Get all markets to find prices
+      const response = await this.get("/api/v1/info/markets");
+      const marketsResponse = response.data as ExtendedMarketsResponse;
+
+      // If no tokens specified, extract all available tokens from tickers
+      const tokensToProcess = tokens || this.extractTokensFromTickers(marketsResponse.data);
+
+      for (const token of tokensToProcess) {
+        try {
+          // Extended uses format like BTC-USD, ETH-USD, SOL-USD
+          const symbol = this.tokenToTicker(token);
+
+          // Find market for this token
+          const market = marketsResponse.data.find((m) => m.name === symbol);
+
+          if (market && market.marketStats) {
+            // Use lastPrice from market stats
+            const price = parseFloat(market.marketStats.lastPrice);
+            if (!isNaN(price) && price > 0) {
+              prices[token] = price;
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to get price for ${token} on Extended:`, error);
+        }
+      }
+
+      return prices;
+    } catch (error) {
+      console.error("Error fetching Extended prices:", error);
+      throw new Error("Failed to fetch prices from Extended");
+    }
+  }
+
+  public async getPrice(token: TokenSymbol): Promise<number> {
+    const allPrices = await this.getPrices([token]);
+    const price = allPrices[token];
+    if (price === undefined) {
+      throw new Error(`Price not found for token ${token} on Extended Exchange`);
+    }
+    return price;
+  }
+
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
       // Extended requires Stark signature for private endpoints
@@ -261,9 +308,10 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
+  // https://api.docs.extended.exchange/#cancel-order-by-external-id
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     const { orderId: externalId } = order;
-    const result = await this.post<GenericResponse<null>>(`/api/v1/user/order?externalId=${externalId}`);
+    const result = await this.delete<GenericResponse<null>>(`/api/v1/user/order?externalId=${externalId}`);
 
     return result.data.status == "OK";
   }

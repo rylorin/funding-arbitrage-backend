@@ -236,7 +236,7 @@ export class PositionSyncService implements Service {
         hoursOpen,
         currentPnL,
       };
-      console.log(position.token, metrics);
+      console.debug(position.token, position.exchange, metrics);
       return metrics;
     } catch (error) {
       console.error(`Error calculating metrics for position ${position.id}:`, error);

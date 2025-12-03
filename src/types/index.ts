@@ -9,7 +9,7 @@ export type OrderData = {
   size: number;
   price: number;
   leverage: number;
-  slippage: number;
+  slippage: number; // in percentage
 };
 
 export type PlacedOrderData = OrderData & { orderId: string };

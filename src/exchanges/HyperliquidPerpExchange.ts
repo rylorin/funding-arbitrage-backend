@@ -24,10 +24,10 @@ interface HyperliquidFundingHistory {
 export class HyperliquidPerpExchange extends HyperliquidExchange {
   constructor() {
     super("hyperliquid");
-    // Override type to PERP for this exchange
-    // Note: We can't override the readonly property directly, so we'll handle it in the specific methods
   }
 
+  // Override type to PERP for this exchange
+  // Note: We can't override the readonly property directly, so we'll handle it in the specific methods
   public get type(): ExchangeType {
     return ExchangeType.PERP;
   }

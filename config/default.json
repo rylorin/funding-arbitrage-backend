@@ -8,8 +8,7 @@
       "apiKeyHeader": "APEX-API-KEY",
       "apiKey": "your-apex-api-key",
       "passphrase": "your-apex-passphrase",
-      "secretKey": "your-apex-secret-key",
-      "type": "perp"
+      "secretKey": "your-apex-secret-key"
     },
     "apexspot": {
       "enabled": true,
@@ -17,8 +16,7 @@
       "webSocketURL": "wss://ws-pro.apex.exchange",
       "apiKey": "your-apex-api-key",
       "secretKey": "your-apex-secret-key",
-      "passphrase": "your-apex-passphrase",
-      "type": "spot"
+      "passphrase": "your-apex-passphrase"
     },
     "asterperp": {
       "enabled": true,
@@ -35,8 +33,7 @@
       "webSocketURL": "wss://ws.asterperp.com/ws",
       "apiKeyHeader": "X-MBX-APIKEY",
       "apiKey": "your-asterspot-api-key",
-      "secretKey": "your-asterperp-secret-key",
-      "type": "spot"
+      "secretKey": "your-asterperp-secret-key"
     },
     "extended": {
       "enabled": true,
@@ -83,13 +80,13 @@
     "maxPositionSize": 1000,
     "maxSimultaneousPositions": 1,
     "riskTolerance": "medium",
-    "preferredExchanges": ["orderly", "extended", "vest", "hyperliquid", "asterperp"],
+    "preferredExchanges": ["extended", "hyperliquid", "orderly", "vest"],
     "autoCloseEnabled": true,
     "autoCloseAPRThreshold": 0,
     "autoCloseTimeoutHours": 0,
     "autoClosePnLThreshold": 25,
     "positionLeverage": 1,
-    "slippageTolerance": 0.3,
+    "slippageTolerance": 0.1,
     "notificationPreferences": {
       "email": true,
       "webhook": true,

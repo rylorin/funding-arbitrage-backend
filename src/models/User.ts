@@ -39,7 +39,7 @@ export interface UserAttributes {
   updatedAt: Date;
 }
 
-interface UserCreationAttributes extends Optional<UserAttributes, "id" | "createdAt" | "updatedAt"> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, "id" | "createdAt" | "updatedAt"> {}
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare public id: string;

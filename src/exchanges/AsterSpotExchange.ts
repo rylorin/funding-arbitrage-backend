@@ -4,6 +4,7 @@ import { createHmac } from "crypto";
 import WebSocket from "ws";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import { ExchangeType } from "./ExchangeConnector";
 
 interface AsterSpotMarket {
   symbol: string;
@@ -98,6 +99,10 @@ export class AsterSpotExchange extends ExchangeConnector {
     this.secretKey = this.config.get<string>("secretKey");
   }
 
+  public get type(): ExchangeType {
+    return ExchangeType.SPOT;
+  }
+
   public post<T = any, R = AxiosResponse<T>, D = any>(
     url: string,
     data?: D,
@@ -179,7 +184,7 @@ export class AsterSpotExchange extends ExchangeConnector {
       fundingRate: 0,
       fundingFrequency: 1,
       updatedAt: now,
-      nextFunding: new Date(2026, 1, 1),
+      nextFunding: new Date(2027, 0, 1),
     }));
   }
 

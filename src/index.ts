@@ -19,6 +19,7 @@ import {
   ExchangesRegistry,
   extendedExchange,
   hyperliquidPerpExchange,
+  hyperliquidSpotExchange,
   orderlyExchange,
   vestExchange,
 } from "./exchanges";
@@ -143,12 +144,13 @@ async function startServer(_config: IConfig): Promise<void> {
     // Setting up exchanges connections
     console.log("🔌 Setting up exchanges connections...");
     await [
-      extendedExchange,
-      hyperliquidPerpExchange,
-      vestExchange,
-      orderlyExchange,
       asterPerpExchange,
       asterSpotExchange,
+      extendedExchange,
+      hyperliquidPerpExchange,
+      hyperliquidSpotExchange,
+      orderlyExchange,
+      vestExchange,
       // apexPerpExchange,
     ].reduce(async (p, exchange) => {
       p.then(async () => {
