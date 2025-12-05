@@ -89,9 +89,9 @@ export class HealthService {
       };
 
       if (overallStatus === "unhealthy") {
-        console.log(`❌ Health check completed with issues: ${result.message}`);
+        console.error(`❌ Health check completed with issues: ${result.message}`);
       } else if (overallStatus === "warning") {
-        console.log(`⚠️  Health check completed with warnings: ${result.message}`);
+        console.warn(`⚠️  Health check completed with warnings: ${result.message}`);
       } else {
         console.log(`✅ Health check completed successfully: ${result.message}`);
       }

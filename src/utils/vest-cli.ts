@@ -31,7 +31,7 @@ async function main() {
     console.log("✓ Generated new signing key", privateKey);
 
     // Phase 2: Create a proof signature using the signing key
-    const expiry = Math.round(Date.now() + 1 * 24 * 3600_000); // 1 day from now
+    const expiry = Math.round(Date.now() + 26 * 3600_000); // 26 hours from now
 
     const domain = {
       name: "VestRouterV2",
@@ -70,12 +70,6 @@ async function main() {
     };
 
     console.log("✓ Sending registration request to Vest server...", registrationData);
-    //     console.log(`
-    // curl -H 'Content-Type: application/json' \\
-    // -d '{ "signingAddr": "${registrationData.signingAddr}", "primaryAddr": "${registrationData.primaryAddr}", "signature": "${registrationData.signature}", "expiryTime": ${expiry}, "networkType": 0 }' \\
-    // -X POST \\
-    // https://server-prod.hz.vestmarkets.com/v2/register
-    // `);
     const response = await fetch("https://server-prod.hz.vestmarkets.com/v2/register", {
       method: "POST",
       headers: {
@@ -103,8 +97,6 @@ async function main() {
       "privateKey": "${signingPrivateKey}"
     },
 `);
-    // console.log(`"apiKey": "${result.apiKey}",`);
-    // console.log(`"privateKey": "${signingPrivateKey}"`);
     console.log("\n⚠️  IMPORTANT: Keep the signing private key secure and never share it!");
     console.log("=".repeat(60));
   } catch (error) {

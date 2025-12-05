@@ -313,7 +313,7 @@ export interface ArbitrageOpportunityData {
   tokenIcon: string;
   longExchange: ExchangeData;
   shortExchange: ExchangeData;
-  spread: OpportunitySpread;
+  spreadAPR: number;
   risk: RiskAssessment;
   timing: OpportunityTiming;
 }
@@ -342,10 +342,7 @@ export interface ArbitrageOpportunityData {
           "fundingFrequencey": 8,
           "price": 45145.23
         },
-        "spread": {
-          "absolute": 0.000153,
-          "apr": 11.34
-        },
+        "spreadAPR": : 11.34,
         "risk": {
           "level": "low",
           "score": 89.90677382637384,

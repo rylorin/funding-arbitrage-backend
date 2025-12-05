@@ -26,7 +26,7 @@ export class WebSocketHandlers {
 
   public handleOpportunityAlert(opportunity: ArbitrageOpportunityData): void {
     // Only alert for high-value opportunities
-    if (opportunity.spread.apr >= 15 && opportunity.risk.score >= 70) {
+    if (opportunity.spreadAPR >= 15 && opportunity.risk.score >= 70) {
       this.broadcaster.broadcastOpportunityAlert(opportunity);
     }
   }

@@ -18,8 +18,6 @@ type TokenInfo = { base_min: number; base_max: number; base_tick: number };
 type TokenPrice = { mark_price: number; index_price: number };
 
 export class OrderlyExchange extends ExchangeConnector {
-  // private ws: WebSocket | null = null;
-
   constructor() {
     super("orderly");
 
@@ -80,8 +78,7 @@ export class OrderlyExchange extends ExchangeConnector {
       // Test connection with public endpoint - get exchange info
       const response = await this.get("/v1/public/info");
       const count = response.data.data?.rows?.length || 0;
-
-      console.log(`✅ Orderly Exchange connected: ${count} markets available`);
+      // console.log(`✅ Orderly Exchange connected: ${count} markets available`);
       return count;
     } catch (error) {
       console.error("❌ Failed to connect to Orderly Exchange:", error);
@@ -223,8 +220,8 @@ export class OrderlyExchange extends ExchangeConnector {
               nextFunding,
               fundingFrequency,
               updatedAt: new Date(),
-              markPrice: prices[token].mark_price || 0,
-              indexPrice: prices[token].index_price || 0,
+              markPrice: prices[token].mark_price,
+              indexPrice: prices[token].index_price,
             });
           }
         } catch (error) {

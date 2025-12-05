@@ -74,7 +74,7 @@ export class ExtendedExchange extends ExchangeConnector {
       const marketsResponse = response.data as ExtendedMarketsResponse;
       const count = marketsResponse.data?.length || 0;
 
-      console.log(`✅ Extended Exchange connected: ${count} markets available`);
+      // console.log(`✅ Extended Exchange connected: ${count} markets available`);
       return count;
     } catch (error) {
       console.error("❌ Failed to connect to Extended Exchange:", error);

@@ -157,7 +157,9 @@ async function startServer(_config: IConfig): Promise<void> {
         if (exchange.isEnabled) {
           console.log(`🔗 Connecting to ${exchange.name} exchange...`);
           ExchangesRegistry.registerExchange(exchange);
-          return exchange.testConnection();
+          return exchange
+            .testConnection()
+            .then((count) => console.log(`✅ ${exchange.name} exchange connected: ${count} pairs available`));
         } else {
           console.log(`⚠️ ${exchange.name} exchange is disabled, skipping connection`);
           return Promise.resolve();

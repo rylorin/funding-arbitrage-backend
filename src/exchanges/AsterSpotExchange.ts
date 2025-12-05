@@ -156,7 +156,7 @@ export class AsterSpotExchange extends ExchangeConnector {
   public async testConnection(): Promise<number> {
     try {
       const count = await this.getExchangeInfo(true);
-      console.log(`✅ Aster Spot Exchange connected: ${count} pairs available`);
+      // console.log(`✅ Aster Spot Exchange connected: ${count} pairs available`);
       return count;
     } catch (error) {
       console.error("❌ Failed to connect to Aster Spot Exchange:", error);

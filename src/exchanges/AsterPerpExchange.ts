@@ -99,7 +99,7 @@ export class AsterPerpExchange extends ExchangeConnector {
       .post<T, R, D>(url, data, {
         transformRequest: [
           (data, headers) => {
-            /*            delete */ headers["Content-Type"] = "application/x-www-form-urlencoded";
+            headers["Content-Type"] = "application/x-www-form-urlencoded";
             return data;
           },
         ],
@@ -124,7 +124,7 @@ export class AsterPerpExchange extends ExchangeConnector {
   public async testConnection(): Promise<number> {
     try {
       const count = await this.getExchangeInfo(true);
-      console.log(`✅ Aster Perp Exchange connected: ${count} perpetual markets available`);
+      // console.log(`✅ Aster Perp Exchange connected: ${count} perpetual markets available`);
       return count;
     } catch (error) {
       console.error("❌ Failed to connect to Aster Perp Exchange:", error);
@@ -136,13 +136,6 @@ export class AsterPerpExchange extends ExchangeConnector {
     const token = symbol.replace("USDT", "").replace("BUSD", "").replace("USD", "");
     return token && token.length > 0 ? (token as TokenSymbol) : null;
   }
-
-  // private extractTokensFromMarkets(marketsResponse: any[]): TokenSymbol[] {
-  //   const tokens = marketsResponse
-  //     .map((market) => this.tokenFromTicker(market.symbol))
-  //     .filter((token) => token !== null);
-  //   return tokens as TokenSymbol[];
-  // }
 
   protected tokenToTicker(token: TokenSymbol): string {
     return `${token}USDT`;
@@ -176,7 +169,6 @@ export class AsterPerpExchange extends ExchangeConnector {
             markPrice: parseFloat(markPrice.markPrice),
             indexPrice: parseFloat(markPrice.indexPrice),
           };
-          //   if (token == "LTC") console.log(markPrice, rate);
           fundingRates.push(rate);
         } catch (error) {
           console.warn(`Failed to get funding rate for ${markPrice.symbol}:`, error);
@@ -234,7 +226,6 @@ export class AsterPerpExchange extends ExchangeConnector {
     const { token, side, size, leverage } = order;
     try {
       await this.getExchangeInfo();
-      // console.log(this.universe[token]);
 
       const symbol = this.tokenToTicker(token);
       const sideParam = side === PositionSide.LONG ? "BUY" : "SELL";
@@ -437,6 +428,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     }
   }
 
+  // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#position-information-v2-user_data
   public async getAllPositions(): Promise<Position[]> {
     try {
       const timestamp = Date.now();
@@ -450,28 +442,25 @@ export class AsterPerpExchange extends ExchangeConnector {
           const token = this.tokenFromTicker(pos.symbol);
           if (token) {
             positions.push({
+              ...pos,
+
               id: pos.symbol,
               userId: "userId",
               tradeId: "tradeId",
               token,
               status: PositionStatus.OPEN,
-              entryTimestamp: new Date(),
 
               exchange: this.name,
               side: parseFloat(pos.positionAmt) > 0 ? PositionSide.LONG : PositionSide.SHORT,
               size: Math.abs(parseFloat(pos.positionAmt)),
               price: parseFloat(pos.entryPrice),
               leverage: parseFloat(pos.leverage),
-              slippage: 0,
               orderId: "orderId",
 
               cost: Math.abs(parseFloat(pos.notional)),
               unrealizedPnL: parseFloat(pos.unRealizedProfit),
               realizedPnL: 0,
-
-              updatedAt: new Date(),
-              createdAt: new Date(),
-            } as any);
+            });
           }
         }
       }

@@ -9,6 +9,7 @@ export interface FundingRateAttributes {
 
   fundingRate: number;
   fundingFrequency: number; // in hours
+  apr: number;
   nextFunding: Date;
 
   markPrice?: number;
@@ -29,6 +30,7 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
   declare public token: TokenSymbol;
   declare public fundingRate: number;
   declare public fundingFrequency: number; // in hours
+  declare public apr: number;
   declare public nextFunding: Date;
   declare public markPrice?: number;
   declare public indexPrice?: number;
@@ -50,7 +52,7 @@ class FundingRate extends Model<FundingRateAttributes, FundingRateCreationAttrib
       // Get latest for specific token and exchange
       result = await FundingRate.findAll({
         where: whereClause,
-        order: [["updatedAt", "DESC"]],
+        // order: [["updatedAt", "DESC"]],
         limit: 1,
       });
     } else {
@@ -113,6 +115,10 @@ FundingRate.init(
       type: DataTypes.SMALLINT,
       defaultValue: 1, // Default to 1 hour(s) if not provided
       allowNull: false,
+    },
+    apr: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
     },
     nextFunding: {
       type: DataTypes.DATE,

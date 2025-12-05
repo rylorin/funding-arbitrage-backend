@@ -2,7 +2,7 @@ import { opportunityDetectionService } from "@/services/OpportunityDetectionServ
 import { Request, Response } from "express";
 import Joi from "joi";
 import { FundingRate } from "../models/index";
-import { RiskLevel } from "../types";
+import { ArbitrageOpportunityData, RiskLevel } from "../types";
 
 // Interface pour les données formatées pour le tableau des taux
 interface FundingRateDisplay {
@@ -115,7 +115,7 @@ export const getDashboard = async (_req: Request, res: Response): Promise<void> 
           totalExchanges: exchangeStats.totalExchanges,
           activeMarkets: exchangeStats.activeMarkets,
           totalOpportunities: opportunities.length,
-          bestAPR: opportunities.length > 0 ? opportunities[0].spread.apr : 0,
+          bestAPR: opportunities.length > 0 ? opportunities[0].spreadAPR : 0,
           avgFundingRate: exchangeStats.avgFundingRate,
           lastUpdated: new Date().toISOString(),
         },
@@ -252,9 +252,9 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
     const { minAPR, riskLevel, token, limit } = value;
 
     // Get opportunities
-    let opportunities = await opportunityDetectionService.findOpportunities({
+    let opportunities: ArbitrageOpportunityData[] = await opportunityDetectionService.findOpportunities({
       minAPRThreshold: minAPR,
-      maxPriceDeviation: 0.5,
+      // maxPriceDeviation: 0.5,
       riskTolerance: riskLevel,
       limit,
     });
@@ -277,10 +277,10 @@ export const getArbitrageOpportunities = async (req: Request, res: Response): Pr
         opportunities,
         summary: {
           totalOpportunities: opportunities.length,
-          bestAPR: opportunities.length > 0 ? opportunities[0].spread.apr : 0,
+          bestAPR: opportunities.length > 0 ? opportunities[0].spreadAPR : 0,
           avgAPR:
             opportunities.length > 0
-              ? opportunities.reduce((sum, opp) => sum + opp.spread.apr, 0) / opportunities.length
+              ? opportunities.reduce((sum, opp) => sum + opp.spreadAPR, 0) / opportunities.length
               : 0,
           avgRiskScore:
             opportunities.length > 0
@@ -449,7 +449,7 @@ export const getMarketOverview = async (_req: Request, res: Response): Promise<v
         totalOpportunities: opportunities.length,
         totalVolume24h: totalVolume,
         totalVolumeFormatted: "$" + totalVolume.toLocaleString(),
-        bestOpportunityAPR: opportunities[0]?.spread.apr || 0,
+        bestOpportunityAPR: opportunities[0]?.spreadAPR || 0,
         averageFundingRate: latestRates.reduce((sum, r) => sum + Math.abs(r.fundingRate), 0) / latestRates.length,
         marketSentiment: positiveRates.length > negativeRates.length ? "BULLISH" : "BEARISH",
         lastUpdated: new Date().toISOString(),

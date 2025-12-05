@@ -113,10 +113,6 @@ export class OpportunityDetectionService {
               : shortRate;
 
             const spreadAPR = OpportunityDetectionService.calculateSpreadAPR(effectiveLongRate, effectiveShortRate);
-            // if (token === "KAITO")
-            //   console.log(
-            //     `Token: ${token}, Long: ${longRate.exchange} (${longRate.fundingRate}), Short: ${shortRate.exchange} (${shortRate.fundingRate}), Spread APR: ${spreadAPR.toFixed(2)}%`,
-            //   );
 
             // Filtrer par seuil minimum APR
             if (spreadAPR < minAPRThreshold) continue;
@@ -158,19 +154,17 @@ export class OpportunityDetectionService {
                 name: longRate.exchange,
                 fundingRate: longRate.fundingRate / longRate.fundingFrequency,
                 fundingFrequency: longRate.fundingFrequency,
+                apr: longRate.apr,
                 price: longRate.markPrice!,
               },
               shortExchange: {
                 name: shortRate.exchange,
                 fundingRate: shortRate.fundingRate / shortRate.fundingFrequency,
                 fundingFrequency: shortRate.fundingFrequency,
+                apr: shortRate.apr,
                 price: shortRate.markPrice!,
               },
-              spread: {
-                absolute:
-                  shortRate.fundingRate / shortRate.fundingFrequency - longRate.fundingRate / longRate.fundingFrequency,
-                apr: spreadAPR,
-              },
+              spreadAPR: OpportunityDetectionService.calculateSpreadAPR(longRate, shortRate),
               risk: riskAssessment,
               timing: {
                 nextFunding: getNextFundingTime(opp),
@@ -190,7 +184,7 @@ export class OpportunityDetectionService {
       }
 
       // Trier par spreadAPR décroissant
-      opportunities.sort((a, b) => b.spread.apr - a.spread.apr);
+      opportunities.sort((a, b) => b.spreadAPR - a.spreadAPR);
 
       return limit ? opportunities.slice(0, limit) : opportunities; // Retourner les n meilleures
     } catch (error) {
@@ -213,7 +207,7 @@ export class OpportunityDetectionService {
   ): ArbitrageOpportunityData[] {
     return opportunities.filter((opp) => {
       // Filtre APR minimum
-      if (userSettings.minAPR && opp.spread.apr < userSettings.minAPR) {
+      if (userSettings.minAPR && opp.spreadAPR < userSettings.minAPR) {
         // console.log(
         //   `Filtering out opportunity for ${opp.token} due to min APR: ${opp.spread.apr} < ${userSettings.minAPR}`,
         //   opp,
@@ -256,11 +250,10 @@ export class OpportunityDetectionService {
    * Calcule l'APR du spread entre deux rates
    */
   public static calculateSpreadAPR(longRate: FundingRateAttributes, shortRate: FundingRateAttributes): number {
-    const longApr = (365 * 24 * longRate.fundingRate) / longRate.fundingFrequency;
-    const shortApr = (365 * 24 * shortRate.fundingRate) / shortRate.fundingFrequency;
+    const longApr = longRate.apr;
+    const shortApr = shortRate.apr;
     const spread = shortApr - longApr;
-
-    return spread * 100; // Convertir en pourcentage
+    return spread;
   }
 
   /**

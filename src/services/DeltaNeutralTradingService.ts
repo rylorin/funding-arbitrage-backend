@@ -1,10 +1,10 @@
+import { defaultUserSettings, Position, TradeHistory, User, UserAttributes, UserSettings } from "@/models";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import { TradeStatus } from "@/models/TradeHistory";
-// import { defaultUserSettings, UserSettings } from "@/models/User";
-import { defaultUserSettings, Position, TradeHistory, User, UserAttributes, UserSettings } from "@/models";
 import { default as config, IConfig } from "config";
 import { Op } from "sequelize";
 import { ExchangesRegistry, exchangesRegistry } from "../exchanges";
+import { ExchangeType } from "../exchanges/ExchangeConnector";
 import {
   ArbitrageOpportunityData,
   ExchangeName,
@@ -74,7 +74,7 @@ export class DeltaNeutralTradingService implements Service {
 
       // Trouver les meilleures opportunités
       const opportunities = (await opportunityDetectionService.findOpportunities()).sort(
-        (o1, o2) => o2.spread.apr - o1.spread.apr,
+        (o1, o2) => o2.spreadAPR - o1.spreadAPR,
       );
 
       if (opportunities.length === 0) {
@@ -457,7 +457,7 @@ export class DeltaNeutralTradingService implements Service {
           }
 
           console.log(
-            `ℹ️ Attempting to open position for user ${user.id} on opportunity: ${opportunity.token} ${opportunity.spread.apr.toFixed(2)}% APR`,
+            `ℹ️ Attempting to open position for user ${user.id} on opportunity: ${opportunity.token} ${opportunity.spreadAPR.toFixed(2)}% APR`,
             // opportunity,
           );
           const tradingResult = await this.executeTrade(user, opportunity, settings);
@@ -465,7 +465,7 @@ export class DeltaNeutralTradingService implements Service {
 
           if (tradingResult.success) {
             console.log(
-              `✅ Successfully opened position for user ${user.id}: ${opportunity.token} ${opportunity.spread.apr.toFixed(2)}% APR`,
+              `✅ Successfully opened position for user ${user.id}: ${opportunity.token} ${opportunity.spreadAPR.toFixed(2)}% APR`,
             );
             activePositionsCount += 1;
           } else {
@@ -528,6 +528,7 @@ export class DeltaNeutralTradingService implements Service {
 
   /**
    * Exécute un trade delta-neutral
+   * Adapted to support both spot and perpetual exchanges
    */
   public async executeTrade(
     user: UserAttributes,
@@ -538,8 +539,29 @@ export class DeltaNeutralTradingService implements Service {
       console.log(
         `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange.name}) Short(${opportunity.shortExchange.name})`,
       );
+
+      // Get exchanges from registry to check their types
+      const longExchange = exchangesRegistry.getExchange(opportunity.longExchange.name);
+      const shortExchange = exchangesRegistry.getExchange(opportunity.shortExchange.name);
+
+      if (!longExchange || !shortExchange) {
+        throw new Error("One or both exchanges not found in registry");
+      }
+
+      const isLongSpot = longExchange.type === ExchangeType.SPOT;
+      const isShortSpot = shortExchange.type === ExchangeType.SPOT;
+
+      // Calculate individual leg sizes based on exchange types
+      const { longSize, shortSize, totalNotional } = this.calculateLegSizes(
+        opportunity,
+        settings,
+        isLongSpot,
+        isShortSpot,
+      );
+
+      // Calculate average price for trade record
       const price = (opportunity.longExchange.price + opportunity.shortExchange.price) / 2;
-      const size = settings.maxPositionSize / (price * 2);
+
       // Enregistrer l'historique des trades
       const trade = await TradeHistory.create({
         userId: user.id,
@@ -547,40 +569,48 @@ export class DeltaNeutralTradingService implements Service {
         status: TradeStatus.OPENING,
         token: opportunity.token,
         side: "DELTA_NEUTRAL",
-        size,
+        size: Math.max(longSize, shortSize), // size for record
         price,
 
-        cost: size * price * 2,
+        cost: totalNotional,
         currentPnL: 0,
-        currentApr: opportunity.spread.apr,
+        currentApr: opportunity.spreadAPR,
 
         autoCloseEnabled: settings.autoCloseEnabled,
         autoCloseAPRThreshold: settings.autoCloseAPRThreshold,
         autoClosePnLThreshold: settings.autoClosePnLThreshold,
         autoCloseTimeoutHours: settings.autoCloseTimeoutHours,
 
-        metadata: opportunity,
+        metadata: {
+          ...opportunity,
+          isLongSpot,
+          isShortSpot,
+          longSize,
+          shortSize,
+        },
       });
-      const [longLeg, shortLeg] = await Promise.all(
-        [PositionSide.LONG, PositionSide.SHORT].map(async (side) =>
-          Position.create({
-            userId: trade.userId,
-            tradeId: trade.id,
-            token: opportunity.token,
-            status: PositionStatus.OPENING,
-            side,
-            entryTimestamp: new Date(),
 
-            exchange: side == PositionSide.LONG ? opportunity.longExchange.name : opportunity.shortExchange.name,
-            size: size,
-            price: PositionSide.LONG ? opportunity.longExchange.price : opportunity.shortExchange.price,
-            leverage: settings.positionLeverage,
-            slippage: settings.slippageTolerance,
-
-            cost: size * (opportunity.longExchange.price + opportunity.shortExchange.price),
-          }).then((pos) => pos.update({ orderId: pos.id })),
+      const [longLeg, shortLeg] = await Promise.all([
+        this.createPositionLeg(
+          trade,
+          PositionSide.LONG,
+          opportunity.longExchange.name,
+          longSize,
+          opportunity.longExchange.price,
+          isLongSpot ? 0 : settings.positionLeverage,
+          settings.slippageTolerance,
         ),
-      );
+        this.createPositionLeg(
+          trade,
+          PositionSide.SHORT,
+          opportunity.shortExchange.name,
+          shortSize,
+          opportunity.shortExchange.price,
+          isShortSpot ? 0 : settings.positionLeverage,
+          settings.slippageTolerance,
+        ),
+      ]);
+
       const result = await this.placeOrders([longLeg, shortLeg]);
       result.status.forEach((s) => console.log(s));
       if (!result.success) {
@@ -608,6 +638,90 @@ export class DeltaNeutralTradingService implements Service {
       return Promise.reject(`Exchange ${order.exchange} not found`);
     }
     return exchange.cancelOrder(order);
+  }
+
+  /**
+   * Calcule les tailles des jambes du trade en fonction du type d'exchange
+   * Pour les exchanges spot, on calcule des tailles en fonction du prix respectif
+   * Pour les exchanges perpetual, on utilise le leverage
+   */
+  public calculateLegSizes(
+    opportunity: ArbitrageOpportunityData,
+    settings: UserSettings,
+    isLongSpot: boolean,
+    isShortSpot: boolean,
+  ): { longSize: number; shortSize: number; totalNotional: number } {
+    const longPrice = opportunity.longExchange.price;
+    const shortPrice = opportunity.shortExchange.price;
+    const priceSum = longPrice + shortPrice;
+    const avgPrice = priceSum / 2;
+    let totalNotional = settings.maxPositionSize;
+
+    if (isShortSpot) {
+      // Long en perp, Short en spot
+      throw new Error("Spot exchange cannot be used for short position.");
+    } else if (isLongSpot) {
+      // Long en spot, Short en perp
+      const shortNotional = totalNotional / ((settings.positionLeverage || 1) + 1);
+      const longNotional = shortNotional * (settings.positionLeverage || 1);
+
+      const longSize = longNotional / longPrice; // Quantité pour spot
+      const shortSize = shortNotional / shortPrice; // Quantité pour perp avec leverage
+
+      return {
+        longSize,
+        shortSize,
+        totalNotional,
+      };
+    } else {
+      // Les deux exchanges sont perpetual
+      const size = settings.maxPositionSize / avgPrice / 2;
+
+      return {
+        longSize: size,
+        shortSize: size,
+        totalNotional,
+      };
+    }
+  }
+
+  /**
+   * Crée une jambe de position avec les paramètres appropriés
+   */
+  private async createPositionLeg(
+    trade: TradeHistory,
+    side: PositionSide,
+    exchangeName: string,
+    size: number,
+    price: number,
+    leverage: number,
+    slippage: number,
+  ): Promise<Position> {
+    const exchange = exchangesRegistry.getExchange(exchangeName as ExchangeName);
+    if (!exchange) {
+      throw new Error(`Exchange ${exchangeName} not found in registry`);
+    }
+
+    const isSpot = exchange.type === ExchangeType.SPOT;
+
+    const leg = await Position.create({
+      userId: trade.userId,
+      tradeId: trade.id,
+      token: trade.token,
+      status: PositionStatus.OPENING,
+      side,
+      entryTimestamp: new Date(),
+
+      exchange: exchangeName as ExchangeName,
+      size,
+      price,
+      leverage: isSpot ? 0 : leverage, // Pas de leverage pour spot
+      slippage,
+
+      cost: size * price,
+    });
+
+    return await leg.update({ orderId: leg.id });
   }
 
   /**

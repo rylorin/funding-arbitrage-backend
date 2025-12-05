@@ -4,7 +4,7 @@ import { jest } from "@jest/globals";
 import { sampleOpportunity } from "../data/opportunities";
 import { sampleOrder } from "../data/orders";
 import { sampleTrade } from "../data/trades";
-import { sampleUser } from "../data/users";
+import { sampleSettingsLeverage3x, sampleUser } from "../data/users";
 
 const setupCloseContext = async (): Promise<{
   user: User;
@@ -48,11 +48,27 @@ describe("DeltaNeutralTradingService", () => {
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
+    // jest.spyOn(DeltaNeutralTradingService, "placeOrders").mockImplementation(() => {});
   });
 
   it("should initialize correctly", () => {
     expect(service).toBeDefined();
     expect(service.name).toBe("delta-neutral-trading-service");
+  });
+
+  test("calculateLegSizes", () => {
+    // Perpetuals only
+    const result = service.calculateLegSizes(sampleOpportunity, sampleSettingsLeverage3x, false, false);
+    expect(result.longSize).toBe(result.shortSize);
+    expect(result.totalNotional).toBeGreaterThan(0);
+    // Long spot, short perp
+    const resultSpot = service.calculateLegSizes(sampleOpportunity, sampleSettingsLeverage3x, true, false);
+    expect(resultSpot.longSize).toBeCloseTo(resultSpot.shortSize * sampleSettingsLeverage3x.positionLeverage, 3);
+    expect(resultSpot.totalNotional).toBeGreaterThan(0);
+    // Short spot
+    expect(() => service.calculateLegSizes(sampleOpportunity, sampleSettingsLeverage3x, false, true)).toThrow(
+      "Spot exchange cannot be used for short position.",
+    );
   });
 
   test("Execute trade", async () => {

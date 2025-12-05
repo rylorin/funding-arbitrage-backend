@@ -23,7 +23,8 @@ const databaseConfig: DatabaseConfig = {
   },
   test: {
     dialect: "sqlite",
-    storage: ":memory:",
+    // storage: ":memory:",
+    storage: "./database.sqlite",
     logging: false,
     define: {
       timestamps: true,

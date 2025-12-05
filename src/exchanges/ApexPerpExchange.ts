@@ -1,6 +1,7 @@
 // API reference documentation available at https://api-docs.pro.apex.exchange
 import { Position, PositionSide, PositionStatus } from "@/models";
 import crypto from "crypto";
+import { console } from "inspector";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
@@ -39,6 +40,7 @@ export class ApexPerpExchange extends ExchangeConnector {
   private readonly apiKey: string;
   private readonly passphrase: string;
   private readonly secretKey: string;
+  private timeOffset: number = 0;
 
   constructor() {
     super("apexperp");
@@ -51,33 +53,50 @@ export class ApexPerpExchange extends ExchangeConnector {
    * Generate HMAC SHA256 signature for Apex API requests
    */
   private generateSignature(timestamp: string, method: string, requestPath: string, body: string = ""): string {
-    const message = timestamp + method + requestPath + body;
-    return crypto.createHmac("sha256", this.secretKey).update(message).digest("base64");
+    const messageString = timestamp + method + requestPath + body;
+    console.log("*** Apex Signature Message:", messageString);
+    const key = Buffer.from(this.secretKey).toString("base64");
+    return crypto.createHmac("sha256", key).update(messageString).digest("base64");
   }
 
   /**
    * Add authentication headers to requests
    */
   private addAuthHeaders(method: string, requestPath: string, body: string = ""): Record<string, string> {
-    const timestamp = Date.now().toString();
+    const timestamp = (Date.now() + this.timeOffset).toString();
     const signature = this.generateSignature(timestamp, method, requestPath, body);
 
     return {
+      "APEX-API-KEY": this.apiKey,
       "APEX-SIGNATURE": signature,
       "APEX-TIMESTAMP": timestamp,
       "APEX-PASSPHRASE": this.passphrase,
     };
   }
 
-  public async testConnection(): Promise<number> {
+  /**
+   * Synchronize time with the Apex server to prevent signature errors.
+   */
+  public async syncTime(): Promise<void> {
     try {
-      const response = await this.get("/v3/symbols");
-      const count = response.data?.data?.list?.length || 0;
+      const response = await this.get("/v3/time");
+      const serverTime = response.data?.data?.time;
+      this.timeOffset = serverTime - Date.now();
+      console.log(`✅ Time synchronized with Apex server. Offset: ${this.timeOffset}ms`);
+    } catch (error) {
+      console.error("❌ Failed to synchronize time with Apex server:", error);
+    }
+  }
 
-      console.log(`✅ Apex Perp Exchange connected: ${count} pairs available`);
+  public async testConnection(): Promise<number> {
+    const requestPath = "/v3/symbols";
+    try {
+      const response = await this.get(requestPath);
+      const count = response.data?.data?.list?.length || 0;
+      await this.syncTime();
       return count;
     } catch (error) {
-      console.error("❌ Failed to connect to Apex Perp Exchange:", error);
+      console.error(`❌ Failed to connect to Apex Perp Exchange on ${requestPath}:`, error);
       return 0;
     }
   }
@@ -96,9 +115,10 @@ export class ApexPerpExchange extends ExchangeConnector {
     try {
       const fundingRates: FundingRateData[] = [];
 
-      // Get funding rate data from Apex
-      const response = await this.get("/api/v1/funding-rates");
-      const fundingData = response.data?.data?.list as ApexFundingRate[];
+      // Get funding rate data from Apex v3
+      const response = await this.get("/v3/ticker");
+      console.debug(response);
+      const fundingData = response.data.data as ApexFundingRate[];
 
       if (!fundingData) {
         throw new Error("No funding rate data received from Apex");
@@ -165,7 +185,7 @@ export class ApexPerpExchange extends ExchangeConnector {
 
   public async getAccountBalance(): Promise<{ [token: string]: number }> {
     try {
-      const requestPath = "/api/v1/account";
+      const requestPath = "/v3/account";
       const headers = this.addAuthHeaders("GET", requestPath);
 
       const response = await this.get(requestPath, { headers });
@@ -188,7 +208,7 @@ export class ApexPerpExchange extends ExchangeConnector {
     try {
       const symbol = this.tokenToTicker(token);
       const requestPath = "/v3/set-initial-margin-rate";
-      const body = JSON.stringify({ leverage, symbol });
+      const body = JSON.stringify({ initialMarginRate: 1 / leverage, symbol });
       const headers = this.addAuthHeaders("POST", requestPath, body);
 
       const response = await this.post(requestPath, body, { headers });
@@ -218,21 +238,22 @@ export class ApexPerpExchange extends ExchangeConnector {
 
       const requestPath = "/v3/order";
       const orderPayload = {
-        symbol,
         side: isBuy ? "BUY" : "SELL",
-        type: "MARKET",
+        symbol,
         size: size.toString(),
         reduceOnly: `${reduceOnly}`,
+        type: "MARKET",
       };
 
       const body = JSON.stringify(orderPayload);
       const headers = this.addAuthHeaders("POST", requestPath, body);
 
-      const response = await this.post(requestPath, orderPayload, { headers });
-      console.debug(response);
+      const response = await this.post(requestPath, body, { headers, data: body });
+      console.debug("openPosition", response);
       const orderResponse = response.data?.data as ApexOrderResponse;
 
       if (!orderResponse?.orderId) {
+        console.error("Invalid order response from Apex Perp:", response);
         throw new Error("Failed to place order: No order ID returned");
       }
 
@@ -255,13 +276,13 @@ export class ApexPerpExchange extends ExchangeConnector {
 
     try {
       const symbol = this.tokenToTicker(token);
-      const requestPath = "/api/v1/order";
-      const body = JSON.stringify({ symbol, orderId });
-      const headers = this.addAuthHeaders("DELETE", requestPath, body);
+      const requestPath = "/v3/delete-order";
+      const body = JSON.stringify({ id: orderId.toString() });
+      const headers = this.addAuthHeaders("POST", requestPath, body);
 
-      const response = await this.delete(requestPath, {
+      const response = await this.post(requestPath, {
         headers,
-        data: { symbol, orderId },
+        data: body,
       });
 
       return response.data?.success === true;
@@ -271,9 +292,10 @@ export class ApexPerpExchange extends ExchangeConnector {
     }
   }
 
+  // https://api-docs.pro.apex.exchange/#account-get-account-data-amp-positions
   public async getAllPositions(): Promise<Position[]> {
     try {
-      const requestPath = "/api/v1/positions";
+      const requestPath = "/v3/account";
       const headers = this.addAuthHeaders("GET", requestPath);
 
       const response = await this.get(requestPath, { headers });

@@ -48,7 +48,7 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
   public async testConnection(): Promise<number> {
     try {
       const count = await this.getMeta(true);
-      console.log(`✅ ${this.name} Exchange connected: ${count} markets available`);
+      // console.log(`✅ ${this.name} Exchange connected: ${count} markets available`);
       return count;
     } catch (error) {
       console.error(`❌ Failed to connect to ${this.name} Exchange:`, error);

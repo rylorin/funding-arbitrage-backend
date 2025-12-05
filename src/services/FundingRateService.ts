@@ -1,3 +1,4 @@
+import CalculationUtils from "@/utils/calculations";
 import { exchangesRegistry } from "../exchanges";
 import { FundingRate } from "../models/index";
 import { ExchangeName, FundingRateData, JobResult } from "../types/index";
@@ -163,6 +164,7 @@ export class FundingRateService {
     updatedRates: FundingRateData[],
     errors: string[],
   ): Promise<void> {
+    const updatedAt = new Date();
     for (const rate of exchangeRates) {
       try {
         const upsertData: any = {
@@ -170,8 +172,9 @@ export class FundingRateService {
           token: rate.token,
           fundingRate: rate.fundingRate,
           fundingFrequency: rate.fundingFrequency,
+          apr: CalculationUtils.calculateAPR(rate.fundingRate, rate.fundingFrequency), // Annualized Percentage Rate
           nextFunding: rate.nextFunding,
-          // timestamp: rate.updatedAt,
+          updatedAt,
         };
 
         if (rate.markPrice !== undefined) {

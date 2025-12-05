@@ -30,8 +30,7 @@ export class VestExchange extends ExchangeConnector {
     try {
       const response = await this.get("/exchangeInfo");
       const count = response.data.symbols?.length || 0;
-
-      console.log(`✅ Vest Exchange connected: ${count} pairs available`);
+      // console.log(`✅ Vest Exchange connected: ${count} pairs available`);
       return count;
     } catch (error) {
       console.error("❌ Failed to connect to Vest Exchange:", error);

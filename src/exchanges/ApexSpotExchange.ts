@@ -59,8 +59,7 @@ export class ApexSpotExchange extends ExchangeConnector {
     try {
       const response = await this.get("/api/v1/spot/symbols");
       const count = response.data?.data?.list?.length || 0;
-
-      console.log(`✅ Apex Spot Exchange connected: ${count} pairs available`);
+      // console.log(`✅ Apex Spot Exchange connected: ${count} pairs available`);
       return count;
     } catch (error) {
       console.error("❌ Failed to connect to Apex Spot Exchange:", error);

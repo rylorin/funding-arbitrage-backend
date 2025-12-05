@@ -85,6 +85,7 @@ export interface ExchangeData {
   name: ExchangeName;
   fundingRate: number;
   fundingFrequency: number;
+  apr: number;
   price: number;
 }
 
@@ -115,7 +116,7 @@ export interface ArbitrageOpportunityData {
   tokenIcon: string;
   longExchange: ExchangeData;
   shortExchange: ExchangeData;
-  spread: OpportunitySpread;
+  spreadAPR: number;
   risk: RiskAssessment;
   timing: OpportunityTiming;
 }
