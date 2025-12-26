@@ -23,8 +23,9 @@ export class PositionSyncService implements Service {
   }
 
   // Fetching positions from all exchanges
-  private async fetchAllExchangesPositions(): Promise<Position[]> {
+  private async fetchAllExchangesPositions(): Promise<{ success: boolean; positions: Position[] }> {
     let positions: Position[] = [];
+    let success = true;
 
     for (const exchange of exchangesRegistry.getAllExchanges()) {
       try {
@@ -34,10 +35,11 @@ export class PositionSyncService implements Service {
         console.log(`✅ Received ${exchangePos.length} positions from ${exchange.name}`);
       } catch (error) {
         console.error(`❌ Error fetching positions from ${exchange.name}`, error);
+        success = false;
       }
     }
 
-    return positions;
+    return { success, positions };
   }
 
   // Update single legs positions from DB using exchanges positions
@@ -152,7 +154,7 @@ export class PositionSyncService implements Service {
       console.log("🔄 Starting position synchronization...");
 
       // Fetching positions from all exchanges
-      const positions = await this.fetchAllExchangesPositions();
+      const { success, positions } = await this.fetchAllExchangesPositions();
 
       // Update DB
       const { syncedPositions, failedPositions } = await this.unpdateDbLegs(positions);
@@ -169,8 +171,8 @@ export class PositionSyncService implements Service {
 
       const executionTime = Date.now() - startTime;
       const result: JobResult = {
-        success: failedPositions.length === 0,
-        message: `Synced ${syncedPositions.length} positions, ${failedPositions.length} failed`,
+        success: success && failedPositions.length === 0,
+        message: `${success ? "Successfully fetched positions from all exchanges" : "Failed to fetch positions from some exchanges"}, synced ${syncedPositions.length} positions, ${failedPositions.length} failed`,
         data: {
           syncedPositions: syncedPositions.length,
           failedPositions: failedPositions.length,

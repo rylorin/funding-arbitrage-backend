@@ -1,3 +1,4 @@
+import { jobManager } from ".";
 import { deltaNeutralTradingService } from "../services/DeltaNeutralTradingService";
 import { JobResult } from "../types/index";
 import { CronJob } from "./cronJob";
@@ -18,6 +19,16 @@ export class AutoCloser extends CronJob {
   }
 
   public async runOnce(): Promise<JobResult> {
+    const now = Date.now();
+    const systemStatus = await jobManager.getHealthCheck();
+    if (systemStatus.overall !== "healthy") {
+      console.warn("⚠️ System is not healthy, skipping autoCloser job");
+      return {
+        success: false,
+        message: "System is not healthy",
+        executionTime: Date.now() - now,
+      };
+    }
     return this.processAutoClosures();
   }
 }

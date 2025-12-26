@@ -194,8 +194,7 @@ TradeHistory.init(
             typeof value.longExchange !== "object" ||
             !value.shortExchange ||
             typeof value.shortExchange !== "object" ||
-            !value.spread ||
-            typeof value.spread !== "object"
+            typeof value.spreadAPR !== "number"
           ) {
             throw new Error("opportunity must contain longExchange, shortExchange, and spread");
           }

@@ -35,13 +35,13 @@ export enum RiskLevel {
 }
 
 export interface FundingRateData {
-  exchange: string;
+  exchange: ExchangeName;
   token: string;
   fundingRate: number;
   fundingFrequency: number; // in hours
   nextFunding: Date;
   updatedAt: Date;
-  markPrice?: number | undefined;
+  markPrice: number | undefined;
   indexPrice?: number | undefined;
 }
 

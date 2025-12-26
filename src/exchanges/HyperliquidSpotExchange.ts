@@ -270,13 +270,15 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     const updatedAt = new Date();
     const nextFunding = new Date(2027, 0, 1); // Placeholder dates
+    const prices = await this.getPrices();
     // Spot markets don't have funding rates
     return Object.entries(this.universe).map(([token, _data]) => ({
       exchange: this.name,
       token: token as TokenSymbol,
       fundingRate: 0,
-      fundingFrequency: 1, // in hours
+      fundingFrequency: 24, // in hours
       nextFunding,
+      markPrice: prices[token],
       updatedAt,
     }));
   }

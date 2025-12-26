@@ -79,6 +79,8 @@ function calculateHmacSha256(data: string, secret: string): string {
   return hmac.digest("hex");
 }
 
+type AsterSpotPrice = { symbol: string; price: number };
+
 export class AsterSpotExchange extends ExchangeConnector {
   private readonly secretKey: string;
   private readonly universe: Record<
@@ -178,6 +180,7 @@ export class AsterSpotExchange extends ExchangeConnector {
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     const now = new Date();
     await this.getExchangeInfo(true);
+    const prices = await this.getPrices();
     return Object.keys(this.universe).map((token) => ({
       exchange: this.name,
       token,
@@ -185,7 +188,19 @@ export class AsterSpotExchange extends ExchangeConnector {
       fundingFrequency: 1,
       updatedAt: now,
       nextFunding: new Date(2027, 0, 1),
+      markPrice: prices.find((p) => p.symbol === token)?.price,
     }));
+  }
+
+  public async getPrices(): Promise<AsterSpotPrice[]> {
+    const result = await this.get<AsterSpotPrice[]>("/api/v1/ticker/price").then((response) => response.data);
+
+    if (!Array.isArray(result)) {
+      console.error(`${this.name} getPrices() returned invalid data:`, result);
+      throw new Error(`${this.name} getPrices() returned invalid data: ${JSON.stringify(result)}`);
+    }
+
+    return result.map((item) => ({ symbol: this.tokenFromTicker(item.symbol)!, price: item.price }));
   }
 
   public async getPrice(token: TokenSymbol): Promise<number> {

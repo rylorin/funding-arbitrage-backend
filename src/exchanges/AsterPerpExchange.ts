@@ -238,19 +238,20 @@ export class AsterPerpExchange extends ExchangeConnector {
       const response = await this.post("/fapi/v1/order", `${payload}&signature=${signature}`).then(
         (response) => response.data,
       );
-
+      // console.debug("Aster perp response:", response);
       if (response.orderId) {
         return {
+          ...response,
           ...order,
           orderId: response.orderId.toString(),
           size: parseFloat(response.origQty),
-          price: parseFloat(response.avgPrice),
+          // price: parseFloat(response.avgPrice),
         };
       }
 
       throw new Error("Failed to open position");
     } catch (error) {
-      console.error(`Error opening Aster Perp ${side} position for ${token}:`, error);
+      console.error(`${this.name}: Error opening ${side} order for ${token}:`, error);
       throw error;
     }
   }

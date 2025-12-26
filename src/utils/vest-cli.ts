@@ -16,7 +16,7 @@ if (!primaryAddr || !primaryPrivateKey) {
   process.exit(1);
 }
 
-async function main() {
+async function main(): Promise<void> {
   try {
     console.log("Generating Vest signing key and registering with server...\n");
 
@@ -105,4 +105,4 @@ async function main() {
   }
 }
 
-main();
+main().catch((reason) => console.error(reason));

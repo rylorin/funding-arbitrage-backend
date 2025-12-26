@@ -177,6 +177,9 @@ export abstract class ExchangeConnector {
   public async getAllPositions(): Promise<Position[]> {
     throw `${this.name} ExchangeConnector.getAllPositions not implemented`;
   }
+  public async getAllOrders(): Promise<PlacedOrderData[]> {
+    throw `${this.name} ExchangeConnector.getAllOrders not implemented`;
+  }
   public async closePosition(order: OrderData): Promise<string> {
     console.warn(`${this.name} ExchangeConnector.closePosition(${order.token}) not implemented), using fallback`);
     return this.openPosition(

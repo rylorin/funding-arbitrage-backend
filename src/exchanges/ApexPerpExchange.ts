@@ -1,7 +1,6 @@
 // API reference documentation available at https://api-docs.pro.apex.exchange
 import { Position, PositionSide, PositionStatus } from "@/models";
 import crypto from "crypto";
-import { console } from "inspector";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
@@ -40,7 +39,7 @@ export class ApexPerpExchange extends ExchangeConnector {
   private readonly apiKey: string;
   private readonly passphrase: string;
   private readonly secretKey: string;
-  private timeOffset: number = 0;
+  protected timeOffset: number = 0;
 
   constructor() {
     super("apexperp");
@@ -53,10 +52,11 @@ export class ApexPerpExchange extends ExchangeConnector {
    * Generate HMAC SHA256 signature for Apex API requests
    */
   private generateSignature(timestamp: string, method: string, requestPath: string, body: string = ""): string {
-    const messageString = timestamp + method + requestPath + body;
-    console.log("*** Apex Signature Message:", messageString);
+    const message =
+      timestamp + method.toUpperCase() + (requestPath.startsWith("/api") ? requestPath : `/api${requestPath}`) + body;
+    console.debug("Apex Signature Message:", message);
     const key = Buffer.from(this.secretKey).toString("base64");
-    return crypto.createHmac("sha256", key).update(messageString).digest("base64");
+    return crypto.createHmac("sha256", key).update(message).digest("base64");
   }
 
   /**
@@ -111,16 +111,17 @@ export class ApexPerpExchange extends ExchangeConnector {
     return `${token}USDT`;
   }
 
+  // https://api-docs.pro.apex.exchange/#publicapi-get-ticker-data
   public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
 
       // Get funding rate data from Apex v3
       const response = await this.get("/v3/ticker");
-      console.debug(response);
-      const fundingData = response.data.data as ApexFundingRate[];
+      const fundingData = response.data?.data as ApexFundingRate[];
 
       if (!fundingData) {
+        console.debug(response.data);
         throw new Error("No funding rate data received from Apex");
       }
 
@@ -208,7 +209,7 @@ export class ApexPerpExchange extends ExchangeConnector {
     try {
       const symbol = this.tokenToTicker(token);
       const requestPath = "/v3/set-initial-margin-rate";
-      const body = JSON.stringify({ initialMarginRate: 1 / leverage, symbol });
+      const body = JSON.stringify({ initialMarginRate: (1 / leverage).toFixed(3), symbol });
       const headers = this.addAuthHeaders("POST", requestPath, body);
 
       const response = await this.post(requestPath, body, { headers });
@@ -239,8 +240,8 @@ export class ApexPerpExchange extends ExchangeConnector {
       const requestPath = "/v3/order";
       const orderPayload = {
         side: isBuy ? "BUY" : "SELL",
-        symbol,
         size: size.toString(),
+        symbol,
         reduceOnly: `${reduceOnly}`,
         type: "MARKET",
       };
@@ -248,12 +249,11 @@ export class ApexPerpExchange extends ExchangeConnector {
       const body = JSON.stringify(orderPayload);
       const headers = this.addAuthHeaders("POST", requestPath, body);
 
-      const response = await this.post(requestPath, body, { headers, data: body });
-      console.debug("openPosition", response);
+      const response = await this.post(requestPath, body, { headers });
+      console.debug(response.data);
       const orderResponse = response.data?.data as ApexOrderResponse;
 
       if (!orderResponse?.orderId) {
-        console.error("Invalid order response from Apex Perp:", response);
         throw new Error("Failed to place order: No order ID returned");
       }
 
@@ -277,12 +277,11 @@ export class ApexPerpExchange extends ExchangeConnector {
     try {
       const symbol = this.tokenToTicker(token);
       const requestPath = "/v3/delete-order";
-      const body = JSON.stringify({ id: orderId.toString() });
+      const body = JSON.stringify({ symbol, orderId });
       const headers = this.addAuthHeaders("POST", requestPath, body);
 
-      const response = await this.post(requestPath, {
+      const response = await this.post(requestPath, body, {
         headers,
-        data: body,
       });
 
       return response.data?.success === true;

@@ -19,7 +19,7 @@ export interface FundingRateAttributes {
   createdAt: Date;
 }
 
-type FundingRateCreationAttributes = Optional<
+export type FundingRateCreationAttributes = Optional<
   FundingRateAttributes,
   "id" | "createdAt" | "updatedAt" | "markPrice" | "indexPrice"
 >;

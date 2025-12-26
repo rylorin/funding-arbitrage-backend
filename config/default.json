@@ -80,7 +80,7 @@
     "maxPositionSize": 1000,
     "maxSimultaneousPositions": 1,
     "riskTolerance": "medium",
-    "preferredExchanges": ["extended", "hyperliquid", "hyperliquidspot", "orderly", "vest"],
+    "preferredExchanges": ["asterperp", "asterspot", "extended", "hyperliquid", "hyperliquidspot", "orderly", "vest"],
     "autoCloseEnabled": true,
     "autoCloseAPRThreshold": 5,
     "autoCloseTimeoutHours": 0,

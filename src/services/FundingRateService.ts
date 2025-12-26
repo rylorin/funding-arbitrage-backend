@@ -1,3 +1,4 @@
+import { FundingRateCreationAttributes } from "@/models/FundingRate";
 import CalculationUtils from "@/utils/calculations";
 import { exchangesRegistry } from "../exchanges";
 import { FundingRate } from "../models/index";
@@ -167,7 +168,7 @@ export class FundingRateService {
     const updatedAt = new Date();
     for (const rate of exchangeRates) {
       try {
-        const upsertData: any = {
+        const upsertData: FundingRateCreationAttributes = {
           exchange: rate.exchange,
           token: rate.token,
           fundingRate: rate.fundingRate,

@@ -335,14 +335,14 @@ export class DeltaNeutralTradingService implements Service {
       ],
     });
     await orphanLegs.reduce(
-      (p, position) =>
+      async (p, position) =>
         p
-          .then(() => TradeHistory.findByPk(position.tradeId))
+          .then(async () => TradeHistory.findByPk(position.tradeId))
           .then((trade) => {
             console.warn(`⚠️ Closing trade #${trade!.id} with orphan legs`);
             return trade;
           })
-          .then((trade) => this.closeTrade(trade!))
+          .then(async (trade) => this.closeTrade(trade!))
           .then(() => {}),
       Promise.resolve(),
     );
@@ -427,15 +427,7 @@ export class DeltaNeutralTradingService implements Service {
       // Filtrer les opportunités selon les settings utilisateur
       const filteredOpportunities = opportunityDetectionService
         .filterByUserSettings(opportunities, settings)
-        // filter out token that already have an active position as multiple positions for the same token/exchange combinaison is unsupported
-        .filter(
-          (opportunity) =>
-            activeLegs.findIndex(
-              (leg) =>
-                leg.token == opportunity.token &&
-                (opportunity.longExchange.name == leg.exchange || opportunity.shortExchange.name == leg.exchange),
-            ) == -1,
-        );
+        .sort((a, b) => b.spreadAPR - a.spreadAPR);
 
       if (filteredOpportunities.length === 0) {
         console.log(`ℹ️ No suitable opportunities for user ${user.id}`);
@@ -454,6 +446,17 @@ export class DeltaNeutralTradingService implements Service {
           if (activePositionsCount >= settings.maxSimultaneousPositions) {
             console.log(`ℹ️ User ${user.id} has reached max positions limit (${settings.maxSimultaneousPositions})`);
             return results;
+          }
+
+          // filter out token that already have an active position as multiple positions for the same token/exchange combinaison is unsupported
+          if (
+            activeLegs.findIndex(
+              (leg) =>
+                leg.token == opportunity.token &&
+                (opportunity.longExchange.name == leg.exchange || opportunity.shortExchange.name == leg.exchange),
+            ) !== -1
+          ) {
+            break;
           }
 
           console.log(
@@ -490,20 +493,23 @@ export class DeltaNeutralTradingService implements Service {
     orders: PlacedOrderData[],
   ): Promise<{ success: boolean; count: number; orderIds: (PlacedOrderData | undefined)[]; status: string[] }> {
     return await Promise.allSettled(
-      orders.map((order) => {
+      orders.map(async (order) => {
         const exchange = exchangesRegistry.getExchange(order.exchange);
         if (!exchange) {
           return Promise.reject(`Exchange ${order.exchange} not found`);
         }
-        return exchange.openPosition(order);
+        return exchange.openPosition(order).then((order) => {
+          console.debug(order);
+          return order;
+        });
       }),
     ).then((results) => {
       return results.reduce(
         (p, result, index) => {
           if (result.status === "fulfilled") {
-            const order = orders[index];
+            const _order = orders[index];
             // console.log(result.value);
-            const statusMsg = `✅ Opening ${result.value.side} position on ${result.value.exchange} for ${result.value.token} Size: ${result.value.size} at $${result.value.price} (Order ID: ${result.value.orderId})`;
+            const statusMsg = `✅ Opening ${result.value.side} position @ ${result.value.exchange}: ${result.value.size} ${result.value.token} @ $${result.value.price} (Order ID: ${result.value.orderId})`;
             p.count += 1;
             p.orderIds.push(result.value);
             p.status.push(statusMsg);
@@ -537,7 +543,7 @@ export class DeltaNeutralTradingService implements Service {
   ): Promise<TradingResult> {
     try {
       console.log(
-        `🚀 Executing delta-neutral trade for ${user.id}: ${opportunity.token} Long(${opportunity.longExchange.name}) Short(${opportunity.shortExchange.name})`,
+        `🚀 Executing delta-neutral trade for user ${user.id}: ${opportunity.token} @ ${opportunity.longExchange.name}/${opportunity.shortExchange.name}`,
       );
 
       // Get exchanges from registry to check their types
@@ -615,7 +621,7 @@ export class DeltaNeutralTradingService implements Service {
       result.status.forEach((s) => console.log(s));
       if (!result.success) {
         console.error("❌ Error placing orders for delta-neutral trade, canceling any pending orders...");
-        await Promise.all(result.orderIds.filter((order) => order).map((order) => this.cancelOrder(order!)));
+        await Promise.all(result.orderIds.filter((order) => order).map(async (order) => this.cancelOrder(order!)));
       }
       return {
         success: result.success,
@@ -632,7 +638,7 @@ export class DeltaNeutralTradingService implements Service {
     }
   }
 
-  cancelOrder(order: PlacedOrderData): Promise<boolean> {
+  async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     const exchange = exchangesRegistry.getExchange(order.exchange);
     if (!exchange) {
       return Promise.reject(`Exchange ${order.exchange} not found`);
@@ -655,7 +661,7 @@ export class DeltaNeutralTradingService implements Service {
     const shortPrice = opportunity.shortExchange.price;
     const priceSum = longPrice + shortPrice;
     const avgPrice = priceSum / 2;
-    let totalNotional = settings.maxPositionSize;
+    const totalNotional = settings.maxPositionSize;
 
     if (isShortSpot) {
       // Long en perp, Short en spot

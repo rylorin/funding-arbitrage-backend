@@ -2,15 +2,17 @@ import { highPrecisionQuantityOrder, sampleOrder, samplePlacedOrder, shortOrder 
 import { ExchangeType } from "@/exchanges/ExchangeConnector";
 import { ApexPerpExchange as Exchange, apexPerpExchange as exchange } from "@exchanges/ApexPerpExchange";
 
-const TOKEN = "DOGE";
-
 describe("ApexPerpExchange", () => {
   beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
     // jest.spyOn(console, "log").mockImplementation(() => {});
 
-    await exchange.testConnection();
+    const count = await exchange.testConnection();
+    // console.debug("Assets count:", count);
+    // console.log("Assets count:", count);
+    // console.warn("Assets count:", count);
+    // console.error("Assets count:", count);
   });
 
   it("should initialize correctly", () => {

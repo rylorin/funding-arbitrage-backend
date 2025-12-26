@@ -208,7 +208,7 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
       const orderResult = response.response.data.statuses?.[0];
       const orderId = orderResult.filled?.oid || orderResult.resting.oid;
 
-      console.log(`✅ Hyperliquid ${side} position ${reduce_only ? "closed" : "opened"} for ${token}: ${orderId}`);
+      console.log(`✅ ${this.name}: ${reduce_only ? "close" : "open"} ${side} order placed for ${token}: ${orderId}`);
 
       return {
         exchange: order.exchange,
