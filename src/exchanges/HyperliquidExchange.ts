@@ -34,7 +34,7 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
       : null;
   }
 
-  protected async getMeta(force: boolean = false): Promise<number> {
+  protected async getMeta(force = false): Promise<number> {
     if (force || !this.universe["BTC"]) {
       const response = await this.post<Meta>(ENDPOINTS.INFO, { type: InfoType.META }).then(
         (response) => response.data.universe,
@@ -56,11 +56,11 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
     }
   }
 
-  public async getPrices(tokens?: TokenSymbol[]): Promise<{ [token: TokenSymbol]: number }> {
+  public async getPrices(tokens?: TokenSymbol[]): Promise<Record<TokenSymbol, number>> {
     try {
-      const prices: { [token: string]: number } = {};
+      const prices: Record<string, number> = {};
 
-      const allMids = await this.post<{ [token: TokenSymbol]: string }>(ENDPOINTS.INFO, {
+      const allMids = await this.post<Record<TokenSymbol, string>>(ENDPOINTS.INFO, {
         type: InfoType.ALL_MIDS,
       }).then((response) => response.data);
 
@@ -84,7 +84,7 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
     return allPrices[token];
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       // Note: This requires authentication with user's wallet address
       // For now, return empty object as we don't have user wallet integration
@@ -106,7 +106,7 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
    * - Max MAX_DECIMALS decimal places (6 for perps, 8 for spot)
    * - Integer prices always allowed regardless of significant figures
    */
-  protected formatPriceForHyperliquid(price: number, isPerp: boolean = true): string {
+  protected formatPriceForHyperliquid(price: number, isPerp = true): string {
     const MAX_DECIMALS = isPerp ? 6 : 8;
 
     // If price is integer, it's always valid regardless of significant figures
@@ -154,7 +154,7 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
     await this.getMeta();
     const vaultAddress = this.getVaultAddress();
     const grouping = orderRequest.grouping || "na";
-    let builder = orderRequest.builder;
+    const builder = orderRequest.builder;
 
     const orderWires = [orderToWire(orderRequest, this.universe[orderRequest.coin].index)];
     // Sign and send the order

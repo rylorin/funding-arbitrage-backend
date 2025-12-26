@@ -14,8 +14,15 @@ interface WoofiFundingRate {
   next_funding_time: number;
 }
 
-type TokenInfo = { base_min: number; base_max: number; base_tick: number };
-type TokenPrice = { mark_price: number; index_price: number };
+interface TokenInfo {
+  base_min: number;
+  base_max: number;
+  base_tick: number;
+}
+interface TokenPrice {
+  mark_price: number;
+  index_price: number;
+}
 
 export class OrderlyExchange extends ExchangeConnector {
   constructor() {
@@ -236,11 +243,11 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       // This requires authentication with Orderly key
       const response = await this.get("/v1/client/holding");
-      const balances: { [token: string]: number } = {};
+      const balances: Record<string, number> = {};
 
       if (response.data && response.data.holding) {
         response.data.holding.forEach((balance: any) => {
@@ -264,7 +271,7 @@ export class OrderlyExchange extends ExchangeConnector {
   }
 
   // https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
-  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { exchange, token, side, size, leverage } = order;
     try {
       if (leverage) await this.setLeverage(token, leverage);
@@ -401,7 +408,7 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(symbol?: string, limit: number = 100): Promise<any[]> {
+  public async getOrderHistory(symbol?: string, limit = 100): Promise<any[]> {
     try {
       const params: any = {};
       if (symbol) params.symbol = symbol;

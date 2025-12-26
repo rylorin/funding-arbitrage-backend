@@ -42,14 +42,14 @@ interface AsterAccountInfo {
   canDeposit: boolean;
   updateTime: number;
   accountType: string;
-  balances: Array<{
+  balances: {
     asset: string;
     walletBalance: string;
     unrealizedProfit: string;
     marginBalance: string;
     maxWithdrawAmount: string;
-  }>;
-  positions: Array<{
+  }[];
+  positions: {
     symbol: string;
     positionAmt: string;
     entryPrice: string;
@@ -65,7 +65,7 @@ interface AsterAccountInfo {
     notional: string;
     isolatedWallet: string;
     updateTime: number;
-  }>;
+  }[];
 }
 
 function calculateHmacSha256(data: string, secret: string): string {
@@ -90,7 +90,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     this.secretKey = this.config.get<string>("secretKey");
   }
 
-  public post<T = any, R = AxiosResponse<T>, D = any>(
+  public async post<T = any, R = AxiosResponse<T>, D = any>(
     url: string,
     data?: D,
     config?: AxiosRequestConfig<D>,
@@ -110,7 +110,7 @@ export class AsterPerpExchange extends ExchangeConnector {
       });
   }
 
-  private async getExchangeInfo(force: boolean = false): Promise<number> {
+  private async getExchangeInfo(force = false): Promise<number> {
     if (force || !this.universe["BTC"]) {
       const response = await this.get("/fapi/v1/exchangeInfo").then((response) => response.data.symbols);
       response
@@ -189,10 +189,10 @@ export class AsterPerpExchange extends ExchangeConnector {
     return parseFloat(response.markPrice);
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       const response = await this.get("/fapi/v2/account");
-      const balances: { [token: string]: number } = {};
+      const balances: Record<string, number> = {};
 
       if (response.data.balances) {
         response.data.balances.forEach((balance: any) => {
@@ -222,7 +222,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     return response.leverage;
   }
 
-  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage } = order;
     try {
       await this.getExchangeInfo();
@@ -291,7 +291,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(symbol?: string, limit: number = 100): Promise<any[]> {
+  public async getOrderHistory(symbol?: string, limit = 100): Promise<any[]> {
     try {
       const params: any = { limit };
       if (symbol) params.symbol = this.tokenToTicker(symbol);

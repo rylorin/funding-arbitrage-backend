@@ -170,8 +170,8 @@ export class DeltaNeutralTradingService implements Service {
       const userSettings = this.getUserTradingSettings(user || undefined);
 
       const success = await legs.reduce(
-        (p, leg) =>
-          p.then((success) => {
+        async (p, leg) =>
+          p.then(async (success) => {
             const exchange = ExchangesRegistry.getExchange(leg.exchange);
             if (exchange) {
               // console.debug("🧾 Closing leg:", leg);
@@ -186,7 +186,7 @@ export class DeltaNeutralTradingService implements Service {
               };
               return exchange
                 .closePosition(orderData)
-                .then(() => leg.update({ status: PositionStatus.CLOSING }))
+                .then(async () => leg.update({ status: PositionStatus.CLOSING }))
                 .then(() => success)
                 .catch((_reason) => false);
             } else {

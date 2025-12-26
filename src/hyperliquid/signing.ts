@@ -95,7 +95,7 @@ export async function signL1Action(
 export async function signUserSignedAction(
   wallet: Wallet,
   action: any,
-  payloadTypes: Array<{ name: string; type: string }>,
+  payloadTypes: { name: string; type: string }[],
   primaryType: string,
   isMainnet: boolean,
 ): Promise<Signature> {

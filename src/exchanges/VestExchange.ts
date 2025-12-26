@@ -5,7 +5,7 @@ import { generateCancelOrderSignature, generateOrderSignature } from "@/utils/ve
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
 
-type TokenInfo = {
+interface TokenInfo {
   symbol: string;
   displayName: string;
   base: TokenSymbol;
@@ -16,7 +16,7 @@ type TokenInfo = {
   maintMarginRatio: number;
   takerFee: number;
   isolated: boolean;
-};
+}
 
 export class VestExchange extends ExchangeConnector {
   private readonly privateKey: string;
@@ -97,10 +97,10 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       const response = await this.get("/account");
-      const balances: { [token: string]: number } = {};
+      const balances: Record<string, number> = {};
 
       if (response.data.balances) {
         response.data.balances.forEach((balance: any) => {
@@ -183,7 +183,7 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(orderData: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, slippage, leverage } = orderData;
     try {
       if (leverage) await this.setLeverage(token, leverage);
@@ -273,7 +273,7 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(symbol?: string, limit: number = 100): Promise<any[]> {
+  public async getOrderHistory(symbol?: string, limit = 100): Promise<any[]> {
     try {
       const params: any = {};
       if (symbol) params.symbol = symbol;

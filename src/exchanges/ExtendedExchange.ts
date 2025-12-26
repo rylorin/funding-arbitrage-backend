@@ -50,10 +50,10 @@ interface ExtendedMarketsResponse {
   data: ExtendedMarket[];
 }
 
-type GenericResponse<T> = {
+interface GenericResponse<T> {
   status: "OK" | "ERROR";
   data: T;
-};
+}
 
 export class ExtendedExchange extends ExchangeConnector {
   // private ws: WebSocket | null = null;
@@ -147,9 +147,9 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  public async getPrices(tokens?: TokenSymbol[]): Promise<{ [token: string]: number }> {
+  public async getPrices(tokens?: TokenSymbol[]): Promise<Record<string, number>> {
     try {
-      const prices: { [token: string]: number } = {};
+      const prices: Record<string, number> = {};
 
       // Get all markets to find prices
       const response = await this.get("/api/v1/info/markets");
@@ -194,7 +194,7 @@ export class ExtendedExchange extends ExchangeConnector {
     return price;
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       // Extended requires Stark signature for private endpoints
       // TODO: Implement authenticated balance retrieval
@@ -235,7 +235,7 @@ export class ExtendedExchange extends ExchangeConnector {
     return leverage;
   }
 
-  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage, slippage } = order;
     try {
       if (leverage) await this.setLeverage(token, leverage);
@@ -359,7 +359,7 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(_symbol?: string, _limit: number = 100): Promise<any[]> {
+  public async getOrderHistory(_symbol?: string, _limit = 100): Promise<any[]> {
     try {
       // Note: Extended requires authentication for order history
       console.warn("Extended order history requires Stark signature authentication");

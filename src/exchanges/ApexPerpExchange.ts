@@ -39,7 +39,7 @@ export class ApexPerpExchange extends ExchangeConnector {
   private readonly apiKey: string;
   private readonly passphrase: string;
   private readonly secretKey: string;
-  protected timeOffset: number = 0;
+  protected timeOffset = 0;
 
   constructor() {
     super("apexperp");
@@ -51,7 +51,7 @@ export class ApexPerpExchange extends ExchangeConnector {
   /**
    * Generate HMAC SHA256 signature for Apex API requests
    */
-  private generateSignature(timestamp: string, method: string, requestPath: string, body: string = ""): string {
+  private generateSignature(timestamp: string, method: string, requestPath: string, body = ""): string {
     const message =
       timestamp + method.toUpperCase() + (requestPath.startsWith("/api") ? requestPath : `/api${requestPath}`) + body;
     console.debug("Apex Signature Message:", message);
@@ -62,7 +62,7 @@ export class ApexPerpExchange extends ExchangeConnector {
   /**
    * Add authentication headers to requests
    */
-  private addAuthHeaders(method: string, requestPath: string, body: string = ""): Record<string, string> {
+  private addAuthHeaders(method: string, requestPath: string, body = ""): Record<string, string> {
     const timestamp = (Date.now() + this.timeOffset).toString();
     const signature = this.generateSignature(timestamp, method, requestPath, body);
 
@@ -184,13 +184,13 @@ export class ApexPerpExchange extends ExchangeConnector {
     }
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       const requestPath = "/v3/account";
       const headers = this.addAuthHeaders("GET", requestPath);
 
       const response = await this.get(requestPath, { headers });
-      const balances: { [token: string]: number } = {};
+      const balances: Record<string, number> = {};
 
       if (response.data?.data?.balances) {
         response.data.data.balances.forEach((balance: any) => {
@@ -221,7 +221,7 @@ export class ApexPerpExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(orderData: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, slippage, leverage } = orderData;
 
     try {

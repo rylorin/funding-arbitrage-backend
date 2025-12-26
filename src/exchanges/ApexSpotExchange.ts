@@ -33,7 +33,7 @@ export class ApexSpotExchange extends ExchangeConnector {
   /**
    * Generate HMAC SHA256 signature for Apex API requests
    */
-  private generateSignature(timestamp: string, method: string, requestPath: string, body: string = ""): string {
+  private generateSignature(timestamp: string, method: string, requestPath: string, body = ""): string {
     const secretKey = this.config.get<string>("secretKey");
     const message = timestamp + method + requestPath + body;
     return crypto.createHmac("sha256", secretKey).update(message).digest("base64");
@@ -42,7 +42,7 @@ export class ApexSpotExchange extends ExchangeConnector {
   /**
    * Add authentication headers to requests
    */
-  private addAuthHeaders(method: string, requestPath: string, body: string = ""): Record<string, string> {
+  private addAuthHeaders(method: string, requestPath: string, body = ""): Record<string, string> {
     const timestamp = Date.now().toString();
     const apiKey = this.config.get<string>("apiKey");
     const signature = this.generateSignature(timestamp, method, requestPath, body);
@@ -106,13 +106,13 @@ export class ApexSpotExchange extends ExchangeConnector {
     }
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       const requestPath = "/api/v1/spot/account";
       const headers = this.addAuthHeaders("GET", requestPath);
 
       const response = await this.get(requestPath, { headers });
-      const balances: { [token: string]: number } = {};
+      const balances: Record<string, number> = {};
 
       if (response.data?.data?.balances) {
         response.data.data.balances.forEach((balance: any) => {
@@ -127,7 +127,7 @@ export class ApexSpotExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(orderData: OrderData, _reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(orderData: OrderData, _reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, slippage } = orderData;
 
     try {

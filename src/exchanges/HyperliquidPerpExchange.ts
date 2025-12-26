@@ -7,10 +7,10 @@ import { ExchangeType } from "./ExchangeConnector";
 import { HyperliquidExchange } from "./HyperliquidExchange";
 
 type VenueName = string;
-type HyperliquidPredictedFundingElement = {
+interface HyperliquidPredictedFundingElement {
   fundingRate: string;
   nextFundingTime: number;
-};
+}
 type HyperliquidPredictedFundingItem = [VenueName, HyperliquidPredictedFundingElement];
 type HyperliquidPredictedFunding = [TokenSymbol, HyperliquidPredictedFundingItem[]];
 
@@ -120,7 +120,7 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
     }
   }
 
-  public async setLeverage(asset: TokenSymbol, leverage: number, leverageMode: string = "isolated"): Promise<number> {
+  public async setLeverage(asset: TokenSymbol, leverage: number, leverageMode = "isolated"): Promise<number> {
     if (!this.wallet) {
       throw new Error("Hyperliquid set leverage requires walletAddress and privateKey configuration");
     }
@@ -284,7 +284,7 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
     }
   }
 
-  public async getOrderHistory(_symbol?: string, _limit: number = 100): Promise<any[]> {
+  public async getOrderHistory(_symbol?: string, _limit = 100): Promise<any[]> {
     try {
       // Note: This requires user's wallet address for order history
       console.warn("Hyperliquid order history requires user wallet address authentication");

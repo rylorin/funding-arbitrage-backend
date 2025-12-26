@@ -19,7 +19,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
     return "hyperliquidspot";
   }
 
-  private async getSpotMeta(force: boolean = false): Promise<number> {
+  private async getSpotMeta(force = false): Promise<number> {
     if (force || Object.keys(this.universe).length === 0) {
       const response = await this.post<{ tokens: any[]; universe: any[] }>(ENDPOINTS.INFO, {
         type: InfoType.SPOT_META,
@@ -66,11 +66,11 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
     return this.universe ? Object.keys(this.universe).length : 0;
   }
 
-  public async getPrices(tokens?: TokenSymbol[]): Promise<{ [token: TokenSymbol]: number }> {
+  public async getPrices(tokens?: TokenSymbol[]): Promise<Record<TokenSymbol, number>> {
     try {
-      const prices: { [token: string]: number } = {};
+      const prices: Record<string, number> = {};
 
-      const allMids = await this.post<{ [token: TokenSymbol]: string }>(ENDPOINTS.INFO, {
+      const allMids = await this.post<Record<TokenSymbol, string>>(ENDPOINTS.INFO, {
         type: InfoType.ALL_MIDS,
       }).then((response) => response.data);
 
@@ -89,7 +89,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
     }
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       if (!this.primaryAddress) {
         throw new Error("Hyperliquid spot balance requires primaryAddress configuration");
@@ -102,7 +102,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
       }).then((response) => response.data);
       // console.debug("Spot Clearinghouse State:", spotState);
 
-      const balances: { [token: string]: number } = {};
+      const balances: Record<string, number> = {};
 
       spotState.balances.forEach((balance) => {
         if (parseFloat(balance.total) > 0) {
@@ -120,7 +120,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
   /**
    * Format price for spot markets (different decimal limits than perps)
    */
-  protected formatPriceForHyperliquid(price: number, isPerp: boolean = false): string {
+  protected formatPriceForHyperliquid(price: number, isPerp = false): string {
     return super.formatPriceForHyperliquid(price, isPerp);
   }
 
@@ -255,7 +255,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
     }
   }
 
-  public async getOrderHistory(_symbol?: string, _limit: number = 100): Promise<any[]> {
+  public async getOrderHistory(_symbol?: string, _limit = 100): Promise<any[]> {
     try {
       // Note: This requires user's wallet address for order history
       console.warn("Hyperliquid spot order history requires user wallet address authentication");

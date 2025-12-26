@@ -4,10 +4,19 @@
 
 export type Tif = "Alo" | "Ioc" | "Gtc";
 export type TriggerType = "tp" | "sl";
-export type LimitOrder = { tif: Tif };
-export type TriggerOrder = { triggerPx: string | number; isMarket: boolean; tpsl: TriggerType };
+export interface LimitOrder {
+  tif: Tif;
+}
+export interface TriggerOrder {
+  triggerPx: string | number;
+  isMarket: boolean;
+  tpsl: TriggerType;
+}
 export type Grouping = "na" | "normalTpsl" | "positionTpsl";
-export type OrderType = { limit?: LimitOrder; trigger?: TriggerOrder };
+export interface OrderType {
+  limit?: LimitOrder;
+  trigger?: TriggerOrder;
+}
 export type Cloid = string;
 export type OidOrCloid = number | Cloid;
 
@@ -51,18 +60,16 @@ export interface Builder {
   fee: number;
 }
 
-export interface AllMids {
-  [coin: string]: string;
-}
+export type AllMids = Record<string, string>;
 
-export type Meta = {
+export interface Meta {
   universe: {
     name: string;
     szDecimals: number;
     maxLeverage: number;
     onlyIsolated?: boolean;
   }[];
-};
+}
 
 export interface ClearinghouseState {
   assetPositions: {
@@ -131,14 +138,14 @@ export interface OrderResponse {
   response: {
     type: string;
     data: {
-      statuses: Array<{
+      statuses: {
         resting?: { oid: number };
         filled?: {
           oid: number;
           totalSz: string;
           avgPx: string;
         };
-      }>;
+      }[];
     };
   };
 }
@@ -161,7 +168,7 @@ export interface WsTrade {
 
 export interface WsBook {
   coin: string;
-  levels: [Array<WsLevel>, Array<WsLevel>];
+  levels: [WsLevel[], WsLevel[]];
   time: number;
 }
 
@@ -257,13 +264,9 @@ export type FrontendOpenOrders = {
   triggerPx: string;
 }[];
 
-export interface UserRateLimit {
-  [key: string]: any;
-}
+export type UserRateLimit = Record<string, any>;
 
-export interface OrderStatus {
-  [key: string]: any;
-}
+export type OrderStatus = Record<string, any>;
 
 export interface L2Book {
   levels: [
@@ -282,7 +285,7 @@ export interface L2Book {
 
 export type CandleSnapshot = Candle[];
 
-export type AssetCtx = {
+export interface AssetCtx {
   dayBaseVlm: string;
   dayNtlVlm: string;
   funding: string;
@@ -293,7 +296,7 @@ export type AssetCtx = {
   oraclePx: string;
   premium: string;
   prevDayPx: string;
-};
+}
 
 export type MetaAndAssetCtxs = [Meta, AssetCtx[]];
 
@@ -352,12 +355,12 @@ export interface SpotMarket {
   isCanonical: boolean;
 }
 
-export type SpotMeta = {
+export interface SpotMeta {
   tokens: SpotToken[];
   universe: SpotMarket[];
-};
+}
 
-export type SpotAssetCtx = {
+export interface SpotAssetCtx {
   circulatingSupply: string;
   coin: string;
   dayBaseVlm: string;
@@ -366,7 +369,7 @@ export type SpotAssetCtx = {
   midPx: string;
   prevDayPx: string;
   totalSupply: string;
-};
+}
 
 export type SpotMetaAndAssetCtxs = [SpotMeta, SpotAssetCtx[]];
 
@@ -433,9 +436,7 @@ export interface Notification {
 }
 
 // As flexible as possible
-export interface WebData2 {
-  [key: string]: any;
-}
+export type WebData2 = Record<string, any>;
 
 export interface Candle {
   t: number; // open time
@@ -466,11 +467,11 @@ export interface WsUserFill {
   tid: number;
 }
 
-export type WsUserFills = {
+export interface WsUserFills {
   isSnapshot: boolean;
   fills: WsUserFill[];
   user: string;
-};
+}
 
 export interface WsUserFunding {
   time: number;
@@ -480,11 +481,11 @@ export interface WsUserFunding {
   fundingRate: string;
 }
 
-export type WsUserFundings = {
+export interface WsUserFundings {
   isSnapshot: boolean;
   fundings: WsUserFunding[];
   user: string;
-};
+}
 
 export interface WsUserNonFundingLedgerUpdate {
   time: number;
@@ -493,20 +494,20 @@ export interface WsUserNonFundingLedgerUpdate {
   type: "deposit" | "withdraw" | "transfer" | "liquidation";
 }
 
-export type WsUserNonFundingLedgerUpdates = {
+export interface WsUserNonFundingLedgerUpdates {
   isSnapshot: boolean;
   updates: WsUserNonFundingLedgerUpdate[];
   user: string;
-};
+}
 
-export type WsUserActiveAssetData = {
+export interface WsUserActiveAssetData {
   isSnapshot: boolean;
   user: string;
   coin: string;
   leverage: Leverage;
   maxTradeSzs: [number, number];
   availableToTrade: [number, number];
-};
+}
 
 export interface TwapOrder {
   coin: string;
@@ -551,13 +552,9 @@ export interface PredictedFunding {
   nextFundingTime: number;
 }
 
-export interface VenueFunding {
-  [venue: string]: PredictedFunding;
-}
+export type VenueFunding = Record<string, PredictedFunding>;
 
-export interface PredictedFundings {
-  [coin: string]: VenueFunding[];
-}
+export type PredictedFundings = Record<string, VenueFunding[]>;
 
 export interface TokenDetails {
   name: string;
@@ -813,7 +810,7 @@ export interface WsTwapHistoryResponse {
 export interface WsTwapSliceFill {
   isSnapshot?: boolean;
   user: string;
-  twapSliceFills: Array<{
+  twapSliceFills: {
     fill: {
       closedPnl: string;
       coin: string;
@@ -831,7 +828,7 @@ export interface WsTwapSliceFill {
       tid: number;
     };
     twapId: number;
-  }>;
+  }[];
 }
 
 export interface ValidatorStats {

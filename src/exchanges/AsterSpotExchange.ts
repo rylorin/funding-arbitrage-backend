@@ -45,11 +45,11 @@ interface AsterSpotAccountInfo {
   canDeposit: boolean;
   updateTime: number;
   accountType: string;
-  balances: Array<{
+  balances: {
     asset: string;
     free: string;
     locked: string;
-  }>;
+  }[];
   permissions: string[];
 }
 
@@ -79,7 +79,10 @@ function calculateHmacSha256(data: string, secret: string): string {
   return hmac.digest("hex");
 }
 
-type AsterSpotPrice = { symbol: string; price: number };
+interface AsterSpotPrice {
+  symbol: string;
+  price: number;
+}
 
 export class AsterSpotExchange extends ExchangeConnector {
   private readonly secretKey: string;
@@ -105,7 +108,7 @@ export class AsterSpotExchange extends ExchangeConnector {
     return ExchangeType.SPOT;
   }
 
-  public post<T = any, R = AxiosResponse<T>, D = any>(
+  public async post<T = any, R = AxiosResponse<T>, D = any>(
     url: string,
     data?: D,
     config?: AxiosRequestConfig<D>,
@@ -126,7 +129,7 @@ export class AsterSpotExchange extends ExchangeConnector {
       });
   }
 
-  private async getExchangeInfo(force: boolean = false): Promise<number> {
+  private async getExchangeInfo(force = false): Promise<number> {
     if (force || !this.universe["BTC"]) {
       const response = await this.get("/api/v1/exchangeInfo").then((response) => response.data.symbols);
       response
@@ -220,14 +223,14 @@ export class AsterSpotExchange extends ExchangeConnector {
     }
   }
 
-  public async getAccountBalance(): Promise<{ [token: string]: number }> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     try {
       const timestamp = Date.now();
       const payload = `timestamp=${timestamp}`;
       const signature = calculateHmacSha256(payload, this.secretKey);
 
       const response = await this.get(`/api/v1/account?${payload}&signature=${signature}`);
-      const balances: { [token: string]: number } = {};
+      const balances: Record<string, number> = {};
 
       if (response.data.balances) {
         response.data.balances.forEach((balance: any) => {
@@ -273,7 +276,7 @@ export class AsterSpotExchange extends ExchangeConnector {
     return price.toFixed(universe.pricePrecision);
   }
 
-  public async openPosition(orderData: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage, slippage } = orderData;
 
     if (side == PositionSide.SHORT && !reduceOnly) {

@@ -35,7 +35,7 @@ export abstract class ExchangeConnector {
   private readonly _name: ExchangeName;
   public readonly isEnabled: boolean = false;
   // private readonly _type: ExchangeType = ExchangeType.PERP;
-  public isConnected: boolean = false;
+  public isConnected = false;
 
   public readonly config: IConfig;
 
@@ -71,7 +71,7 @@ export abstract class ExchangeConnector {
       (response) => {
         return response;
       },
-      (error) => {
+      async (error) => {
         if (axios.isAxiosError(error)) {
           // console.error(error);
           console.error(error.response?.config.method, error.response?.config.url, error.response?.config.data);
@@ -98,24 +98,24 @@ export abstract class ExchangeConnector {
   }
 
   // Axios client proxy
-  public get<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
+  public async get<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
     return this.axiosClient.get<T, R, D>(url, config);
   }
-  public post<T = any, R = AxiosResponse<T>, D = any>(
+  public async post<T = any, R = AxiosResponse<T>, D = any>(
     url: string,
     data?: D,
     config?: AxiosRequestConfig<D>,
   ): Promise<R> {
     return this.axiosClient.post<T, R, D>(url, data, config);
   }
-  public patch<T = any, R = AxiosResponse<T>, D = any>(
+  public async patch<T = any, R = AxiosResponse<T>, D = any>(
     url: string,
     data?: D,
     config?: AxiosRequestConfig<D>,
   ): Promise<R> {
     return this.axiosClient.patch<T, R, D>(url, data, config);
   }
-  public delete<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
+  public async delete<T = any, R = AxiosResponse<T>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
     return this.axiosClient.delete<T, R, D>(url, config);
   }
 
@@ -171,7 +171,7 @@ export abstract class ExchangeConnector {
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     throw `${this.name} ExchangeConnector.getFundingRates not implemented`;
   }
-  public async openPosition(order: OrderData, reduceOnly: boolean = false): Promise<PlacedOrderData> {
+  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
   }
   public async getAllPositions(): Promise<Position[]> {
@@ -195,11 +195,11 @@ export abstract class ExchangeConnector {
   }
 
   // Not implemented yet
-  public getAccountBalance(): Promise<Record<string, number>> {
+  public async getAccountBalance(): Promise<Record<string, number>> {
     throw `${this.name} ExchangeConnector.getAccountBalance not implemented`;
   }
   // Not implemented yet
-  public getPositionPnL(positionId: string): Promise<number> {
+  public async getPositionPnL(positionId: string): Promise<number> {
     throw `${this.name} ExchangeConnector.getPositionPnL(${positionId}) not implemented`;
   }
 }

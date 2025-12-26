@@ -7,12 +7,12 @@ import { FundingRate, Position, TradeHistory } from "../models";
 import { JobResult, Service, ServiceName } from "../types";
 import { OpportunityDetectionService } from "./OpportunityDetectionService";
 
-export type PositionMetrics = {
+export interface PositionMetrics {
   cost: number;
   currentApr: number;
   currentPnL: number;
   hoursOpen: number;
-};
+}
 
 export class PositionSyncService implements Service {
   public readonly name: ServiceName = ServiceName.POSITION_SYNC;
@@ -56,7 +56,7 @@ export class PositionSyncService implements Service {
       },
     });
     await trades.reduce(
-      (p, trade) =>
+      async (p, trade) =>
         p.then(async () => {
           const legs = await Position.findAll({
             where: {

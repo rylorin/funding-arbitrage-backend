@@ -2,7 +2,7 @@ import { ExchangeName } from "@/exchanges/ExchangeConnector";
 import { PositionSide } from "@/models/Position";
 import { PositionMetrics } from "@/services/PositionSyncService";
 
-export type OrderData = {
+export interface OrderData {
   exchange: ExchangeName;
   token: TokenSymbol;
   side: PositionSide;
@@ -10,7 +10,7 @@ export type OrderData = {
   price: number;
   leverage: number;
   slippage: number; // in percentage
-};
+}
 
 export type PlacedOrderData = OrderData & { orderId: string };
 
