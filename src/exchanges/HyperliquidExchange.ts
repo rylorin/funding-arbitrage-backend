@@ -146,7 +146,7 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
     return price.toFixed(decimalPlaces);
   }
 
-  protected async placeOrder(orderRequest: OrderRequest) {
+  protected async nativePlaceOrder(orderRequest: OrderRequest) {
     if (!this.wallet) {
       throw new Error(`${this.name} place order requires walletAddress and privateKey configuration`);
     }

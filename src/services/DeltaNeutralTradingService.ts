@@ -498,7 +498,7 @@ export class DeltaNeutralTradingService implements Service {
         if (!exchange) {
           return Promise.reject(`Exchange ${order.exchange} not found`);
         }
-        return exchange.openPosition(order).then((order) => {
+        return exchange.placeOrder(order).then((order) => {
           console.debug(order);
           return order;
         });

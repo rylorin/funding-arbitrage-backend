@@ -131,7 +131,7 @@ export class VestExchange extends ExchangeConnector {
     return response.data.value;
   }
 
-  private async placeOrder(order: any): Promise<string> {
+  private async nativePlaceOrder(order: any): Promise<string> {
     const privateKey: string = this.config.get<string>("privateKey");
     const signature = generateOrderSignature(order, privateKey);
 
@@ -183,7 +183,7 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, slippage, leverage } = orderData;
     try {
       if (leverage) await this.setLeverage(token, leverage);
@@ -213,7 +213,7 @@ export class VestExchange extends ExchangeConnector {
         timeInForce: "GTC",
       };
 
-      const orderId = await this.placeOrder(order);
+      const orderId = await this.nativePlaceOrder(order);
       return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
     } catch (error) {
       throw error;

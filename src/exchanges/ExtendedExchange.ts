@@ -235,7 +235,7 @@ export class ExtendedExchange extends ExchangeConnector {
     return leverage;
   }
 
-  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage, slippage } = order;
     try {
       if (leverage) await this.setLeverage(token, leverage);
@@ -287,7 +287,7 @@ export class ExtendedExchange extends ExchangeConnector {
         ctx,
       });
 
-      const result = await this.placeOrder({ order: nativeOrder });
+      const result = await this.nativePlaceOrder({ order: nativeOrder });
       console.log(
         `✅ Extended ${side} position ${reduceOnly ? "closed" : "opened"} for ${token}: ${result.externalId}`,
       );
@@ -316,7 +316,7 @@ export class ExtendedExchange extends ExchangeConnector {
     return result.data.status == "OK";
   }
 
-  async placeOrder(args: { order: Order }) {
+  private async nativePlaceOrder(args: { order: Order }) {
     const { data } = await this.post<unknown>("/api/v1/user/order", args.order);
 
     return PlacedOrderResponseSchema.parse(data).data;

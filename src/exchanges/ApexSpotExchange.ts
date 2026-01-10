@@ -127,7 +127,7 @@ export class ApexSpotExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(orderData: OrderData, _reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(orderData: OrderData, _reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, slippage } = orderData;
 
     try {

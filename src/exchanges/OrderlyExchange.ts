@@ -271,7 +271,7 @@ export class OrderlyExchange extends ExchangeConnector {
   }
 
   // https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
-  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { exchange, token, side, size, leverage } = order;
     try {
       if (leverage) await this.setLeverage(token, leverage);

@@ -55,7 +55,7 @@ describe("ApexPerpExchange", () => {
   });
 
   test("Open Position", async () => {
-    const result = await exchange.openPosition(sampleOrder);
+    const result = await exchange.placeOrder(sampleOrder);
     console.debug(result);
     expect(result.orderId).toBeDefined();
     samplePlacedOrder.orderId = result.orderId;
@@ -82,7 +82,7 @@ describe("ApexPerpExchange", () => {
   });
 
   test("Short Position", async () => {
-    const placedOrder = await exchange.openPosition(shortOrder);
+    const placedOrder = await exchange.placeOrder(shortOrder);
     console.debug(placedOrder);
     expect(placedOrder.orderId).toBeDefined();
     await exchange.cancelOrder(placedOrder);
@@ -92,7 +92,7 @@ describe("ApexPerpExchange", () => {
   });
 
   test("High precision quantity", async () => {
-    const placedOrder = await exchange.openPosition(highPrecisionQuantityOrder);
+    const placedOrder = await exchange.placeOrder(highPrecisionQuantityOrder);
     console.debug(placedOrder);
     expect(placedOrder.orderId).toBeDefined();
     const canceled = await exchange.cancelOrder(placedOrder);

@@ -128,7 +128,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
    * Place a new order on Hyperliquid spot exchange
    * Note: Spot trading doesn't use leverage, so this is simplified
    */
-  public async openPosition(order: OrderData, reduce_only = false): Promise<PlacedOrderData> {
+  public async placeOrder(order: OrderData, reduce_only = false): Promise<PlacedOrderData> {
     const { token, side, size, slippage } = order;
     try {
       if (!this.wallet) {
@@ -167,7 +167,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
         reduce_only,
       };
 
-      const response = await this.placeOrder(orderRequest);
+      const response = await this.nativePlaceOrder(orderRequest);
 
       if (response.status != "ok") {
         throw new Error(JSON.stringify(response) || "Failed to place spot order");

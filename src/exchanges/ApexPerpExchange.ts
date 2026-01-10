@@ -221,7 +221,7 @@ export class ApexPerpExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, slippage, leverage } = orderData;
 
     try {

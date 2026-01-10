@@ -42,7 +42,7 @@ describe("OrderlyExchange", () => {
   });
 
   test("Open position", async () => {
-    const result = await exchange.openPosition(sampleOrder);
+    const result = await exchange.placeOrder(sampleOrder);
     console.debug(result);
     expect(result.orderId).toBeDefined();
     samplePlacedOrder.orderId = result.orderId;
@@ -69,7 +69,7 @@ describe("OrderlyExchange", () => {
   });
 
   test("Short position", async () => {
-    const t = exchange.openPosition(shortOrder).then((response) => response.orderId);
+    const t = exchange.placeOrder(shortOrder).then((response) => response.orderId);
     if (exchange.type == ExchangeType.PERP) {
       await expect(t).resolves.toBeDefined();
     } else {
@@ -87,7 +87,7 @@ describe("OrderlyExchange", () => {
   });
 
   test("High precision quantity", async () => {
-    const placedOrder = await exchange.openPosition(highPrecisionQuantityOrder);
+    const placedOrder = await exchange.placeOrder(highPrecisionQuantityOrder);
     console.debug(placedOrder);
     expect(placedOrder.orderId).toBeDefined();
     const canceled = await exchange.cancelOrder(placedOrder);

@@ -171,7 +171,7 @@ export abstract class ExchangeConnector {
   public async getFundingRates(_tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     throw `${this.name} ExchangeConnector.getFundingRates not implemented`;
   }
-  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
   }
   public async getAllPositions(): Promise<Position[]> {
@@ -182,7 +182,7 @@ export abstract class ExchangeConnector {
   }
   public async closePosition(order: OrderData): Promise<string> {
     console.warn(`${this.name} ExchangeConnector.closePosition(${order.token}) not implemented), using fallback`);
-    return this.openPosition(
+    return this.placeOrder(
       { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG },
       true,
     ).then((response) => response.orderId);

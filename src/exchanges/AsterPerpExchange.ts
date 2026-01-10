@@ -222,7 +222,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     return response.leverage;
   }
 
-  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage } = order;
     try {
       await this.getExchangeInfo();

@@ -276,7 +276,7 @@ export class AsterSpotExchange extends ExchangeConnector {
     return price.toFixed(universe.pricePrecision);
   }
 
-  public async openPosition(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  public async placeOrder(orderData: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage, slippage } = orderData;
 
     if (side == PositionSide.SHORT && !reduceOnly) {
