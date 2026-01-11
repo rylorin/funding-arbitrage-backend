@@ -489,7 +489,7 @@ export class DeltaNeutralTradingService implements Service {
     return results;
   }
 
-  private async placeOrders(
+  private async openPosition(
     orders: PlacedOrderData[],
   ): Promise<{ success: boolean; count: number; orderIds: (PlacedOrderData | undefined)[]; status: string[] }> {
     return await Promise.allSettled(
@@ -499,7 +499,7 @@ export class DeltaNeutralTradingService implements Service {
           return Promise.reject(`Exchange ${order.exchange} not found`);
         }
         return exchange.placeOrder(order).then((order) => {
-          console.debug(order);
+          // console.debug(order);
           return order;
         });
       }),
@@ -543,7 +543,7 @@ export class DeltaNeutralTradingService implements Service {
   ): Promise<TradingResult> {
     try {
       console.log(
-        `🚀 Executing delta-neutral trade for user ${user.id}: ${opportunity.token} @ ${opportunity.longExchange.name}/${opportunity.shortExchange.name}`,
+        `🚀 Executing delta-neutral trade for user ${user.id}: ${settings.maxPositionSize} USD as ${opportunity.token} @ ${opportunity.longExchange.name}/${opportunity.shortExchange.name}`,
       );
 
       // Get exchanges from registry to check their types
@@ -556,6 +556,10 @@ export class DeltaNeutralTradingService implements Service {
 
       const isLongSpot = longExchange.type === ExchangeType.SPOT;
       const isShortSpot = shortExchange.type === ExchangeType.SPOT;
+
+      // Get current prices
+      opportunity.longExchange.price = await longExchange.getPrice(opportunity.token);
+      opportunity.shortExchange.price = await shortExchange.getPrice(opportunity.token);
 
       // Calculate individual leg sizes based on exchange types
       const { longSize, shortSize, totalNotional } = this.calculateLegSizes(
@@ -596,28 +600,49 @@ export class DeltaNeutralTradingService implements Service {
         },
       });
 
+      const longOrder: OrderData = {
+        exchange: opportunity.longExchange.name,
+        token: opportunity.token,
+        side: PositionSide.LONG,
+        size: longSize,
+        price: opportunity.longExchange.price,
+        leverage: isLongSpot ? 0 : settings.positionLeverage,
+        slippage: settings.slippageTolerance,
+      };
+      const shortOrder: OrderData = {
+        exchange: opportunity.shortExchange.name,
+        token: opportunity.token,
+        side: PositionSide.SHORT,
+        size: shortSize,
+        price: opportunity.shortExchange.price,
+        leverage: isShortSpot ? 0 : settings.positionLeverage,
+        slippage: settings.slippageTolerance,
+      };
+
       const [longLeg, shortLeg] = await Promise.all([
         this.createPositionLeg(
           trade,
-          PositionSide.LONG,
-          opportunity.longExchange.name,
-          longSize,
-          opportunity.longExchange.price,
-          isLongSpot ? 0 : settings.positionLeverage,
-          settings.slippageTolerance,
+          longOrder.side,
+          longOrder.exchange,
+          longOrder.size,
+          longOrder.price,
+          longOrder.leverage,
+          longOrder.slippage,
         ),
         this.createPositionLeg(
           trade,
-          PositionSide.SHORT,
-          opportunity.shortExchange.name,
-          shortSize,
-          opportunity.shortExchange.price,
-          isShortSpot ? 0 : settings.positionLeverage,
-          settings.slippageTolerance,
+          shortOrder.side,
+          shortOrder.exchange,
+          shortOrder.size,
+          shortOrder.price,
+          shortOrder.leverage,
+          shortOrder.slippage,
         ),
       ]);
-
-      const result = await this.placeOrders([longLeg, shortLeg]);
+      const result = await this.openPosition([
+        { ...longOrder, orderId: longLeg.id },
+        { ...shortOrder, orderId: shortLeg.id },
+      ]);
       result.status.forEach((s) => console.log(s));
       if (!result.success) {
         console.error("❌ Error placing orders for delta-neutral trade, canceling any pending orders...");

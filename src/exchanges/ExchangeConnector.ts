@@ -6,15 +6,15 @@ import { default as config, IConfig } from "config";
 import WebSocket from "ws";
 
 export type ExchangeName =
-  | "vest"
+  | "apexperp"
+  | "apexspot"
+  | "asterperp"
+  | "asterspot"
+  | "extended"
   | "hyperliquid"
   | "hyperliquidspot"
   | "orderly"
-  | "extended"
-  | "asterperp"
-  | "apexperp"
-  | "apexspot"
-  | "asterspot";
+  | "vest";
 export const ExchangeType = { PERP: "perp", SPOT: "spot" } as const;
 export type ExchangeType = (typeof ExchangeType)[keyof typeof ExchangeType];
 

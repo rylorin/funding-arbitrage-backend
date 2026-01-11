@@ -222,6 +222,7 @@ export class AsterPerpExchange extends ExchangeConnector {
     return response.leverage;
   }
 
+  // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#new-order--trade
   public async placeOrder(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     const { token, side, size, leverage } = order;
     try {
@@ -238,14 +239,13 @@ export class AsterPerpExchange extends ExchangeConnector {
       const response = await this.post("/fapi/v1/order", `${payload}&signature=${signature}`).then(
         (response) => response.data,
       );
-      // console.debug("Aster perp response:", response);
+      // console.debug("Aster perp response:", order, response);
       if (response.orderId) {
         return {
           ...response,
           ...order,
-          orderId: response.orderId.toString(),
+          orderId: response.clientOrderId.toString(),
           size: parseFloat(response.origQty),
-          // price: parseFloat(response.avgPrice),
         };
       }
 
@@ -256,11 +256,12 @@ export class AsterPerpExchange extends ExchangeConnector {
     }
   }
 
+  // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#cancel-order-trade
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     const { token, orderId } = order;
     const symbol = this.tokenToTicker(token);
 
-    const payload = `symbol=${symbol}&orderId=${orderId}&timestamp=${Date.now()}`;
+    const payload = `symbol=${symbol}&origClientOrderId=${orderId}&timestamp=${Date.now()}`;
     const signature = calculateHmacSha256(payload, this.secretKey);
     try {
       const response = await this.delete(`/fapi/v1/order?${payload}&signature=${signature}`).then(
@@ -291,13 +292,31 @@ export class AsterPerpExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(symbol?: string, limit = 100): Promise<any[]> {
+  // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#all-orders-user_data
+  public async getAllOrders(token?: string, limit = 100): Promise<PlacedOrderData[]> {
     try {
-      const params: any = { limit };
-      if (symbol) params.symbol = this.tokenToTicker(symbol);
+      let payload = "";
+      if (limit) payload = `limit=${limit}`;
+      if (token) {
+        if (payload.length > 0) payload += "&";
+        payload += `symbol=${this.tokenToTicker(token)}`;
+      }
+      if (payload.length > 0) payload += "&";
+      payload += `timestamp=${Date.now()}`;
 
-      const response = await this.get("/fapi/v1/allOrders", { params });
-      return response.data || [];
+      const signature = calculateHmacSha256(payload, this.secretKey);
+      const response = await this.get(`/fapi/v1/allOrders?${payload}&signature=${signature}`).then(
+        (response) => response.data,
+      );
+      // console.debug("response", payload, response);
+      return response.map((item: any) => ({
+        exchange: this.name,
+        token: this.tokenFromTicker(item.symbol),
+        side: item.side == "BUY" ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(item.price),
+        size: parseFloat(item.origQty),
+        orderId: item.clientOrderId.toString(),
+      }));
     } catch (error) {
       console.error("Error fetching Aster Perp order history:", error);
       throw new Error("Failed to fetch order history from Aster Perp");

@@ -5,7 +5,7 @@ import { CronJob } from "./cronJob";
 
 export class AutoTrader extends CronJob {
   constructor() {
-    super("*/5 * * * *");
+    super("*/5 * * * *"); // Every 5 minutes
   }
 
   public async runOnce(): Promise<JobResult> {

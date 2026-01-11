@@ -2,24 +2,23 @@ import { ArbitrageOpportunityData, RiskLevel } from "@/types";
 
 export const sampleOpportunity: ArbitrageOpportunityData = {
   id: "id-12345",
-  token: "INIT",
-  tokenIcon: "string",
+  token: "ANIME",
+  tokenIcon: "TBD",
   longExchange: {
-    name: "extended",
-    fundingRate: 0.0001,
-    fundingFrequency: 1,
-    price: 0.120155707125,
-  },
-  shortExchange: {
     name: "hyperliquid",
     fundingRate: 0.0001,
     fundingFrequency: 1,
-    price: 0.12016,
+    price: 1000,
+    apr: 0,
   },
-  spread: {
-    absolute: 0.0001,
-    apr: 1,
+  shortExchange: {
+    name: "asterperp",
+    fundingRate: 0.0001,
+    fundingFrequency: 1,
+    price: 1000,
+    apr: 0,
   },
+  spreadAPR: 1,
   risk: {
     level: RiskLevel.HIGH,
     score: 50,

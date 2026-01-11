@@ -1,3 +1,12 @@
+import {
+  asterPerpExchange,
+  asterSpotExchange,
+  extendedExchange,
+  hyperliquidPerpExchange,
+  hyperliquidSpotExchange,
+  orderlyExchange,
+  vestExchange,
+} from "./";
 import { ExchangeConnector, ExchangeName } from "./ExchangeConnector";
 
 // Export types
@@ -29,6 +38,32 @@ export class ExchangesRegistry {
 
   public static registerExchange(exchange: ExchangeConnector): void {
     this.exchanges.push(exchange);
+  }
+
+  public static async init() {
+    await [
+      asterPerpExchange,
+      asterSpotExchange,
+      extendedExchange,
+      hyperliquidPerpExchange,
+      hyperliquidSpotExchange,
+      orderlyExchange,
+      vestExchange,
+      // apexPerpExchange,
+    ].reduce(async (p, exchange) => {
+      p.then(async () => {
+        if (exchange.isEnabled) {
+          console.log(`🔗 Connecting to ${exchange.name} exchange...`);
+          ExchangesRegistry.registerExchange(exchange);
+          return exchange
+            .testConnection()
+            .then((count) => console.log(`✅ ${exchange.name} exchange connected: ${count} pairs available`));
+        } else {
+          console.log(`⚠️ ${exchange.name} exchange is disabled, skipping connection`);
+          return Promise.resolve();
+        }
+      });
+    }, Promise.resolve());
   }
 }
 

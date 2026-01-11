@@ -55,6 +55,13 @@ describe("AsterPerpExchange", () => {
     samplePlacedOrder.size = result.size;
   });
 
+  test("Get orders", async () => {
+    const result = await exchange.getAllOrders();
+    const pos = result.filter((p) => p.token === sampleOrder.token && p.side === sampleOrder.side);
+    console.debug(result, pos);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+  });
+
   test("Get positions", async () => {
     const result = await exchange.getAllPositions();
     const pos = result.filter((p) => p.token === sampleOrder.token && p.side === sampleOrder.side);

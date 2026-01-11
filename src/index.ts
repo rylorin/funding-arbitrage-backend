@@ -13,16 +13,7 @@ import healthService from "./services/HealthService";
 
 // Routes
 import { default as config, IConfig } from "config";
-import {
-  asterPerpExchange,
-  asterSpotExchange,
-  ExchangesRegistry,
-  extendedExchange,
-  hyperliquidPerpExchange,
-  hyperliquidSpotExchange,
-  orderlyExchange,
-  vestExchange,
-} from "./exchanges";
+import { exchangesRegistry } from "./exchanges";
 import authRoutes from "./routes/auth";
 import dashboardRoutes from "./routes/dashboard";
 import exchangeRoutes from "./routes/exchanges";
@@ -143,29 +134,7 @@ async function startServer(_config: IConfig): Promise<void> {
 
     // Setting up exchanges connections
     console.log("🔌 Setting up exchanges connections...");
-    await [
-      asterPerpExchange,
-      asterSpotExchange,
-      extendedExchange,
-      hyperliquidPerpExchange,
-      hyperliquidSpotExchange,
-      orderlyExchange,
-      vestExchange,
-      // apexPerpExchange,
-    ].reduce(async (p, exchange) => {
-      p.then(async () => {
-        if (exchange.isEnabled) {
-          console.log(`🔗 Connecting to ${exchange.name} exchange...`);
-          ExchangesRegistry.registerExchange(exchange);
-          return exchange
-            .testConnection()
-            .then((count) => console.log(`✅ ${exchange.name} exchange connected: ${count} pairs available`));
-        } else {
-          console.log(`⚠️ ${exchange.name} exchange is disabled, skipping connection`);
-          return Promise.resolve();
-        }
-      });
-    }, Promise.resolve());
+    await exchangesRegistry.init();
 
     // Initialize WebSocket server
     console.log("🔌 Setting up WebSocket server...");

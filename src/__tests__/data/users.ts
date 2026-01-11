@@ -1,8 +1,9 @@
-import { defaultUserSettings, UserSettings } from "@/models";
-import { UserCreationAttributes } from "@/models/User";
+import { defaultUserSettings, UserAttributes, UserSettings } from "@/models";
 import { RiskLevel } from "@/types";
 
-export const sampleSettings: UserSettings = defaultUserSettings;
+const now = new Date();
+
+export const sampleSettings: UserSettings = { ...defaultUserSettings, maxPositionSize: 50 };
 
 export const sampleSettingsLeverage3x: UserSettings = {
   ...defaultUserSettings,
@@ -14,8 +15,10 @@ export const sampleSettingsHighRisk: UserSettings = {
   riskTolerance: RiskLevel.HIGH,
 };
 
-export const sampleUser: UserCreationAttributes = {
+export const sampleUser: UserAttributes = {
   id: "1",
   walletAddress: "0xSampleWalletAddress",
   settings: sampleSettings,
+  createdAt: now,
+  updatedAt: now,
 };

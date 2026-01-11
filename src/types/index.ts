@@ -10,6 +10,7 @@ export interface OrderData {
   price: number;
   leverage: number;
   slippage: number; // in percentage
+  orderId?: string | undefined;
 }
 
 export type PlacedOrderData = OrderData & { orderId: string };

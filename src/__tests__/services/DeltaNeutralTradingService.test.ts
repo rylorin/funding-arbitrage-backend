@@ -1,10 +1,11 @@
+import { exchangesRegistry } from "@/exchanges";
 import { Position, PositionSide, PositionStatus, TradeHistory, User } from "@/models";
 import { deltaNeutralTradingService as service } from "@/services/DeltaNeutralTradingService";
 import { jest } from "@jest/globals";
 import { sampleOpportunity } from "../data/opportunities";
 import { sampleOrder } from "../data/orders";
 import { sampleTrade } from "../data/trades";
-import { sampleSettingsLeverage3x, sampleUser } from "../data/users";
+import { sampleSettings, sampleSettingsLeverage3x, sampleUser } from "../data/users";
 
 const setupCloseContext = async (): Promise<{
   user: User;
@@ -45,10 +46,11 @@ const setupCloseContext = async (): Promise<{
 };
 
 describe("DeltaNeutralTradingService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
     // jest.spyOn(DeltaNeutralTradingService, "placeOrders").mockImplementation(() => {});
+    await exchangesRegistry.init();
   });
 
   it("should initialize correctly", () => {
@@ -72,7 +74,9 @@ describe("DeltaNeutralTradingService", () => {
   });
 
   test("Execute trade", async () => {
-    // const result = await service.executeTrade(sampleUser, sampleOpportunity, sampleSettings);
+    const result = await service.executeTrade(sampleUser, sampleOpportunity, sampleSettings);
+    // console.debug(result);
+    expect(result.success).toBeTruthy();
   });
 
   test("Close trade", async () => {

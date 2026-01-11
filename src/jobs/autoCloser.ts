@@ -5,7 +5,7 @@ import { CronJob } from "./cronJob";
 
 export class AutoCloser extends CronJob {
   constructor() {
-    super();
+    super("*/2 * * * *"); // Every 2 minutes
   }
 
   public async processAutoClosures(): Promise<JobResult> {

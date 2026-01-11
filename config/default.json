@@ -76,7 +76,7 @@
   },
   "defaultUserSettings": {
     "enabled": false,
-    "minAPR": 65,
+    "minAPR": 60,
     "maxPositionSize": 1000,
     "maxSimultaneousPositions": 1,
     "riskTolerance": "medium",
@@ -86,7 +86,7 @@
     "autoCloseTimeoutHours": 0,
     "autoClosePnLThreshold": 25,
     "positionLeverage": 1,
-    "slippageTolerance": 0.1,
+    "slippageTolerance": 0.3,
     "notificationPreferences": {
       "email": true,
       "webhook": true,
