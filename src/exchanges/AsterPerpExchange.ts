@@ -3,7 +3,14 @@ import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { createHmac } from "crypto";
 import WebSocket from "ws";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
-import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import {
+  ExchangeConnector,
+  FundingRateData,
+  OrderData,
+  OrderStatus,
+  PlacedOrderData,
+  TokenSymbol,
+} from "../types/index";
 
 interface AsterMarket {
   symbol: string;
@@ -246,6 +253,7 @@ export class AsterPerpExchange extends ExchangeConnector {
           ...order,
           orderId: response.clientOrderId.toString(),
           size: parseFloat(response.origQty),
+          status: OrderStatus.FILLED,
         };
       }
 
@@ -254,6 +262,71 @@ export class AsterPerpExchange extends ExchangeConnector {
       console.error(`${this.name}: Error opening ${side} order for ${token}:`, error);
       throw error;
     }
+  }
+
+  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+    // Place the order
+    const placedOrder = await this.placeOrder(order, reduceOnly);
+
+    // Poll for order status every second until filled, rejected, or timeout (60s)
+    const maxWaitTime = 60000; // 60 seconds
+    const pollInterval = 1000; // 1 second
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      // Wait for poll interval before checking
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+      // Get order status from the API
+      const orders = await this.getAllOrders(order.token);
+      const currentOrder = orders.find((o) => o.orderId === placedOrder.orderId);
+
+      if (!currentOrder) {
+        // Order not found - could be filled and removed from open orders
+        // Check positions to see if order was filled
+        try {
+          const positions = await this.getAllPositions();
+          const relatedPosition = positions.find(
+            (pos) =>
+              pos.token === order.token &&
+              ((order.side === PositionSide.LONG && pos.side === PositionSide.LONG) ||
+                (order.side === PositionSide.SHORT && pos.side === PositionSide.SHORT)),
+          );
+          if (relatedPosition && relatedPosition.size > 0) {
+            // Order was likely filled
+            return {
+              ...placedOrder,
+              status: OrderStatus.FILLED,
+            };
+          }
+        } catch {
+          // Ignore errors - continue polling
+        }
+        continue;
+      }
+
+      // Check order status
+      if (currentOrder.status === OrderStatus.FILLED) {
+        return {
+          ...placedOrder,
+          status: OrderStatus.FILLED,
+        };
+      }
+
+      if (currentOrder.status === OrderStatus.REJECTED) {
+        throw new Error("Order rejected");
+      }
+
+      if (currentOrder.status === OrderStatus.CANCELED) {
+        throw new Error("Order was cancelled");
+      }
+
+      // If still OPEN, continue polling
+    }
+
+    // Timeout after 60 seconds - cancel the order
+    await this.cancelOrder(placedOrder);
+    throw new Error("Order timeout: still open after 60 seconds, cancelled");
   }
 
   // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#cancel-order-trade
@@ -318,10 +391,25 @@ export class AsterPerpExchange extends ExchangeConnector {
         leverage: parseFloat(item.leverage) || 1,
         slippage: 0,
         orderId: item.clientOrderId?.toString() || item.orderId?.toString(),
+        status: this.mapOrderStatus(item.status),
       }));
     } catch (error) {
       console.error("Error fetching Aster Perp order history:", error);
       throw new Error("Failed to fetch order history from Aster Perp");
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status?.toUpperCase()) {
+      case "FILLED":
+        return OrderStatus.FILLED;
+      case "CANCELED":
+      case "CANCELLED":
+        return OrderStatus.CANCELED;
+      case "REJECTED":
+        return OrderStatus.REJECTED;
+      default:
+        return OrderStatus.OPEN;
     }
   }
 
