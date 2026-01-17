@@ -1,7 +1,7 @@
 import { ENDPOINTS, InfoType } from "@hyperliquid/constants";
 import { SpotClearinghouseState, Tif } from "../hyperliquid/types";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
-import { FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import { FundingRateData, OrderData, OrderStatus, PlacedOrderData, TokenSymbol } from "../types/index";
 import { ExchangeName, ExchangeType } from "./ExchangeConnector";
 import { HyperliquidExchange } from "./HyperliquidExchange";
 
@@ -192,6 +192,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
         orderId: orderId.toString(),
         price: limitPrice,
         size,
+        status: OrderStatus.FILLED,
       };
     } catch (error) {
       console.error(`❌ Error placing Hyperliquid spot ${side} order for ${token}:`, error);
@@ -263,6 +264,53 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
     } catch (error) {
       console.error("Error fetching Hyperliquid spot order history:", error);
       throw new Error("Failed to fetch spot order history from Hyperliquid");
+    }
+  }
+
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      if (!this.primaryAddress) {
+        throw new Error("Hyperliquid requires primaryAddress configuration");
+      }
+
+      // Hyperliquid API: POST /info with type "orderHistory"
+      const response = await this.post(ENDPOINTS.INFO, {
+        type: "orderHistory",
+        user: this.primaryAddress,
+        coin: token,
+        limit,
+      });
+
+      const orders = response.data || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: order.coin as TokenSymbol,
+        side: order.isBuy ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(order.price) || 0,
+        size: parseFloat(order.sz) || 0,
+        leverage: 0, // Spot trading doesn't use leverage
+        slippage: 0,
+        orderId: order.oid?.toString() || order.id?.toString(),
+        status: this.mapOrderStatus(order.status),
+      }));
+    } catch (error) {
+      console.error("Error fetching Hyperliquid spot all orders:", error);
+      throw new Error("Failed to fetch all orders from Hyperliquid spot");
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status?.toUpperCase()) {
+      case "FILLED":
+        return OrderStatus.FILLED;
+      case "CANCELED":
+      case "CANCELLED":
+        return OrderStatus.CANCELED;
+      case "REJECTED":
+        return OrderStatus.REJECTED;
+      default:
+        return OrderStatus.OPEN;
     }
   }
 

@@ -174,6 +174,14 @@ export abstract class ExchangeConnector {
   public async placeOrder(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
   }
+  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+    throw `${this.name} ExchangeConnector.placeOrder(${order.token},${reduceOnly}) not implemented`;
+    // Implmentation should:
+    // 1. Place the order
+    // 2. Poll for order status every second until filled, rejected, or timeout (60s)
+    // Cancel the order if it's not filled within the timeout
+    // 3. Return the order data
+  }
   public async getAllPositions(): Promise<Position[]> {
     throw `${this.name} ExchangeConnector.getAllPositions not implemented`;
   }

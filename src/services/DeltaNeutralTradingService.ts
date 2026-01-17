@@ -490,7 +490,7 @@ export class DeltaNeutralTradingService implements Service {
   }
 
   private async openPosition(
-    orders: PlacedOrderData[],
+    orders: OrderData[],
   ): Promise<{ success: boolean; count: number; orderIds: (PlacedOrderData | undefined)[]; status: string[] }> {
     return await Promise.allSettled(
       orders.map(async (order) => {
@@ -498,7 +498,7 @@ export class DeltaNeutralTradingService implements Service {
         if (!exchange) {
           return Promise.reject(`Exchange ${order.exchange} not found`);
         }
-        return exchange.placeOrder(order).then((order) => {
+        return exchange.openPosition(order).then((order) => {
           // console.debug(order);
           return order;
         });
@@ -644,6 +644,15 @@ export class DeltaNeutralTradingService implements Service {
         { ...shortOrder, orderId: shortLeg.id },
       ]);
       result.status.forEach((s) => console.log(s));
+
+      // Update longLeg and shortLeg with actual orderIds from exchanges
+      if (result.orderIds[0]?.orderId) {
+        await longLeg.update({ orderId: result.orderIds[0].orderId });
+      }
+      if (result.orderIds[1]?.orderId) {
+        await shortLeg.update({ orderId: result.orderIds[1].orderId });
+      }
+
       if (!result.success) {
         console.error("❌ Error placing orders for delta-neutral trade, canceling any pending orders...");
         await Promise.all(result.orderIds.filter((order) => order).map(async (order) => this.cancelOrder(order!)));

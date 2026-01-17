@@ -4,7 +4,14 @@ import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import bs58 from "bs58";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import {
+  ExchangeConnector,
+  FundingRateData,
+  OrderData,
+  OrderStatus,
+  PlacedOrderData,
+  TokenSymbol,
+} from "../types/index";
 
 interface WoofiFundingRate {
   symbol: string;
@@ -350,6 +357,69 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
+  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+    // Place the order
+    const placedOrder = await this.placeOrder(order, reduceOnly);
+
+    // Poll for order status every second until filled, rejected, or timeout (60s)
+    const maxWaitTime = 60000; // 60 seconds
+    const pollInterval = 1000; // 1 second
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      // Wait for poll interval before checking
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+      // Get order status from the API
+      const orders = await this.getAllOrders(order.token);
+      const currentOrder = orders.find((o) => o.orderId === placedOrder.orderId);
+
+      if (!currentOrder) {
+        // Order not found - could be filled and removed from open orders
+        // Try to find it in filled/cancelled orders via positions
+        try {
+          const positions = await this.getAllPositions();
+          const relatedPosition = positions.find((pos) => pos.token === order.token);
+          if (relatedPosition) {
+            // Order was likely filled - return success with filled info
+            return {
+              ...placedOrder,
+              status: OrderStatus.FILLED,
+            };
+          }
+        } catch {
+          // Ignore errors - continue polling
+        }
+        continue;
+      }
+
+      // Check order status based on Orderly API response
+      // Orderly uses: "OPEN", "FILLED", "REJECTED", "CANCELLED"
+      const orderStatus = (currentOrder as any).status || (currentOrder as any).order_status;
+
+      if (orderStatus === "FILLED") {
+        return {
+          ...placedOrder,
+          status: OrderStatus.FILLED,
+        };
+      }
+
+      if (orderStatus === "REJECTED") {
+        throw new Error(`Order rejected: ${(currentOrder as any).reject_reason || "Unknown reason"}`);
+      }
+
+      if (orderStatus === "CANCELLED" || orderStatus === "CANCELED") {
+        throw new Error("Order was cancelled");
+      }
+
+      // If still OPEN, continue polling
+    }
+
+    // Timeout after 60 seconds - cancel the order
+    await this.cancelOrder(placedOrder);
+    throw new Error("Order timeout: still open after 60 seconds, cancelled");
+  }
+
   // https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/cancel-order
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     const { token, orderId } = order;
@@ -419,6 +489,31 @@ export class OrderlyExchange extends ExchangeConnector {
     } catch (error) {
       console.error("Error fetching Orderly order history:", error);
       throw new Error("Failed to fetch order history from Orderly");
+    }
+  }
+
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      const params: any = {};
+      if (token) params.symbol = this.tokenToTicker(token);
+      if (limit) params.size = limit;
+
+      const response = await this.get("/v1/orders", { params });
+      const orders = response.data.data?.rows || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: this.tokenFromTicker(order.symbol),
+        side: order.side === "BUY" ? PositionSide.LONG : PositionSide.SHORT,
+        size: parseFloat(order.order_quantity || order.quantity || order.size || 0),
+        price: parseFloat(order.order_price || order.price || 0),
+        leverage: parseFloat(order.leverage) || 1,
+        slippage: 0,
+        orderId: order.order_id?.toString() || order.id?.toString(),
+      }));
+    } catch (error) {
+      console.error("Error fetching Orderly all orders:", error);
+      throw new Error("Failed to fetch all orders from Orderly");
     }
   }
 

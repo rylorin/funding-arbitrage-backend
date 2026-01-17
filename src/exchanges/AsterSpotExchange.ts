@@ -3,7 +3,14 @@ import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { createHmac } from "crypto";
 import WebSocket from "ws";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
-import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import {
+  ExchangeConnector,
+  FundingRateData,
+  OrderData,
+  OrderStatus,
+  PlacedOrderData,
+  TokenSymbol,
+} from "../types/index";
 import { ExchangeType } from "./ExchangeConnector";
 
 interface AsterSpotMarket {
@@ -318,6 +325,7 @@ export class AsterSpotExchange extends ExchangeConnector {
       size: parseFloat(quantity),
       price: parseFloat(price),
       leverage: 0, // Spot trading doesn't use leverage
+      status: OrderStatus.FILLED,
     };
   }
 
@@ -402,6 +410,52 @@ export class AsterSpotExchange extends ExchangeConnector {
   public async getPositionPnL(_positionId: string): Promise<number> {
     console.warn("⚠️ PnL tracking for spot positions may require custom implementation");
     return 0;
+  }
+
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      const timestamp = Date.now();
+      let payload = `timestamp=${timestamp}`;
+      if (token) {
+        payload += `&symbol=${this.tokenToTicker(token)}`;
+      }
+      if (limit) {
+        payload += `&limit=${limit}`;
+      }
+
+      const signature = calculateHmacSha256(payload, this.secretKey);
+      const response = await this.get(`/api/v1/allOrders?${payload}&signature=${signature}`);
+      const orders = response.data || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: this.tokenFromTicker(order.symbol) as TokenSymbol,
+        side: order.side === "BUY" ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(order.price) || 0,
+        size: parseFloat(order.origQty) || 0,
+        leverage: 0, // Spot trading doesn't use leverage
+        slippage: 0,
+        orderId: order.orderId?.toString() || order.id?.toString(),
+        status: this.mapOrderStatus(order.status),
+      }));
+    } catch (error) {
+      console.error("Error fetching Aster Spot all orders:", error);
+      throw new Error("Failed to fetch all orders from Aster Spot");
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status?.toUpperCase()) {
+      case "FILLED":
+        return OrderStatus.FILLED;
+      case "CANCELED":
+      case "CANCELLED":
+        return OrderStatus.CANCELED;
+      case "REJECTED":
+        return OrderStatus.REJECTED;
+      default:
+        return OrderStatus.OPEN;
+    }
   }
 
   public connectWebSocket(onMessage: (data: any) => void): void {

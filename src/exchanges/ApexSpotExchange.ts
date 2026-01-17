@@ -2,7 +2,14 @@
 import { PositionSide } from "@/models";
 import crypto from "crypto";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import {
+  ExchangeConnector,
+  FundingRateData,
+  OrderData,
+  OrderStatus,
+  PlacedOrderData,
+  TokenSymbol,
+} from "../types/index";
 
 interface ApexSpotTicker {
   symbol: string;
@@ -164,6 +171,7 @@ export class ApexSpotExchange extends ExchangeConnector {
         orderId: orderResponse.orderId,
         size: parseFloat(orderResponse.size),
         price: parseFloat(orderResponse.price) || limitPrice,
+        status: OrderStatus.FILLED,
       };
     } catch (error) {
       console.error(`Error placing Apex Spot order for ${token}:`, error);
@@ -218,6 +226,50 @@ export class ApexSpotExchange extends ExchangeConnector {
   public async getPositionPnL(_positionId: string): Promise<number> {
     console.warn("⚠️ PnL tracking for spot positions may require custom implementation");
     return 0;
+  }
+
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      const requestPath = "/api/v1/spot/orders";
+      const headers = this.addAuthHeaders("GET", requestPath);
+
+      const params: any = {};
+      if (token) params.symbol = this.tokenToTicker(token);
+      if (limit) params.limit = limit;
+
+      const response = await this.get(requestPath, { headers, params });
+      const orders = response.data?.data?.orders || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: this.tokenFromTicker(order.symbol) as TokenSymbol,
+        side: order.side === "BUY" ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(order.price) || 0,
+        size: parseFloat(order.size) || parseFloat(order.quantity) || 0,
+        leverage: 0, // Spot trading doesn't use leverage
+        slippage: 0,
+        orderId: order.orderId?.toString() || order.id?.toString(),
+        status: this.mapOrderStatus(order.status),
+      }));
+    } catch (error) {
+      console.error("Error fetching Apex Spot all orders:", error);
+      throw new Error("Failed to fetch all orders from Apex Spot");
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status?.toUpperCase()) {
+      case "FILLED":
+      case "FULLY_FILLED":
+        return OrderStatus.FILLED;
+      case "CANCELED":
+      case "CANCELLED":
+        return OrderStatus.CANCELED;
+      case "REJECTED":
+        return OrderStatus.REJECTED;
+      default:
+        return OrderStatus.OPEN;
+    }
   }
 
   public connectWebSocket(onMessage: (data: any) => void): void {

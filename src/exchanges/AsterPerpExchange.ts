@@ -293,7 +293,7 @@ export class AsterPerpExchange extends ExchangeConnector {
   }
 
   // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#all-orders-user_data
-  public async getAllOrders(token?: string, limit = 100): Promise<PlacedOrderData[]> {
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
     try {
       let payload = "";
       if (limit) payload = `limit=${limit}`;
@@ -315,7 +315,9 @@ export class AsterPerpExchange extends ExchangeConnector {
         side: item.side == "BUY" ? PositionSide.LONG : PositionSide.SHORT,
         price: parseFloat(item.price),
         size: parseFloat(item.origQty),
-        orderId: item.clientOrderId.toString(),
+        leverage: parseFloat(item.leverage) || 1,
+        slippage: 0,
+        orderId: item.clientOrderId?.toString() || item.orderId?.toString(),
       }));
     } catch (error) {
       console.error("Error fetching Aster Perp order history:", error);

@@ -2,7 +2,14 @@
 import { Position, PositionSide, PositionStatus } from "@/models";
 import crypto from "crypto";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import {
+  ExchangeConnector,
+  FundingRateData,
+  OrderData,
+  OrderStatus,
+  PlacedOrderData,
+  TokenSymbol,
+} from "../types/index";
 
 interface ApexFundingRate {
   symbol: string;
@@ -264,6 +271,7 @@ export class ApexPerpExchange extends ExchangeConnector {
         orderId: orderResponse.orderId,
         size: parseFloat(orderResponse.size),
         price: parseFloat(orderResponse.price) || limitPrice,
+        status: OrderStatus.FILLED,
       };
     } catch (error) {
       console.error(`Error opening Apex Perp position for ${token}:`, error);
@@ -343,6 +351,50 @@ export class ApexPerpExchange extends ExchangeConnector {
     } catch (error) {
       console.error(`Error fetching position PnL for ${positionId}:`, error);
       throw new Error("Failed to fetch position PnL from Apex Perp");
+    }
+  }
+
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      const requestPath = "/v3/orders";
+      const headers = this.addAuthHeaders("GET", requestPath);
+
+      const params: any = {};
+      if (token) params.symbol = this.tokenToTicker(token);
+      if (limit) params.limit = limit;
+
+      const response = await this.get(requestPath, { headers, params });
+      const orders = response.data?.data?.list || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: this.tokenFromTicker(order.symbol) as TokenSymbol,
+        side: order.side === "BUY" ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(order.price) || 0,
+        size: parseFloat(order.size) || parseFloat(order.quantity) || 0,
+        leverage: parseFloat(order.leverage) || 1,
+        slippage: 0,
+        orderId: order.orderId?.toString() || order.id?.toString(),
+        status: this.mapOrderStatus(order.status),
+      }));
+    } catch (error) {
+      console.error("Error fetching Apex Perp all orders:", error);
+      throw new Error("Failed to fetch all orders from Apex Perp");
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status?.toUpperCase()) {
+      case "FILLED":
+      case "FULLY_FILLED":
+        return OrderStatus.FILLED;
+      case "CANCELED":
+      case "CANCELLED":
+        return OrderStatus.CANCELED;
+      case "REJECTED":
+        return OrderStatus.REJECTED;
+      default:
+        return OrderStatus.OPEN;
     }
   }
 

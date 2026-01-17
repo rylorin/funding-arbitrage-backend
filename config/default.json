@@ -82,7 +82,7 @@
     "riskTolerance": "medium",
     "preferredExchanges": ["asterperp", "asterspot", "extended", "hyperliquid", "hyperliquidspot", "orderly", "vest"],
     "autoCloseEnabled": true,
-    "autoCloseAPRThreshold": 5,
+    "autoCloseAPRThreshold": 1,
     "autoCloseTimeoutHours": 0,
     "autoClosePnLThreshold": 25,
     "positionLeverage": 1,

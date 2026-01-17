@@ -3,7 +3,14 @@ import { Position } from "@/models";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import { generateCancelOrderSignature, generateOrderSignature } from "@/utils/vest";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types/index";
+import {
+  ExchangeConnector,
+  FundingRateData,
+  OrderData,
+  OrderStatus,
+  PlacedOrderData,
+  TokenSymbol,
+} from "../types/index";
 
 interface TokenInfo {
   symbol: string;
@@ -214,7 +221,13 @@ export class VestExchange extends ExchangeConnector {
       };
 
       const orderId = await this.nativePlaceOrder(order);
-      return { ...orderData, orderId, size: parseFloat(quantity), price: parseFloat(limitPrice) };
+      return {
+        ...orderData,
+        orderId,
+        size: parseFloat(quantity),
+        price: parseFloat(limitPrice),
+        status: OrderStatus.FILLED,
+      };
     } catch (error) {
       throw error;
     }
@@ -284,6 +297,46 @@ export class VestExchange extends ExchangeConnector {
     } catch (error) {
       console.error("Error fetching Vest order history:", error);
       throw new Error("Failed to fetch order history from Vest");
+    }
+  }
+
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      const params: any = {};
+      if (token) params.symbol = this.tokenToTicker(token);
+      if (limit) params.limit = limit;
+
+      const response = await this.get("/orders", { params });
+      const orders = response.data || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: this.tokenFromTicker(order.symbol) as TokenSymbol,
+        side: order.isBuy ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(order.price) || 0,
+        size: parseFloat(order.size) || 0,
+        leverage: parseFloat(order.leverage) || 1,
+        slippage: 0,
+        orderId: order.id?.toString() || order.orderId?.toString(),
+        status: this.mapOrderStatus(order.status),
+      }));
+    } catch (error) {
+      console.error("Error fetching Vest all orders:", error);
+      throw new Error("Failed to fetch all orders from Vest");
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status?.toUpperCase()) {
+      case "FILLED":
+        return OrderStatus.FILLED;
+      case "CANCELED":
+      case "CANCELLED":
+        return OrderStatus.CANCELED;
+      case "REJECTED":
+        return OrderStatus.REJECTED;
+      default:
+        return OrderStatus.OPEN;
     }
   }
 

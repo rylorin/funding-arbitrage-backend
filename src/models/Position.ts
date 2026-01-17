@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
-import { ExchangeName, PlacedOrderData, TokenSymbol } from "../types/index";
+import { ExchangeName, OrderData, TokenSymbol } from "../types/index";
 import TradeHistory from "./TradeHistory";
 import User from "./User";
 
@@ -25,7 +25,7 @@ export enum PositionSide {
   SHORT = "short",
 }
 
-interface PositionAttributes extends PlacedOrderData {
+interface PositionAttributes extends OrderData {
   id: string;
   userId: string;
   tradeId: string;

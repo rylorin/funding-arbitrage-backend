@@ -2,6 +2,13 @@ import { ExchangeName } from "@/exchanges/ExchangeConnector";
 import { PositionSide } from "@/models/Position";
 import { PositionMetrics } from "@/services/PositionSyncService";
 
+export enum OrderStatus {
+  OPEN = "open",
+  FILLED = "filled",
+  CANCELED = "canceled",
+  REJECTED = "rejected",
+}
+
 export interface OrderData {
   exchange: ExchangeName;
   token: TokenSymbol;
@@ -13,7 +20,7 @@ export interface OrderData {
   orderId?: string | undefined;
 }
 
-export type PlacedOrderData = OrderData & { orderId: string };
+export type PlacedOrderData = OrderData & { orderId: string; status: OrderStatus };
 
 export interface AuthChallenge {
   message: string;

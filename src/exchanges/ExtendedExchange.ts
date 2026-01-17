@@ -12,7 +12,7 @@ import { roundToMinChange } from "@/extended/utils/round-to-min-change";
 import { Position } from "@/models";
 import { PositionSide, PositionStatus } from "@/models/Position";
 import WebSocket from "ws";
-import { ExchangeConnector, FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "../types";
+import { ExchangeConnector, FundingRateData, OrderData, OrderStatus, PlacedOrderData, TokenSymbol } from "../types";
 
 interface ExtendedMarketStats {
   dailyVolume: string;
@@ -302,6 +302,7 @@ export class ExtendedExchange extends ExchangeConnector {
         orderId: result.externalId,
         price: price.toNumber(),
         size: amountOfSynthetic.toNumber(),
+        status: OrderStatus.FILLED,
       };
     } catch (error) {
       throw error;
@@ -367,6 +368,50 @@ export class ExtendedExchange extends ExchangeConnector {
     } catch (error) {
       console.error("Error fetching Extended order history:", error);
       throw new Error("Failed to fetch order history from Extended");
+    }
+  }
+
+  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      // Note: Extended requires authentication for order history
+      console.warn("Extended getAllOrders requires Stark signature authentication");
+      // Extended API: GET /api/v1/user/orders
+      const params: any = {};
+      if (token) params.market = this.tokenToTicker(token);
+      if (limit) params.limit = limit;
+
+      const { data } = await this.get<unknown>("/api/v1/user/orders", { params });
+      // Assuming data structure: { orders: [...] }
+      const orders = (data as any)?.orders || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: this.tokenFromTicker(order.market) as TokenSymbol,
+        side: order.side === "BUY" ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(order.price) || 0,
+        size: parseFloat(order.size) || parseFloat(order.amount) || 0,
+        leverage: parseFloat(order.leverage) || 1,
+        slippage: 0,
+        orderId: order.id?.toString() || order.externalId?.toString(),
+        status: this.mapOrderStatus(order.status),
+      }));
+    } catch (error) {
+      console.error("Error fetching Extended all orders:", error);
+      throw new Error("Failed to fetch all orders from Extended");
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status?.toUpperCase()) {
+      case "FILLED":
+        return OrderStatus.FILLED;
+      case "CANCELED":
+      case "CANCELLED":
+        return OrderStatus.CANCELED;
+      case "REJECTED":
+        return OrderStatus.REJECTED;
+      default:
+        return OrderStatus.OPEN;
     }
   }
 
