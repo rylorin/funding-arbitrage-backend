@@ -5,7 +5,7 @@ import { ENDPOINTS, InfoType } from "@hyperliquid/constants";
 import { orderToWire, signL1Action } from "@hyperliquid/signing";
 import { ethers } from "ethers";
 import WebSocket from "ws";
-import { CancelOrderRequest, Meta, OrderRequest } from "../hyperliquid/types";
+import { CancelOrderRequest, OrderRequest } from "../hyperliquid/types";
 import { ExchangeConnector, ExchangeName, OrderStatus, PlacedOrderData, TokenSymbol } from "../types/index";
 
 export abstract class HyperliquidExchange extends ExchangeConnector {
@@ -18,6 +18,7 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
       szDecimals: number;
       maxLeverage: number;
       onlyIsolated?: boolean;
+      market: string;
     }
   > = {};
   protected readonly privateKey: string | null;
@@ -35,17 +36,6 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
       : null;
   }
 
-  protected async getMeta(force = false): Promise<number> {
-    if (force || !this.universe["BTC"]) {
-      const response = await this.post<Meta>(ENDPOINTS.INFO, { type: InfoType.META }).then(
-        (response) => response.data.universe,
-      );
-      response.forEach((item, index) => (this.universe[item.name] = { ...item, index }));
-    }
-    const count = Object.keys(this.universe).length;
-    return count;
-  }
-
   public async testConnection(): Promise<number> {
     try {
       const count = await this.getMeta(true);
@@ -55,6 +45,10 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
       console.error(`❌ Failed to connect to ${this.name} Exchange:`, error);
       return 0;
     }
+  }
+
+  protected async getMeta(_force: boolean = false): Promise<number> {
+    throw new Error(`${this.name}: Method getMeta not implemented.`);
   }
 
   public async getPrices(tokens?: TokenSymbol[]): Promise<Record<TokenSymbol, number>> {
@@ -340,20 +334,21 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
         coin: token,
         limit,
       });
-      console.log("📜 Hyperliquid all orders response:", JSON.stringify(response.data[0], null, 2));
       const orders = response.data || [];
 
-      return orders.map((order: any) => ({
-        exchange: this.name,
-        token: order.order.coin as TokenSymbol,
-        side: order.order.side === "B" ? PositionSide.LONG : PositionSide.SHORT,
-        price: parseFloat(order.order.limitPx),
-        size: parseFloat(order.order.sz),
-        // leverage: order.leverage?.value || 1,
-        // slippage: 0,
-        orderId: order.order.oid.toString(),
-        status: this.mapOrderStatus(order.status),
-      }));
+      return orders
+        .sort((a: any, b: any) => b.statusTimestamp - a.statusTimestamp)
+        .map((order: any) => ({
+          exchange: this.name,
+          token: order.order.coin as TokenSymbol,
+          side: order.order.side === "B" ? PositionSide.LONG : PositionSide.SHORT,
+          price: parseFloat(order.order.limitPx),
+          size: parseFloat(order.order.sz),
+          // leverage: order.leverage?.value || 1,
+          // slippage: 0,
+          orderId: order.order.oid.toString(),
+          status: this.mapOrderStatus(order.status),
+        }));
     } catch (error) {
       console.error("Error fetching Hyperliquid all orders:", error);
       throw new Error("Failed to fetch all orders from Hyperliquid");

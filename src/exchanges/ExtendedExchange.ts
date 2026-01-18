@@ -434,7 +434,7 @@ export class ExtendedExchange extends ExchangeConnector {
       if (limit) params.limit = limit;
 
       const { data } = await this.get<unknown>("/api/v1/user/orders/history", { params });
-      console.log("Extended orders data:", data);
+      // console.log("Extended orders data:", data);
       // Assuming data structure: { orders: [...] }
       const orders = (data as any)?.data || [];
 

@@ -1,6 +1,6 @@
 import { signL1Action } from "@/hyperliquid/signing";
 import { ENDPOINTS, InfoType } from "@hyperliquid/constants";
-import { HyperliquidClearinghouseState, HyperliquidPosition, Tif } from "../hyperliquid/types";
+import { HyperliquidClearinghouseState, HyperliquidPosition, Meta, Tif } from "../hyperliquid/types";
 import Position, { PositionSide, PositionStatus } from "../models/Position";
 import { FundingRateData, OrderData, OrderStatus, PlacedOrderData, TokenSymbol } from "../types/index";
 import { ExchangeType } from "./ExchangeConnector";
@@ -30,6 +30,17 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
   // Note: We can't override the readonly property directly, so we'll handle it in the specific methods
   public get type(): ExchangeType {
     return ExchangeType.PERP;
+  }
+
+  protected async getMeta(force = false): Promise<number> {
+    if (force || !this.universe["BTC"]) {
+      const response = await this.post<Meta>(ENDPOINTS.INFO, { type: InfoType.META }).then(
+        (response) => response.data.universe,
+      );
+      response.forEach((item, index) => (this.universe[item.name] = { ...item, index, market: item.name }));
+    }
+    const count = Object.keys(this.universe).length;
+    return count;
   }
 
   private extractTokensFromTickers(marketsResponse: HyperliquidPredictedFunding[]): TokenSymbol[] {
@@ -350,10 +361,11 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
     }
   }
 
-  public async getAllOrders(token?: TokenSymbol, _limit = 100): Promise<PlacedOrderData[]> {
+  public async getAllOrders(token?: TokenSymbol, limit = 5): Promise<PlacedOrderData[]> {
     const orders = await this.nativeGetAllOrders(token);
-    console.log("orders", orders[0]);
-    return orders;
+    const perpOrders = orders.filter((item) => !item.token.startsWith("@")).slice(0, limit);
+    console.log("perpOrders", perpOrders);
+    return perpOrders;
   }
 }
 

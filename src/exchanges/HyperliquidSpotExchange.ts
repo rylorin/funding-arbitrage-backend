@@ -19,7 +19,8 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
     return "hyperliquidspot";
   }
 
-  private async getSpotMeta(force = false): Promise<number> {
+  protected async getMeta(force = false): Promise<number> {
+    // console.debug("getSpotMeta", force);
     if (force || Object.keys(this.universe).length === 0) {
       const response = await this.post<{ tokens: any[]; universe: any[] }>(ENDPOINTS.INFO, {
         type: InfoType.SPOT_META,
@@ -36,6 +37,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
       const usdc = response.tokens.find((t) => t.name === "USDC").index;
 
       // Process tokens
+      // console.debug("Process tokens");
       response.tokens.forEach((token) => {
         tokensIndex[token.index] = {
           name: token.name,
@@ -48,19 +50,21 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
       });
 
       // Process markets
+      // console.debug("Process markets");
       response.universe
-        .filter((item) => item.tokens[1] == this.universe["USDC"].index)
+        .filter((item) => item.tokens[1] == usdc)
         .forEach((market) => {
-          console.debug(market);
+          // console.debug(market);
           const baseToken = tokensIndex[market.tokens[0]];
           this.universe[baseToken.name] = {
             index: market.index,
             name: baseToken.name,
             szDecimals: baseToken.szDecimals,
             maxLeverage: 1,
+            market: market.name,
           };
         });
-      console.debug("Hyperliquid Spot Universe:", this.universe);
+      // console.debug("Hyperliquid Spot Universe:", this.universe);
     }
 
     return this.universe ? Object.keys(this.universe).length : 0;
@@ -136,7 +140,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
       }
 
       //   await this.getMeta();
-      await this.getSpotMeta();
+      await this.getMeta();
       if (!this.universe[token]) {
         throw new Error(`Token ${token} not found in Hyperliquid spot universe`);
       }
@@ -316,9 +320,22 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
     }
   }
 
-  public async getAllOrders(token?: TokenSymbol, _limit = 100): Promise<PlacedOrderData[]> {
+  public async getAllOrders(token?: TokenSymbol, limit = 5): Promise<PlacedOrderData[]> {
+    await this.getMeta(false);
+
     const orders = await this.nativeGetAllOrders(token);
-    return orders;
+    const spotOrders = orders
+      .filter((item) => item.token.startsWith("@"))
+      .slice(0, limit)
+      .map((order) => {
+        // console.log("order", order);
+        const market = Object.entries(this.universe).find(([_token, data]) => data.market === order.token);
+        if (market) order.token = market[0];
+        // console.log("market", market);
+        return order;
+      });
+    // console.log("spotOrders", spotOrders);
+    return spotOrders;
   }
 
   // Override funding rates - spot markets don't have funding rates
