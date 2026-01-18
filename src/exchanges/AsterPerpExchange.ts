@@ -148,38 +148,48 @@ export class AsterPerpExchange extends ExchangeConnector {
     return `${token}USDT`;
   }
 
+  // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#get-funding-rate-config
   public async getFundingRates(tokens?: TokenSymbol[]): Promise<FundingRateData[]> {
     try {
       const fundingRates: FundingRateData[] = [];
 
-      // Get all mark prices which contain funding rates
-      const response = await this.get("/fapi/v1/premiumIndex", {
-        params: { symbol: tokens && tokens.length === 1 ? this.tokenToTicker(tokens[0]) : undefined },
-      });
+      const prices: Record<
+        TokenSymbol,
+        { symbol: string; markPrice: number; lastFundingRate: number; nextFunding: Date }
+      > = {};
+      await this.get("/fapi/v1/premiumIndex").then((response) =>
+        response.data.forEach((index: any) => {
+          const token = this.tokenFromTicker(index.symbol);
+          // if (token == "DASH") console.debug(index);
+          prices[token!] = {
+            symbol: index.symbol,
+            markPrice: parseFloat(index.markPrice),
+            lastFundingRate: parseFloat(index.lastFundingRate),
+            nextFunding: new Date(index.nextFundingTime),
+          };
+        }),
+      );
 
-      const markPrices = Array.isArray(response.data) ? response.data : [response.data];
-
-      for (const markPrice of markPrices.filter((m) => m.symbol.endsWith("USDT"))) {
-        try {
-          const token = this.tokenFromTicker(markPrice.symbol);
-          if (!token || (tokens && !tokens.includes(token))) continue;
-
-          const nextFundingTime = markPrice.nextFundingTime || Date.now() + 8 * 60 * 60 * 1000;
-
+      await this.get("/fapi/v1/fundingInfo").then((response) =>
+        response.data.forEach((index: any) => {
+          const token = this.tokenFromTicker(index.symbol)!;
+          // if (token == "DASH") console.debug(index);
           const rate: FundingRateData = {
             exchange: this.name,
             token,
-            fundingRate: parseFloat(markPrice.lastFundingRate || markPrice.fundingRate || "0"),
-            nextFunding: new Date(nextFundingTime),
-            fundingFrequency: this.config.get("fundingFrequency"), // in hours
-            updatedAt: new Date(),
-            markPrice: parseFloat(markPrice.markPrice),
-            indexPrice: parseFloat(markPrice.indexPrice),
+            fundingRate: prices[token].lastFundingRate,
+            fundingFrequency: index.fundingIntervalHours,
+            nextFunding: prices[token].nextFunding,
+            markPrice: prices[token].markPrice,
+            updatedAt: new Date(index.time),
           };
           fundingRates.push(rate);
-        } catch (error) {
-          console.warn(`Failed to get funding rate for ${markPrice.symbol}:`, error);
-        }
+        }),
+      );
+
+      // Filter by tokens if specified
+      if (tokens && tokens.length > 0) {
+        return fundingRates.filter((rate) => tokens.includes(rate.token));
       }
 
       return fundingRates;

@@ -218,7 +218,14 @@ export abstract class ExchangeConnector {
 
     // Timeout after 60 seconds - cancel the order
     await this.cancelOrder(placedOrder);
-    throw new Error("${this.name}: Order ${currentOrder.orderId} still open after 60 seconds, cancelled");
+    throw new Error(`${this.name}: Order ${placedOrder} still open after 60 seconds, cancelled`);
+  }
+
+  public async closePosition(order: OrderData): Promise<string> {
+    return this.openPosition(
+      { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG },
+      true,
+    ).then((response) => response.orderId);
   }
 
   public async getAllPositions(): Promise<Position[]> {
@@ -226,13 +233,6 @@ export abstract class ExchangeConnector {
   }
   public async getAllOrders(_token?: TokenSymbol, _limit = 10): Promise<PlacedOrderData[]> {
     throw `${this.name} ExchangeConnector.getAllOrders not implemented`;
-  }
-  public async closePosition(order: OrderData): Promise<string> {
-    console.warn(`${this.name} ExchangeConnector.closePosition(${order.token}) not implemented), using fallback`);
-    return this.placeOrder(
-      { ...order, side: order.side == PositionSide.LONG ? PositionSide.SHORT : PositionSide.LONG },
-      true,
-    ).then((response) => response.orderId);
   }
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
     throw `${this.name} ExchangeConnector.cancelOrder(${order.orderId}) not implemented`;

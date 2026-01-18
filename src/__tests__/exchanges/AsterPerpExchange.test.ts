@@ -22,9 +22,15 @@ describe("AsterPerpExchange", () => {
     expect(exchange).toBeInstanceOf(Exchange);
   });
 
-  test("Get Price", async () => {
+  test("Get funding rates", async () => {
+    const result = await exchange.getFundingRates();
+    // console.debug(result);
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("Get price", async () => {
     const result = await exchange.getPrice(sampleOrder.token);
-    console.debug(result);
+    // console.debug(result);
     expect(result).toBeGreaterThan(0);
   });
 
