@@ -3,6 +3,8 @@ import { ExchangeType } from "@/exchanges/ExchangeConnector";
 import { OrderlyExchange as Exchange, orderlyExchange as exchange } from "@exchanges/OrderlyExchange";
 
 describe("OrderlyExchange", () => {
+  jest.setTimeout(75_000);
+
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
@@ -42,8 +44,8 @@ describe("OrderlyExchange", () => {
   });
 
   test("Open position", async () => {
-    const result = await exchange.placeOrder(sampleOrder);
-    console.debug(result);
+    const result = await exchange.openPosition(sampleOrder);
+    // console.debug(result);
     expect(result.orderId).toBeDefined();
     samplePlacedOrder.orderId = result.orderId;
     samplePlacedOrder.price = result.price;
@@ -53,8 +55,10 @@ describe("OrderlyExchange", () => {
   test("Get orders", async () => {
     const result = await exchange.getAllOrders();
     const pos = result.filter((p) => p.token === sampleOrder.token && p.side === sampleOrder.side);
-    // console.debug(result, pos);
+    console.debug(result, pos);
     expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result[0].status).toBeDefined();
+    expect(pos.length).toBeGreaterThanOrEqual(1);
   });
 
   test("Get positions", async () => {

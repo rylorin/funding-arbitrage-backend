@@ -1,6 +1,6 @@
 import { parseJsonWithBigNumber } from "@/extended/utils/json";
 import { Position, PositionSide } from "@/models";
-import { FundingRateData, OrderData, PlacedOrderData, TokenSymbol } from "@/types";
+import { FundingRateData, OrderData, OrderStatus, PlacedOrderData, TokenSymbol } from "@/types";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { default as config, IConfig } from "config";
 import WebSocket from "ws";
@@ -174,18 +174,57 @@ export abstract class ExchangeConnector {
   public async placeOrder(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
     throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
   }
+
   public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
-    throw `${this.name} ExchangeConnector.openPosition(${order.token},${reduceOnly}) not implemented`;
-    // Implmentation should:
-    // 1. Place the order
-    // 2. Poll for order status every second until filled, rejected, or timeout (60s)
-    // Cancel the order if it's not filled within the timeout
-    // 3. Return the order data
+    // Place the order
+    const placedOrder = await this.placeOrder(order, reduceOnly);
+
+    // Poll for order status every second until filled, rejected, or timeout (60s)
+    const maxWaitTime = 60_000; // 60 seconds
+    const pollInterval = 1_000; // 1 second
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      // Wait for poll interval before checking
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+      // Get order status from the API
+      const orders = await this.getAllOrders(order.token);
+      const currentOrder = orders.find((o) => o.orderId === placedOrder.orderId);
+
+      if (!currentOrder) {
+        // Order not found - wait and try again
+        continue;
+      }
+
+      // Check order status
+      if (currentOrder.status === OrderStatus.FILLED) {
+        return {
+          ...placedOrder,
+          status: OrderStatus.FILLED,
+        };
+      }
+
+      if (currentOrder.status === OrderStatus.REJECTED) {
+        throw new Error(`${this.name}: Order ${currentOrder.orderId} rejected`);
+      }
+
+      if (currentOrder.status === OrderStatus.CANCELED) {
+        throw new Error(`${this.name}: Order ${currentOrder.orderId} cancelled`);
+      }
+
+      // If still OPEN, continue polling
+    }
+
+    // Timeout after 60 seconds - cancel the order
+    await this.cancelOrder(placedOrder);
+    throw new Error("${this.name}: Order ${currentOrder.orderId} still open after 60 seconds, cancelled");
   }
+
   public async getAllPositions(): Promise<Position[]> {
     throw `${this.name} ExchangeConnector.getAllPositions not implemented`;
   }
-  public async getAllOrders(): Promise<PlacedOrderData[]> {
+  public async getAllOrders(_token?: TokenSymbol, _limit = 10): Promise<PlacedOrderData[]> {
     throw `${this.name} ExchangeConnector.getAllOrders not implemented`;
   }
   public async closePosition(order: OrderData): Promise<string> {

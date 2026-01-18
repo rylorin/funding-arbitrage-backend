@@ -49,8 +49,8 @@ describe("HyperliquidExchange", () => {
   });
 
   test("Open position", async () => {
-    const result = await exchange.placeOrder(sampleOrder);
-    console.debug(result);
+    const result = await exchange.openPosition(sampleOrder);
+    // console.debug(result);
     expect(result.orderId).toBeDefined();
     samplePlacedOrder.orderId = result.orderId;
     samplePlacedOrder.price = result.price;
@@ -60,7 +60,7 @@ describe("HyperliquidExchange", () => {
   test("Get orders", async () => {
     const result = await exchange.getAllOrders();
     const pos = result.filter((p) => p.token === sampleOrder.token && p.side === sampleOrder.side);
-    console.debug(result, pos);
+    // console.debug(result, pos);
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result[0].status).toBeDefined();
   });

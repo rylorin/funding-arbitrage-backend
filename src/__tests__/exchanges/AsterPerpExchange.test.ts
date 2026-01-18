@@ -47,8 +47,8 @@ describe("AsterPerpExchange", () => {
   });
 
   test("Open position", async () => {
-    const result = await exchange.placeOrder(sampleOrder);
-    console.debug(result);
+    const result = await exchange.openPosition(sampleOrder);
+    // console.debug(result);
     expect(result.orderId).toBeDefined();
     samplePlacedOrder.orderId = result.orderId;
     samplePlacedOrder.price = result.price;

@@ -264,70 +264,70 @@ export class AsterPerpExchange extends ExchangeConnector {
     }
   }
 
-  public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
-    // Place the order
-    const placedOrder = await this.placeOrder(order, reduceOnly);
+  // public async openPosition(order: OrderData, reduceOnly = false): Promise<PlacedOrderData> {
+  //   // Place the order
+  //   const placedOrder = await this.placeOrder(order, reduceOnly);
 
-    // Poll for order status every second until filled, rejected, or timeout (60s)
-    const maxWaitTime = 60000; // 60 seconds
-    const pollInterval = 1000; // 1 second
-    const startTime = Date.now();
+  //   // Poll for order status every second until filled, rejected, or timeout (60s)
+  //   const maxWaitTime = 60_000; // 60 seconds
+  //   const pollInterval = 1_000; // 1 second
+  //   const startTime = Date.now();
 
-    while (Date.now() - startTime < maxWaitTime) {
-      // Wait for poll interval before checking
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+  //   while (Date.now() - startTime < maxWaitTime) {
+  //     // Wait for poll interval before checking
+  //     await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
-      // Get order status from the API
-      const orders = await this.getAllOrders(order.token);
-      const currentOrder = orders.find((o) => o.orderId === placedOrder.orderId);
+  //     // Get order status from the API
+  //     const orders = await this.getAllOrders(order.token);
+  //     const currentOrder = orders.find((o) => o.orderId === placedOrder.orderId);
 
-      if (!currentOrder) {
-        // Order not found - could be filled and removed from open orders
-        // Check positions to see if order was filled
-        try {
-          const positions = await this.getAllPositions();
-          const relatedPosition = positions.find(
-            (pos) =>
-              pos.token === order.token &&
-              ((order.side === PositionSide.LONG && pos.side === PositionSide.LONG) ||
-                (order.side === PositionSide.SHORT && pos.side === PositionSide.SHORT)),
-          );
-          if (relatedPosition && relatedPosition.size > 0) {
-            // Order was likely filled
-            return {
-              ...placedOrder,
-              status: OrderStatus.FILLED,
-            };
-          }
-        } catch {
-          // Ignore errors - continue polling
-        }
-        continue;
-      }
+  //     if (!currentOrder) {
+  //       // Order not found - could be filled and removed from open orders
+  //       // Check positions to see if order was filled
+  //       try {
+  //         const positions = await this.getAllPositions();
+  //         const relatedPosition = positions.find(
+  //           (pos) =>
+  //             pos.token === order.token &&
+  //             ((order.side === PositionSide.LONG && pos.side === PositionSide.LONG) ||
+  //               (order.side === PositionSide.SHORT && pos.side === PositionSide.SHORT)),
+  //         );
+  //         if (relatedPosition && relatedPosition.size > 0) {
+  //           // Order was likely filled
+  //           return {
+  //             ...placedOrder,
+  //             status: OrderStatus.FILLED,
+  //           };
+  //         }
+  //       } catch {
+  //         // Ignore errors - continue polling
+  //       }
+  //       continue;
+  //     }
 
-      // Check order status
-      if (currentOrder.status === OrderStatus.FILLED) {
-        return {
-          ...placedOrder,
-          status: OrderStatus.FILLED,
-        };
-      }
+  //     // Check order status
+  //     if (currentOrder.status === OrderStatus.FILLED) {
+  //       return {
+  //         ...placedOrder,
+  //         status: OrderStatus.FILLED,
+  //       };
+  //     }
 
-      if (currentOrder.status === OrderStatus.REJECTED) {
-        throw new Error("Order rejected");
-      }
+  //     if (currentOrder.status === OrderStatus.REJECTED) {
+  //       throw new Error(`${this.name}: Order ${currentOrder.orderId} rejected`);
+  //     }
 
-      if (currentOrder.status === OrderStatus.CANCELED) {
-        throw new Error("Order was cancelled");
-      }
+  //     if (currentOrder.status === OrderStatus.CANCELED) {
+  //       throw new Error(`${this.name}: Order ${currentOrder.orderId} cancelled`);
+  //     }
 
-      // If still OPEN, continue polling
-    }
+  //     // If still OPEN, continue polling
+  //   }
 
-    // Timeout after 60 seconds - cancel the order
-    await this.cancelOrder(placedOrder);
-    throw new Error("Order timeout: still open after 60 seconds, cancelled");
-  }
+  //   // Timeout after 60 seconds - cancel the order
+  //   await this.cancelOrder(placedOrder);
+  //   throw new Error("Order timeout: still open after 60 seconds, cancelled");
+  // }
 
   // https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md#cancel-order-trade
   public async cancelOrder(order: PlacedOrderData): Promise<boolean> {
