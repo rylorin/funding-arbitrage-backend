@@ -426,29 +426,17 @@ export class ExtendedExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(_symbol?: string, _limit = 100): Promise<any[]> {
-    try {
-      // Note: Extended requires authentication for order history
-      console.warn("Extended order history requires Stark signature authentication");
-      return [];
-    } catch (error) {
-      console.error("Error fetching Extended order history:", error);
-      throw new Error("Failed to fetch order history from Extended");
-    }
-  }
-
   public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
     try {
-      // Note: Extended requires authentication for order history
-      console.warn("Extended getAllOrders requires Stark signature authentication");
       // Extended API: GET /api/v1/user/orders
       const params: any = {};
       if (token) params.market = this.tokenToTicker(token);
       if (limit) params.limit = limit;
 
-      const { data } = await this.get<unknown>("/api/v1/user/orders", { params });
+      const { data } = await this.get<unknown>("/api/v1/user/orders/history", { params });
+      console.log("Extended orders data:", data);
       // Assuming data structure: { orders: [...] }
-      const orders = (data as any)?.orders || [];
+      const orders = (data as any)?.data || [];
 
       return orders.map((order: any) => ({
         exchange: this.name,

@@ -350,62 +350,10 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
     }
   }
 
-  public async getOrderHistory(_symbol?: string, _limit = 100): Promise<any[]> {
-    try {
-      // Note: This requires user's wallet address for order history
-      console.warn("Hyperliquid order history requires user wallet address authentication");
-      return [];
-    } catch (error) {
-      console.error("Error fetching Hyperliquid order history:", error);
-      throw new Error("Failed to fetch order history from Hyperliquid");
-    }
-  }
-
-  public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
-    try {
-      if (!this.primaryAddress) {
-        throw new Error("Hyperliquid requires primaryAddress configuration");
-      }
-
-      // Hyperliquid API: POST /info with type "orderHistory"
-      const response = await this.post(ENDPOINTS.INFO, {
-        type: "orderHistory",
-        user: this.primaryAddress,
-        coin: token,
-        limit,
-      });
-
-      const orders = response.data || [];
-
-      return orders.map((order: any) => ({
-        exchange: this.name,
-        token: order.coin as TokenSymbol,
-        side: order.isBuy ? PositionSide.LONG : PositionSide.SHORT,
-        price: parseFloat(order.price) || 0,
-        size: parseFloat(order.sz) || 0,
-        leverage: order.leverage?.value || 1,
-        slippage: 0,
-        orderId: order.oid?.toString() || order.id?.toString(),
-        status: this.mapOrderStatus(order.status),
-      }));
-    } catch (error) {
-      console.error("Error fetching Hyperliquid all orders:", error);
-      throw new Error("Failed to fetch all orders from Hyperliquid");
-    }
-  }
-
-  private mapOrderStatus(status: string): OrderStatus {
-    switch (status?.toUpperCase()) {
-      case "FILLED":
-        return OrderStatus.FILLED;
-      case "CANCELED":
-      case "CANCELLED":
-        return OrderStatus.CANCELED;
-      case "REJECTED":
-        return OrderStatus.REJECTED;
-      default:
-        return OrderStatus.OPEN;
-    }
+  public async getAllOrders(token?: TokenSymbol, _limit = 100): Promise<PlacedOrderData[]> {
+    const orders = await this.nativeGetAllOrders(token);
+    console.log("orders", orders[0]);
+    return orders;
   }
 }
 

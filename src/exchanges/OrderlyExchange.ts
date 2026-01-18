@@ -478,27 +478,14 @@ export class OrderlyExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(symbol?: string, limit = 100): Promise<any[]> {
-    try {
-      const params: any = {};
-      if (symbol) params.symbol = symbol;
-      if (limit) params.size = limit;
-
-      const response = await this.get("/v1/orders", { params });
-      return response.data.data?.rows || [];
-    } catch (error) {
-      console.error("Error fetching Orderly order history:", error);
-      throw new Error("Failed to fetch order history from Orderly");
-    }
-  }
-
+  // https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/get-orders
   public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
     try {
       const params: any = {};
       if (token) params.symbol = this.tokenToTicker(token);
       if (limit) params.size = limit;
 
-      const response = await this.get("/v1/orders", { params });
+      const response = await this.get("/v1/orders");
       const orders = response.data.data?.rows || [];
 
       return orders.map((order: any) => ({

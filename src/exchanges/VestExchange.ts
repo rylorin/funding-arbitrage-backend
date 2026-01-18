@@ -351,20 +351,6 @@ export class VestExchange extends ExchangeConnector {
     }
   }
 
-  public async getOrderHistory(symbol?: string, limit = 100): Promise<any[]> {
-    try {
-      const params: any = {};
-      if (symbol) params.symbol = symbol;
-      if (limit) params.limit = limit;
-
-      const response = await this.get("/orders", { params });
-      return response.data || [];
-    } catch (error) {
-      console.error("Error fetching Vest order history:", error);
-      throw new Error("Failed to fetch order history from Vest");
-    }
-  }
-
   public async getAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
     try {
       const params: any = {};

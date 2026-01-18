@@ -436,7 +436,7 @@ export class DeltaNeutralTradingService implements Service {
 
       let activePositionsCount = activePositions.length;
       if (activePositionsCount) {
-        console.log(`Actives positions for user ${user.id}:`);
+        console.log(`Actives positions for user ${user.id} (max. ${user.settings.maxSimultaneousPositions}):`);
         activePositions.forEach((item) => console.log(`${item.token}: ${item.exchange} ${item.status}`));
       }
 
@@ -456,7 +456,10 @@ export class DeltaNeutralTradingService implements Service {
                 (opportunity.longExchange.name == leg.exchange || opportunity.shortExchange.name == leg.exchange),
             ) !== -1
           ) {
-            break;
+            console.log(
+              `ℹ️ User ${user.id} already has an active position for ${opportunity.token} @ ${opportunity.longExchange.name} or ${opportunity.shortExchange.name}`,
+            );
+            continue;
           }
 
           console.log(

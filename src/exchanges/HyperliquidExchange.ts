@@ -1,11 +1,12 @@
 // Base class for common Hyperliquid functionality
 import { cancelOrderToAction, orderWireToAction } from "@/hyperliquid/signing";
+import { PositionSide } from "@/models";
 import { ENDPOINTS, InfoType } from "@hyperliquid/constants";
 import { orderToWire, signL1Action } from "@hyperliquid/signing";
 import { ethers } from "ethers";
 import WebSocket from "ws";
 import { CancelOrderRequest, Meta, OrderRequest } from "../hyperliquid/types";
-import { ExchangeConnector, ExchangeName, TokenSymbol } from "../types/index";
+import { ExchangeConnector, ExchangeName, OrderStatus, PlacedOrderData, TokenSymbol } from "../types/index";
 
 export abstract class HyperliquidExchange extends ExchangeConnector {
   protected readonly IS_MAINNET: boolean;
@@ -301,6 +302,61 @@ export abstract class HyperliquidExchange extends ExchangeConnector {
       });
     } catch (error) {
       console.error("Error connecting to Hyperliquid WebSocket:", error);
+    }
+  }
+
+  private mapOrderStatus(status: string): OrderStatus {
+    switch (status) {
+      case "filled":
+        return OrderStatus.FILLED;
+      case "canceled":
+      case "cancelled":
+      case "selfTradeCanceled":
+      case "reduceOnlyCanceled":
+        return OrderStatus.CANCELED;
+      case "rejected":
+      case "minTradeNtlRejected":
+      case "perpMarginRejected":
+      case "reduceOnlyRejected":
+        return OrderStatus.REJECTED;
+      case "open":
+        return OrderStatus.OPEN;
+      default:
+        console.log("Unknown order status:", status);
+        return OrderStatus.OPEN;
+    }
+  }
+
+  protected async nativeGetAllOrders(token?: TokenSymbol, limit = 100): Promise<PlacedOrderData[]> {
+    try {
+      if (!this.primaryAddress) {
+        throw new Error("Hyperliquid requires primaryAddress configuration");
+      }
+
+      // Hyperliquid API: POST /info with type "orderHistory"
+      const response = await this.post(ENDPOINTS.INFO, {
+        type: InfoType.HISTORICAL_ORDERS,
+        user: this.primaryAddress,
+        coin: token,
+        limit,
+      });
+      console.log("📜 Hyperliquid all orders response:", JSON.stringify(response.data[0], null, 2));
+      const orders = response.data || [];
+
+      return orders.map((order: any) => ({
+        exchange: this.name,
+        token: order.order.coin as TokenSymbol,
+        side: order.order.side === "B" ? PositionSide.LONG : PositionSide.SHORT,
+        price: parseFloat(order.order.limitPx),
+        size: parseFloat(order.order.sz),
+        // leverage: order.leverage?.value || 1,
+        // slippage: 0,
+        orderId: order.order.oid.toString(),
+        status: this.mapOrderStatus(order.status),
+      }));
+    } catch (error) {
+      console.error("Error fetching Hyperliquid all orders:", error);
+      throw new Error("Failed to fetch all orders from Hyperliquid");
     }
   }
 }
