@@ -1,4 +1,4 @@
-import { PositionSide, PositionStatus } from "@/models/Position";
+import { PositionSide } from "@/models/Position";
 import { TradeStatus } from "@/models/TradeHistory";
 import { default as config, IConfig } from "config";
 import { Op } from "sequelize";
@@ -83,24 +83,24 @@ export class PositionSyncService implements Service {
             } else {
               // position not found on exchange
               switch (leg.status) {
-                case PositionStatus.OPENING:
+                case TradeStatus.OPENING:
                   if (now > leg.createdAt.getTime() + this.config.get<number>("graceDelay") * 1_000) {
                     // Something went wrong
                     await leg.update({
-                      status: PositionStatus.ERROR,
+                      status: TradeStatus.ERROR,
                     });
                   }
                   break;
-                case PositionStatus.OPEN:
+                case TradeStatus.OPEN:
                   // Something wrong happened
                   await leg.update({
-                    status: PositionStatus.ERROR,
+                    status: TradeStatus.ERROR,
                   });
                   break;
-                case PositionStatus.CLOSING:
+                case TradeStatus.CLOSING:
                   // Ok, position finally closed
                   await leg.update({
-                    status: PositionStatus.CLOSED,
+                    status: TradeStatus.CLOSED,
                   });
                   break;
               }
@@ -108,9 +108,9 @@ export class PositionSyncService implements Service {
           }
 
           // Update trade status
-          const allOpen = legs.reduce((p, leg) => (leg.status == PositionStatus.OPEN ? p : false), true);
+          const allOpen = legs.reduce((p, leg) => (leg.status == TradeStatus.OPEN ? p : false), true);
           const allClosed = legs.reduce(
-            (p, leg) => (leg.status == PositionStatus.CLOSED || leg.status == PositionStatus.ERROR ? p : false),
+            (p, leg) => (leg.status == TradeStatus.CLOSED || leg.status == TradeStatus.ERROR ? p : false),
             true,
           );
           switch (trade.status) {

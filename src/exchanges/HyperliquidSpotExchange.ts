@@ -1,6 +1,7 @@
+import { TradeStatus } from "@/models/TradeHistory";
 import { ENDPOINTS, InfoType } from "@hyperliquid/constants";
 import { SpotClearinghouseState, Tif } from "../hyperliquid/types";
-import Position, { PositionSide, PositionStatus } from "../models/Position";
+import Position, { PositionSide } from "../models/Position";
 import { FundingRateData, OrderData, OrderStatus, PlacedOrderData, TokenSymbol } from "../types/index";
 import { ExchangeName, ExchangeType } from "./ExchangeConnector";
 import { HyperliquidExchange } from "./HyperliquidExchange";
@@ -295,7 +296,7 @@ export class HyperliquidSpotExchange extends HyperliquidExchange {
             userId: "userId",
             tradeId: "tradeId",
             token: token as TokenSymbol,
-            status: PositionStatus.OPEN,
+            status: TradeStatus.OPEN,
             entryTimestamp: new Date(),
             exchange: this.name,
             side: PositionSide.LONG, // Spot holdings are always "long"

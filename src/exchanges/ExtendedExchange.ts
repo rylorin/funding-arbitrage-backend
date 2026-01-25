@@ -10,7 +10,8 @@ import { HexString } from "@/extended/utils/hex";
 import { Decimal, Long } from "@/extended/utils/number";
 import { roundToMinChange } from "@/extended/utils/round-to-min-change";
 import { Position } from "@/models";
-import { PositionSide, PositionStatus } from "@/models/Position";
+import { PositionSide } from "@/models/Position";
+import { TradeStatus } from "@/models/TradeHistory";
 import WebSocket from "ws";
 import { ExchangeConnector, FundingRateData, OrderData, OrderStatus, PlacedOrderData, TokenSymbol } from "../types";
 
@@ -590,7 +591,7 @@ export class ExtendedExchange extends ExchangeConnector {
           userId: "userId",
           tradeId: "tradeId",
           token: this.tokenFromTicker(pos.market),
-          status: pos.size ? PositionStatus.OPEN : PositionStatus.CLOSED,
+          status: pos.size ? TradeStatus.OPEN : TradeStatus.CLOSED,
           entryTimestamp: new Date(pos.createdAt),
 
           exchange: this.name,

@@ -1,5 +1,5 @@
 import { defaultUserSettings, Position, TradeHistory, User, UserAttributes, UserSettings } from "@/models";
-import { PositionSide, PositionStatus } from "@/models/Position";
+import { PositionSide } from "@/models/Position";
 import { TradeStatus } from "@/models/TradeHistory";
 import { default as config, IConfig } from "config";
 import { Op } from "sequelize";
@@ -150,14 +150,14 @@ export class DeltaNeutralTradingService implements Service {
   /**
    * Ferme une position delta-neutral
    */
-  public async closeTrade(position: TradeHistory, reason = "Manual close"): Promise<boolean> {
+  public async closeTrade(trade: TradeHistory, reason = "Manual close"): Promise<boolean> {
     try {
-      console.log(`🔒 Closing position ${position.token} ${position.id} ${reason}`);
+      console.log(`🔒 Closing position ${trade.token}@${trade.exchange} ${trade.id} ${reason}`);
 
       const legs = await Position.findAll({
         where: {
-          tradeId: position.id,
-          status: PositionStatus.OPEN,
+          tradeId: trade.id,
+          status: TradeStatus.OPEN,
         },
         include: [
           {
@@ -166,7 +166,7 @@ export class DeltaNeutralTradingService implements Service {
           },
         ],
       });
-      const user = await User.findByPk(position.userId);
+      const user = await User.findByPk(trade.userId);
       const userSettings = this.getUserTradingSettings(user || undefined);
 
       const success = await legs.reduce(
@@ -186,7 +186,7 @@ export class DeltaNeutralTradingService implements Service {
               };
               return exchange
                 .closePosition(orderData)
-                .then(async () => leg.update({ status: PositionStatus.CLOSING }))
+                .then(async () => leg.update({ status: TradeStatus.CLOSING }))
                 .then(() => success)
                 .catch((_reason) => false);
             } else {
@@ -197,17 +197,17 @@ export class DeltaNeutralTradingService implements Service {
       );
 
       // Mettre à jour le statut de la position
-      await position.update({
+      await trade.update({
         status: TradeStatus.CLOSING,
         // closedAt: new Date(),
         closedReason: reason,
       });
 
-      console.log(`${success ? "✅" : "⚠️"} Position ${position.id} closing: ${reason}`);
+      console.log(`${success ? "✅" : "⚠️"} Position ${trade.id} closing: ${reason}`);
 
       return success;
     } catch (error) {
-      console.error(`Error closing position ${position.id}:`, error);
+      console.error(`Error closing position ${trade.id}:`, error);
       return false;
     }
   }
@@ -322,7 +322,7 @@ export class DeltaNeutralTradingService implements Service {
   private async checkOrphanLegs() {
     const orphanLegs = await Position.findAll({
       where: {
-        status: PositionStatus.OPEN,
+        status: TradeStatus.OPEN,
       },
       include: [
         {
@@ -356,7 +356,7 @@ export class DeltaNeutralTradingService implements Service {
       const legs = await Position.findAll({
         where: {
           tradeId: position.id,
-          status: [PositionStatus.OPENING, PositionStatus.OPEN],
+          status: [TradeStatus.OPENING, TradeStatus.OPEN],
         },
       });
       if (legs.length < 2) {
@@ -410,20 +410,6 @@ export class DeltaNeutralTradingService implements Service {
     const results: TradingResult[] = [];
 
     try {
-      // Vérifier les positions actives de l'utilisateur
-      const activePositions = await TradeHistory.findAll({
-        where: {
-          userId: user.id,
-          status: { [Op.in]: [TradeStatus.OPENING, TradeStatus.OPEN, TradeStatus.CLOSING] },
-        },
-      });
-      const activeLegs = await Position.findAll({
-        where: {
-          userId: user.id,
-          status: { [Op.in]: [TradeStatus.OPENING, TradeStatus.OPEN, TradeStatus.CLOSING] },
-        },
-      });
-
       // Filtrer les opportunités selon les settings utilisateur
       const filteredOpportunities = opportunityDetectionService
         .filterByUserSettings(opportunities, settings)
@@ -434,6 +420,13 @@ export class DeltaNeutralTradingService implements Service {
         return results;
       }
 
+      // Vérifier les positions actives de l'utilisateur
+      const activePositions = await TradeHistory.findAll({
+        where: {
+          userId: user.id,
+          status: { [Op.in]: [TradeStatus.OPENING, TradeStatus.OPEN, TradeStatus.CLOSING] },
+        },
+      });
       let activePositionsCount = activePositions.length;
       if (activePositionsCount) {
         console.log(`Actives positions for user ${user.id} (max. ${user.settings.maxSimultaneousPositions}):`);
@@ -449,13 +442,30 @@ export class DeltaNeutralTradingService implements Service {
           }
 
           // filter out token that already have an active position as multiple positions for the same token/exchange combinaison is unsupported
-          if (
-            activeLegs.findIndex(
-              (leg) =>
-                leg.token == opportunity.token &&
-                (opportunity.longExchange.name == leg.exchange || opportunity.shortExchange.name == leg.exchange),
-            ) !== -1
-          ) {
+          const activeLegs = await Position.findAll({
+            where: {
+              userId: user.id,
+              status: { [Op.in]: [TradeStatus.OPENING, TradeStatus.OPEN, TradeStatus.CLOSING] },
+            },
+          });
+          // DEBUG: Log activeLegs for diagnosis
+          console.debug(`[DEBUG] Checking opportunity ${opportunity.token} for user ${user.id}`);
+          console.debug(`[DEBUG] Active legs count: ${activeLegs.length}`);
+          console.debug(`[DEBUG] Active positions count: ${activePositions.length}`);
+          console.debug(`[DEBUG] Active positions count variable: ${activePositionsCount}`);
+          if (activeLegs.length > 0) {
+            console.debug(
+              `[DEBUG] Active legs:`,
+              activeLegs.map((l) => ({ token: l.token, exchange: l.exchange, status: l.status })),
+            );
+          }
+          const existingLegIndex = activeLegs.findIndex(
+            (leg) =>
+              leg.token == opportunity.token &&
+              (opportunity.longExchange.name == leg.exchange || opportunity.shortExchange.name == leg.exchange),
+          );
+          console.log(`[DEBUG] existingLegIndex: ${existingLegIndex} (should be -1 to proceed)`);
+          if (existingLegIndex !== -1) {
             console.log(
               `ℹ️ User ${user.id} already has an active position for ${opportunity.token} @ ${opportunity.longExchange.name} or ${opportunity.shortExchange.name}`,
             );
@@ -751,7 +761,7 @@ export class DeltaNeutralTradingService implements Service {
       userId: trade.userId,
       tradeId: trade.id,
       token: trade.token,
-      status: PositionStatus.OPENING,
+      status: TradeStatus.OPENING,
       side,
       entryTimestamp: new Date(),
 

@@ -1,8 +1,9 @@
 // API reference: https://github.com/asterdex/api-docs/blob/master/aster-finance-futures-api.md
+import { TradeStatus } from "@/models/TradeHistory";
 import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { createHmac } from "crypto";
 import WebSocket from "ws";
-import Position, { PositionSide, PositionStatus } from "../models/Position";
+import Position, { PositionSide } from "../models/Position";
 import {
   ExchangeConnector,
   FundingRateData,
@@ -568,7 +569,7 @@ export class AsterPerpExchange extends ExchangeConnector {
               userId: "userId",
               tradeId: "tradeId",
               token,
-              status: PositionStatus.OPEN,
+              status: TradeStatus.OPEN,
 
               exchange: this.name,
               side: parseFloat(pos.positionAmt) > 0 ? PositionSide.LONG : PositionSide.SHORT,

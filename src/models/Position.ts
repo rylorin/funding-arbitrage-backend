@@ -1,16 +1,8 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../config/database";
 import { ExchangeName, OrderData, TokenSymbol } from "../types/index";
-import TradeHistory from "./TradeHistory";
+import TradeHistory, { TradeStatus } from "./TradeHistory";
 import User from "./User";
-
-export enum PositionStatus {
-  OPENING = "OPENING",
-  OPEN = "OPEN",
-  CLOSING = "CLOSING",
-  CLOSED = "CLOSED",
-  ERROR = "ERROR",
-}
 
 // export const PositionStatus = {
 //   OPEN : "OPEN",
@@ -31,7 +23,7 @@ interface PositionAttributes extends OrderData {
   tradeId: string;
 
   token: TokenSymbol;
-  status: PositionStatus;
+  status: TradeStatus;
   entryTimestamp: Date;
 
   cost?: number;
@@ -50,7 +42,7 @@ export class Position extends Model<PositionAttributes, PositionCreationAttribut
   declare public userId: string;
   declare public tradeId: string;
   declare public token: TokenSymbol;
-  declare public status: PositionStatus;
+  declare public status: TradeStatus;
   declare public entryTimestamp: Date;
 
   declare public exchange: ExchangeName;
@@ -101,9 +93,15 @@ Position.init(
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM("OPEN", "CLOSED", "ERROR", "CLOSING"),
+      type: DataTypes.ENUM(
+        TradeStatus.OPENING,
+        TradeStatus.OPEN,
+        TradeStatus.CLOSING,
+        TradeStatus.CLOSED,
+        TradeStatus.ERROR,
+      ),
       allowNull: false,
-      defaultValue: "OPEN",
+      defaultValue: TradeStatus.OPENING,
     },
     entryTimestamp: {
       type: DataTypes.DATE,

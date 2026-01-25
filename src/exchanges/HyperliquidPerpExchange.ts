@@ -1,7 +1,8 @@
 import { signL1Action } from "@/hyperliquid/signing";
+import { TradeStatus } from "@/models/TradeHistory";
 import { ENDPOINTS, InfoType } from "@hyperliquid/constants";
 import { HyperliquidClearinghouseState, HyperliquidPosition, Meta, Tif } from "../hyperliquid/types";
-import Position, { PositionSide, PositionStatus } from "../models/Position";
+import Position, { PositionSide } from "../models/Position";
 import { FundingRateData, OrderData, OrderStatus, PlacedOrderData, TokenSymbol } from "../types/index";
 import { ExchangeType } from "./ExchangeConnector";
 import { HyperliquidExchange } from "./HyperliquidExchange";
@@ -338,7 +339,7 @@ export class HyperliquidPerpExchange extends HyperliquidExchange {
         userId: "userId", // This should be provided by the caller
         tradeId: "tradeId", // This should be provided by the caller
         token: hlPosition.position.coin as TokenSymbol,
-        status: parseFloat(hlPosition.position.szi) !== 0 ? PositionStatus.OPEN : PositionStatus.CLOSED,
+        status: parseFloat(hlPosition.position.szi) !== 0 ? TradeStatus.OPEN : TradeStatus.CLOSED,
         // entryTimestamp: new Date(), // Hyperliquid doesn't provide entry timestamp in this endpoint
 
         exchange: this.name,

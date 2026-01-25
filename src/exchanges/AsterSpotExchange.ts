@@ -1,8 +1,9 @@
 // API reference: https://github.com/asterdex/api-docs/blob/master/aster-finance-spot-api.md
+import { TradeStatus } from "@/models/TradeHistory";
 import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { createHmac } from "crypto";
 import WebSocket from "ws";
-import Position, { PositionSide, PositionStatus } from "../models/Position";
+import Position, { PositionSide } from "../models/Position";
 import {
   ExchangeConnector,
   FundingRateData,
@@ -438,7 +439,7 @@ export class AsterSpotExchange extends ExchangeConnector {
               userId: "userId",
               tradeId: "tradeId",
               token: token as TokenSymbol,
-              status: PositionStatus.OPEN,
+              status: TradeStatus.OPEN,
               entryTimestamp: new Date(),
 
               exchange: this.name,

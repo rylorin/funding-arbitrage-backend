@@ -120,8 +120,15 @@ TradeHistory.init(
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM("OPEN", "CLOSE", "PARTIAL_CLOSE", "ERROR"),
+      type: DataTypes.ENUM(
+        TradeStatus.OPENING,
+        TradeStatus.OPEN,
+        TradeStatus.CLOSING,
+        TradeStatus.CLOSED,
+        TradeStatus.ERROR,
+      ),
       allowNull: false,
+      defaultValue: TradeStatus.OPENING,
     },
     side: {
       type: DataTypes.ENUM("long", "short", "close_long", "close_short", "DELTA_NEUTRAL", "AUTO_CLOSE"),

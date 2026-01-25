@@ -1,6 +1,7 @@
 // API reference documation available at https://docs.vestmarkets.com/vest-api
 import { Position } from "@/models";
-import { PositionSide, PositionStatus } from "@/models/Position";
+import { PositionSide } from "@/models/Position";
+import { TradeStatus } from "@/models/TradeHistory";
 import { generateCancelOrderSignature, generateOrderSignature } from "@/utils/vest";
 import WebSocket from "ws";
 import {
@@ -520,7 +521,7 @@ export class VestExchange extends ExchangeConnector {
           userId: "userId",
           tradeId: "tradeId",
           token: this.tokenFromTicker(pos.symbol),
-          status: pos.size ? PositionStatus.OPEN : PositionStatus.CLOSED,
+          status: pos.size ? TradeStatus.OPEN : TradeStatus.CLOSED,
           entryTimestamp: 0,
 
           exchange: this.name,
